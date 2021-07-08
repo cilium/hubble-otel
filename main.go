@@ -22,7 +22,11 @@ import (
 	// loggerOTEL "github.com/open-telemetry/opentelemetry-log-collection/logger"
 	// "go.uber.org/zap"
 
-	"github.com/open-telemetry/opentelemetry-log-collection/entry"
+	// "github.com/open-telemetry/opentelemetry-log-collection/entry"
+
+	"github.com/isovalent/hubble-otel/types"
+
+	otelLogs "github.com/open-telemetry/opentelemetry-proto/gen/go/logs/v1"
 )
 
 func main() {
@@ -78,7 +82,7 @@ func run() error {
 
 	var span trace.Span
 
-	flows := make(chan entry.Entry)
+	// flows := make(chan entry.Entry)
 
 	defer func() {
 		_ = pusher.Stop(ctx)
@@ -102,9 +106,9 @@ func run() error {
 
 		// fmt.Println(flow)
 		// logger.Infow("new flow", "flow", flow)
-		_ = flow
 
-		flowEntry := types.NewFlowLog(flow)
+		_ = types.NewFlowLog(flow)
+		_ = &otelLogs.LogRecord{}
 
 		ctx, span = tracer.Start(ctx, "flows")
 
