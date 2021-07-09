@@ -166,8 +166,8 @@ func newFlowLog(hubbleResp *observer.GetFlowsResponse) (*logsV1.ResourceLogs, er
 							Values: []*commonV1.KeyValue{{
 								Key: FlowLogBodyKeyFlowV1JSON,
 								Value: &commonV1.AnyValue{
-									Value: &commonV1.AnyValue_BytesValue{
-										BytesValue: body,
+									Value: &commonV1.AnyValue_StringValue{
+										StringValue: string(body),
 									},
 								},
 							}},
