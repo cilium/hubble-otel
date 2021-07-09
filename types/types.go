@@ -1,9 +1,9 @@
 package types
 
 import (
-	commonv1 "github.com/isovalent/hubble-otel/types/common/v1"
-	logsv1 "github.com/isovalent/hubble-otel/types/logs/v1"
-	resourcev1 "github.com/isovalent/hubble-otel/types/resource/v1"
+	commonV1 "github.com/isovalent/hubble-otel/types/common/v1"
+	logsV1 "github.com/isovalent/hubble-otel/types/logs/v1"
+	resourceV1 "github.com/isovalent/hubble-otel/types/resource/v1"
 
 	"github.com/cilium/cilium/api/v1/flow"
 )
@@ -14,17 +14,34 @@ const (
 	FlowLogResourceCiliumNodeName  = "cilium.node_name"
 )
 
-func NewFlowLog(flow *flow.Flow) *logsv1.ResourceLogs {
-	_ = commonv1.AnyValue{}
-	return &logsv1.ResourceLogs{
-		Resource: &resourcev1.Resource{},
-		// Timestamp: flow.Time.AsTime(),
-		// Name:      FlowLogNameCiliumFlowV1Alpha1,
-		// Attributes: []attribute.KeyValue{
-		// 	attribute.Any(FlowLogNameCiliumFlowV1Alpha1, flow),
-		// },
-		// Resource: []attribute.KeyValue{
-		// 	attribute.String(FlowLogResourceCiliumNodeName, flow.GetNodeName()),
-		// },
+func NewFlowLog(flow *flow.Flow) *logsV1.ResourceLogs {
+	_ = commonV1.AnyValue{}
+	return &logsV1.ResourceLogs{
+		Resource: &resourceV1.Resource{
+			Attributes: newStringAttributes(map[string]string{
+				FlowLogResourceCiliumNodeName: flow.GetNodeName(),
+			}),
+		},
+		InstrumentationLibraryLogs: []*logsV1.InstrumentationLibraryLogs{{
+			Logs: []*logsV1.LogRecord{{
+				TimeUnixNano: uint64(flow.GetTime().GetNanos()),
+				Attributes:   newStringAttributes(map[string]string{}),
+			}},
+		}},
 	}
+}
+
+func newStringAttributes(attributes map[string]string) []*commonV1.KeyValue {
+	results := []*commonV1.KeyValue{}
+	for k, v := range attributes {
+		results = append(results, &commonV1.KeyValue{
+			Key: k,
+			Value: &commonV1.AnyValue{
+				Value: &commonV1.AnyValue_StringValue{
+					StringValue: v,
+				},
+			},
+		})
+	}
+	return results
 }

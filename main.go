@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -10,117 +11,112 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/stdout"
-	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/metric/global"
-	"go.opentelemetry.io/otel/trace"
-
 	"github.com/cilium/cilium/api/v1/observer"
 
-	// loggerOTEL "github.com/open-telemetry/opentelemetry-log-collection/logger"
-	// "go.uber.org/zap"
-
-	// "github.com/open-telemetry/opentelemetry-log-collection/entry"
-
 	"github.com/isovalent/hubble-otel/types"
-
-	otelLogs "github.com/open-telemetry/opentelemetry-proto/gen/go/logs/v1"
+	logsCollectorV1 "github.com/isovalent/hubble-otel/types/collector/logs/v1"
+	logsV1 "github.com/isovalent/hubble-otel/types/logs/v1"
 )
 
 func main() {
-	if err := run(); err != nil {
+	hubbleAddress := flag.String("hubbleAddress", "localhost:4245", "connect to Hubble on this address")
+	otlpAddress := flag.String("otlpAddress", "", "connect to OTLP receiver on this address")
+
+	logBufferSize := flag.Int("logBufferSize", 2048, "size of the buffer")
+
+	flag.Parse()
+
+	if err := run(*hubbleAddress, *otlpAddress, *logBufferSize); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
+func run(hubbleAddress, otlpAddress string, logBufferSize int) error {
 	ctx := context.Background()
 
-	// zlogger, _ := zap.NewProduction()
-	// defer zlogger.Sync()
-
-	// logger := loggerOTEL.New(zlogger.Sugar())
-
-	conn, err := grpc.DialContext(ctx, "localhost:4245", grpc.WithInsecure())
+	hubbleConn, err := grpc.DialContext(ctx, hubbleAddress, grpc.WithInsecure())
 	if err != nil {
 		return fmt.Errorf("failed to connect to Hubble server: %w", err)
 	}
 
-	defer conn.Close()
+	defer hubbleConn.Close()
 
-	client := observer.NewObserverClient(conn)
-
-	b, err := client.GetFlows(ctx, &observer.GetFlowsRequest{Follow: true})
+	otlpConn, err := grpc.DialContext(ctx, otlpAddress, grpc.WithInsecure())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to connect to OTLP receiver: %w", err)
 	}
 
-	tracer := otel.GetTracerProvider().Tracer(
-		instrumentationName,
-		trace.WithInstrumentationVersion(instrumentationVersion),
-	)
+	defer otlpConn.Close()
 
-	meter := global.GetMeterProvider().Meter(
-		instrumentationName,
-		metric.WithInstrumentationVersion(instrumentationVersion),
-	)
+	flows := make(chan *logsV1.ResourceLogs, logBufferSize)
 
-	flowCounter := metric.Must(meter).NewInt64Counter("packets")
+	errs := make(chan error)
 
-	exportOpts := []stdout.Option{
-		stdout.WithPrettyPrint(),
-	}
+	go logSender(ctx, otlpConn, logBufferSize, flows, errs)
 
-	// Registers both a trace and meter Provider globally.
-	tracerProvider, pusher, err := stdout.InstallNewPipeline(exportOpts, nil)
-	if err != nil {
-		return fmt.Errorf("could not initialize stdout exporter: %w", err)
-	}
-
-	var span trace.Span
-
-	// flows := make(chan entry.Entry)
-
-	defer func() {
-		_ = pusher.Stop(ctx)
-		_ = tracerProvider.Shutdown(ctx)
-	}()
+	go flowReciever(ctx, hubbleConn, flows, errs)
 
 	for {
-		resp, err := b.Recv()
-		switch err {
-		case io.EOF, context.Canceled:
+		select {
+		case <-ctx.Done():
 			return nil
-		case nil:
-		default:
-			if status.Code(err) == codes.Canceled {
-				return nil
+		case err := <-errs:
+			if err != nil {
+				return err
 			}
-			return err
 		}
-
-		flow := resp.GetFlow()
-
-		// fmt.Println(flow)
-		// logger.Infow("new flow", "flow", flow)
-
-		_ = types.NewFlowLog(flow)
-		_ = &otelLogs.LogRecord{}
-
-		ctx, span = tracer.Start(ctx, "flows")
-
-		eventType := attribute.Key("CiliumEventType").String(flow.GetEventType().String())
-
-		flowCounter.Add(ctx, 1, eventType)
-
-		span.End()
 	}
 }
 
-const (
-	instrumentationName    = "github.com/instrumentron"
-	instrumentationVersion = "v0.1.0"
-)
+func flowReciever(ctx context.Context, hubbleConn *grpc.ClientConn, flows chan<- *logsV1.ResourceLogs, errs chan<- error) {
+	flowObsever, err := observer.NewObserverClient(hubbleConn).
+		GetFlows(ctx, &observer.GetFlowsRequest{Follow: true})
+	if err != nil {
+		errs <- err
+		return
+	}
+
+	for {
+		hubbleResp, err := flowObsever.Recv()
+		switch err {
+		case io.EOF, context.Canceled:
+			return
+		case nil:
+		default:
+			if status.Code(err) == codes.Canceled {
+				return
+			}
+			errs <- err
+			return
+		}
+
+		flows <- types.NewFlowLog(hubbleResp.GetFlow())
+	}
+}
+
+func logSender(ctx context.Context, otlpConn *grpc.ClientConn, logBufferSize int, flows <-chan *logsV1.ResourceLogs, errs chan<- error) {
+	otlpLogs := logsCollectorV1.NewLogsServiceClient(otlpConn)
+
+	for {
+		logs := make([]*logsV1.ResourceLogs, logBufferSize)
+
+		for i := range logs {
+			logs[i] = <-flows
+		}
+
+		_, err := otlpLogs.Export(ctx, &logsCollectorV1.ExportLogsServiceRequest{ResourceLogs: logs})
+		switch err {
+		case io.EOF, context.Canceled:
+			return
+		case nil:
+			fmt.Printf("wrote %d entries to the OTLP receiver\n", logBufferSize)
+		default:
+			if status.Code(err) == codes.Canceled {
+				return
+			}
+			errs <- err
+			return
+		}
+	}
+}
