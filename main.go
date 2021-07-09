@@ -128,15 +128,17 @@ func logSender(ctx context.Context, otlpConn *grpc.ClientConn, logBufferSize int
 }
 
 const (
-	FlowLogAttributeCiliumLogKindVersion             = "cilium.log_kind_version"
-	FlowLogAttributeCiliumLogKindVersionFlowV1alpha1 = "flow/v1alpha1"
-	FlowLogAttributeCiliumLogEncoding                = "cilium.log_encoding"
-	FlowLogAttributeCiliumLogEncodingJSON            = "JSON"
+	keyPrefix = "io.cilium.otel."
 
-	FlowLogResourceCiliumClusterID = "cilium.cluster_id"
-	FlowLogResourceCiliumNodeName  = "cilium.node_name"
+	FlowLogAttributeLogKindVersion             = keyPrefix + "log_kind_version"
+	FlowLogAttributeLogKindVersionFlowV1alpha1 = "flow/v1alpha1"
+	FlowLogAttributeLogEncoding                = keyPrefix + "log_encoding"
+	FlowLogAttributeLogEncodingJSON            = "JSON"
 
-	FlowLogBodyKeyFlowV1JSON = "clium_flow_v1_json"
+	FlowLogResourceCiliumClusterID = keyPrefix + "cluster_id"
+	FlowLogResourceCiliumNodeName  = keyPrefix + "node_name"
+
+	FlowLogBodyKeyFlowV1JSON = keyPrefix + "flow_v1_json"
 )
 
 func newFlowLog(hubbleResp *observer.GetFlowsResponse) (*logsV1.ResourceLogs, error) {
@@ -157,8 +159,8 @@ func newFlowLog(hubbleResp *observer.GetFlowsResponse) (*logsV1.ResourceLogs, er
 			Logs: []*logsV1.LogRecord{{
 				TimeUnixNano: uint64(flow.GetTime().GetNanos()),
 				Attributes: newStringAttributes(map[string]string{
-					FlowLogAttributeCiliumLogKindVersion: FlowLogAttributeCiliumLogKindVersionFlowV1alpha1,
-					FlowLogAttributeCiliumLogEncoding:    FlowLogAttributeCiliumLogEncodingJSON,
+					FlowLogAttributeLogKindVersion: FlowLogAttributeLogKindVersionFlowV1alpha1,
+					FlowLogAttributeLogEncoding:    FlowLogAttributeLogEncodingJSON,
 				}),
 				Body: &commonV1.AnyValue{
 					Value: &commonV1.AnyValue_KvlistValue{
