@@ -1,20 +1,12 @@
 package types
 
 import (
-	"time"
-
-	"go.opentelemetry.io/otel/attribute"
+	commonv1 "github.com/isovalent/hubble-otel/types/common/v1"
+	logsv1 "github.com/isovalent/hubble-otel/types/logs/v1"
+	resourcev1 "github.com/isovalent/hubble-otel/types/resource/v1"
 
 	"github.com/cilium/cilium/api/v1/flow"
 )
-
-// FlowLog is an OpenTelemtery reprsentation of a Cilium flow
-type FlowLog struct {
-	Timestamp  time.Time            `json:"timestamp"`
-	Name       string               `json:"name"`
-	Attributes []attribute.KeyValue `json:"attributes,omitempty"`
-	Resource   []attribute.KeyValue `json:"resource,omitempty"`
-}
 
 const (
 	FlowLogNameCiliumFlowV1Alpha1  = "cilium.flow_v1alpha1"
@@ -22,15 +14,17 @@ const (
 	FlowLogResourceCiliumNodeName  = "cilium.node_name"
 )
 
-func NewFlowLog(flow *flow.Flow) *FlowLog {
-	return &FlowLog{
-		Timestamp: flow.Time.AsTime(),
-		Name:      FlowLogNameCiliumFlowV1Alpha1,
-		Attributes: []attribute.KeyValue{
-			attribute.Any(FlowLogNameCiliumFlowV1Alpha1, flow),
-		},
-		Resource: []attribute.KeyValue{
-			attribute.String(FlowLogResourceCiliumNodeName, flow.GetNodeName()),
-		},
+func NewFlowLog(flow *flow.Flow) *logsv1.ResourceLogs {
+	_ = commonv1.AnyValue{}
+	return &logsv1.ResourceLogs{
+		Resource: &resourcev1.Resource{},
+		// Timestamp: flow.Time.AsTime(),
+		// Name:      FlowLogNameCiliumFlowV1Alpha1,
+		// Attributes: []attribute.KeyValue{
+		// 	attribute.Any(FlowLogNameCiliumFlowV1Alpha1, flow),
+		// },
+		// Resource: []attribute.KeyValue{
+		// 	attribute.String(FlowLogResourceCiliumNodeName, flow.GetNodeName()),
+		// },
 	}
 }

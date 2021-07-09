@@ -7,7 +7,7 @@ import (
 	context "context"
 	fmt "fmt"
 	proto "github.com/gogo/protobuf/proto"
-	v1 "github.com/open-telemetry/opentelemetry-proto/gen/go/metrics/v1"
+	v1 "github.com/isovalent/hubble-otel/types/metrics/v1"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"

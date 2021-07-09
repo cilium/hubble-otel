@@ -6,8 +6,8 @@ package v1
 import (
 	fmt "fmt"
 	proto "github.com/gogo/protobuf/proto"
-	v11 "github.com/open-telemetry/opentelemetry-proto/gen/go/common/v1"
-	v1 "github.com/open-telemetry/opentelemetry-proto/gen/go/resource/v1"
+	v11 "github.com/isovalent/hubble-otel/types/common/v1"
+	v1 "github.com/isovalent/hubble-otel/types/resource/v1"
 	math "math"
 )
 
