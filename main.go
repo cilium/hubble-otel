@@ -16,7 +16,6 @@ import (
 	logsV1 "github.com/isovalent/hubble-otel/internal/otlp/logs/v1"
 	resourceV1 "github.com/isovalent/hubble-otel/internal/otlp/resource/v1"
 
-	"github.com/cilium/cilium/api/v1/flow"
 	"github.com/cilium/cilium/api/v1/observer"
 )
 
@@ -93,7 +92,12 @@ func flowReciever(ctx context.Context, hubbleConn *grpc.ClientConn, flows chan<-
 			return
 		}
 
-		flows <- newFlowLog(hubbleResp.GetFlow())
+		flow, err := newFlowLog(hubbleResp)
+		if err != nil {
+			errs <- err
+			return
+		}
+		flows <- flow
 	}
 }
 
@@ -124,13 +128,25 @@ func logSender(ctx context.Context, otlpConn *grpc.ClientConn, logBufferSize int
 }
 
 const (
-	FlowLogNameCiliumFlowV1Alpha1  = "cilium.flow_v1alpha1"
+	FlowLogAttributeCiliumLogKindVersion             = "cilium.log_kind_version"
+	FlowLogAttributeCiliumLogKindVersionFlowV1alpha1 = "flow/v1alpha1"
+	FlowLogAttributeCiliumLogEncoding                = "cilium.log_encoding"
+	FlowLogAttributeCiliumLogEncodingJSON            = "JSON"
+
 	FlowLogResourceCiliumClusterID = "cilium.cluster_id"
 	FlowLogResourceCiliumNodeName  = "cilium.node_name"
+
+	FlowLogBodyKeyFlowV1JSON = "clium_flow_v1_json"
 )
 
-func newFlowLog(flow *flow.Flow) *logsV1.ResourceLogs {
-	_ = commonV1.AnyValue{}
+func newFlowLog(hubbleResp *observer.GetFlowsResponse) (*logsV1.ResourceLogs, error) {
+	flow := hubbleResp.GetFlow()
+
+	body, err := flow.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+
 	return &logsV1.ResourceLogs{
 		Resource: &resourceV1.Resource{
 			Attributes: newStringAttributes(map[string]string{
@@ -140,10 +156,27 @@ func newFlowLog(flow *flow.Flow) *logsV1.ResourceLogs {
 		InstrumentationLibraryLogs: []*logsV1.InstrumentationLibraryLogs{{
 			Logs: []*logsV1.LogRecord{{
 				TimeUnixNano: uint64(flow.GetTime().GetNanos()),
-				Attributes:   newStringAttributes(map[string]string{}),
+				Attributes: newStringAttributes(map[string]string{
+					FlowLogAttributeCiliumLogKindVersion: FlowLogAttributeCiliumLogKindVersionFlowV1alpha1,
+					FlowLogAttributeCiliumLogEncoding:    FlowLogAttributeCiliumLogEncodingJSON,
+				}),
+				Body: &commonV1.AnyValue{
+					Value: &commonV1.AnyValue_KvlistValue{
+						KvlistValue: &commonV1.KeyValueList{
+							Values: []*commonV1.KeyValue{{
+								Key: FlowLogBodyKeyFlowV1JSON,
+								Value: &commonV1.AnyValue{
+									Value: &commonV1.AnyValue_BytesValue{
+										BytesValue: body,
+									},
+								},
+							}},
+						},
+					},
+				},
 			}},
 		}},
-	}
+	}, nil
 }
 
 func newStringAttributes(attributes map[string]string) []*commonV1.KeyValue {
