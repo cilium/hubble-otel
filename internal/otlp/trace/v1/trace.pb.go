@@ -6,8 +6,8 @@ package v1
 import (
 	fmt "fmt"
 	proto "github.com/gogo/protobuf/proto"
-	v11 "github.com/isovalent/hubble-otel/types/common/v1"
-	v1 "github.com/isovalent/hubble-otel/types/resource/v1"
+	v11 "github.com/isovalent/hubble-otel/internal/otlp/common/v1"
+	v1 "github.com/isovalent/hubble-otel/internal/otlp/resource/v1"
 	math "math"
 )
 

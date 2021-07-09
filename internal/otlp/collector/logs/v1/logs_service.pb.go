@@ -7,7 +7,7 @@ import (
 	context "context"
 	fmt "fmt"
 	proto "github.com/gogo/protobuf/proto"
-	v1 "github.com/isovalent/hubble-otel/types/logs/v1"
+	v1 "github.com/isovalent/hubble-otel/internal/otlp/logs/v1"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
