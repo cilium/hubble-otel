@@ -93,7 +93,7 @@ func flowReciever(ctx context.Context, hubbleConn *grpc.ClientConn, flows chan<-
 			return
 		}
 
-		flows <- types.NewFlowLog(hubbleResp.GetFlow())
+		flows <- newFlowLog(hubbleResp.GetFlow())
 	}
 }
 
@@ -129,7 +129,7 @@ const (
 	FlowLogResourceCiliumNodeName  = "cilium.node_name"
 )
 
-func NewFlowLog(flow *flow.Flow) *logsV1.ResourceLogs {
+func newFlowLog(flow *flow.Flow) *logsV1.ResourceLogs {
 	_ = commonV1.AnyValue{}
 	return &logsV1.ResourceLogs{
 		Resource: &resourceV1.Resource{
