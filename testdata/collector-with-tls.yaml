@@ -1,0 +1,29 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: localhost:55690
+        tls_settings:
+          ca_file: testdata/certs/ca.pem
+          cert_file: testdata/certs/test-server.pem
+          key_file: testdata/certs/test-server-key.pem
+      http:
+        endpoint: localhost:55691
+        tls_settings:
+          ca_file: testdata/certs/ca.pem
+          cert_file: testdata/certs/test-server.pem
+          key_file: testdata/certs/test-server-key.pem
+
+processors:
+  batch: {}
+
+exporters:
+  logging:
+    loglevel: debug
+
+service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [logging]

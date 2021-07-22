@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"flag"
 	"fmt"
 	"io"
@@ -9,41 +11,101 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 
-	logsCollectorV1 "github.com/isovalent/hubble-otel/internal/otlp/collector/logs/v1"
-	commonV1 "github.com/isovalent/hubble-otel/internal/otlp/common/v1"
-	logsV1 "github.com/isovalent/hubble-otel/internal/otlp/logs/v1"
-	resourceV1 "github.com/isovalent/hubble-otel/internal/otlp/resource/v1"
+	logsCollectorV1 "go.opentelemetry.io/proto/otlp/collector/logs/v1"
+	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
+	logsV1 "go.opentelemetry.io/proto/otlp/logs/v1"
+	resourceV1 "go.opentelemetry.io/proto/otlp/resource/v1"
 
 	"github.com/cilium/cilium/api/v1/observer"
 )
 
+type flags struct {
+	address *string
+	tls     *flagsTLS
+}
+
+type flagsTLS struct {
+	enable, insecureSkipVerify *bool
+
+	clientCertificate, clientKey, certificateAuthority *string
+}
+
 func main() {
-	hubbleAddress := flag.String("hubbleAddress", "localhost:4245", "connect to Hubble on this address")
-	otlpAddress := flag.String("otlpAddress", "", "connect to OTLP receiver on this address")
+	flagsHubble := flags{
+		address: flag.String("hubble.address", "localhost:4245", "connect to Hubble on this address"),
+		tls: &flagsTLS{
+			enable:               flag.Bool("hubble.tls.enable", false, "connect to Hubble using TLS"),
+			insecureSkipVerify:   flag.Bool("hubble.tls.insecureSkipVerify", false, "disable TLS verification for Hubble"),
+			clientCertificate:    flag.String("hubble.tls.clientCertificate", "", ""),
+			clientKey:            flag.String("hubble.tls.clientKey", "", ""),
+			certificateAuthority: flag.String("hubble.tls.certificateAuthority", "", ""),
+		},
+	}
+
+	flagsOTLP := flags{
+		address: flag.String("otlp.address", "", "connect to OTLP receiver on this address"),
+		tls: &flagsTLS{
+			enable:               flag.Bool("otlp.tls.enable", false, "connect to OTLP receiver using TLS"),
+			insecureSkipVerify:   flag.Bool("otlp.tls.insecureSkipVerify", false, "disable TLS verification for OTLP receiver"),
+			clientCertificate:    flag.String("otlp.tls.clientCertificate", "", ""),
+			clientKey:            flag.String("otlp.tls.clientKey", "", ""),
+			certificateAuthority: flag.String("otlp.tls.certificateAuthority", "", ""),
+		},
+	}
 
 	logBufferSize := flag.Int("logBufferSize", 2048, "size of the buffer")
 
 	flag.Parse()
 
-	if err := run(*hubbleAddress, *otlpAddress, *logBufferSize); err != nil {
+	if err := run(flagsHubble, flagsOTLP, *logBufferSize); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 }
 
-func run(hubbleAddress, otlpAddress string, logBufferSize int) error {
+func (f *flagsTLS) loadCredentials() (credentials.TransportCredentials, error) {
+	config := &tls.Config{
+		InsecureSkipVerify: *f.insecureSkipVerify,
+	}
+
+	if *f.certificateAuthority != "" {
+		config.RootCAs = x509.NewCertPool()
+		data, err := os.ReadFile(*f.certificateAuthority)
+		if err != nil {
+			return nil, fmt.Errorf("cannot open CA certificate %q: %w", *f.certificateAuthority, err)
+		}
+		if ok := config.RootCAs.AppendCertsFromPEM(data); !ok {
+			return nil, fmt.Errorf("cannot parse CA certificate %q: invalid PEM", *f.certificateAuthority)
+		}
+	}
+	return credentials.NewTLS(config), nil
+}
+
+func dialContext(ctx context.Context, f *flags) (*grpc.ClientConn, error) {
+	if !*f.tls.enable {
+		return grpc.DialContext(ctx, *f.address, grpc.WithInsecure())
+	}
+	creds, err := f.tls.loadCredentials()
+	if err != nil {
+		return nil, err
+	}
+	return grpc.DialContext(ctx, *f.address, grpc.WithTransportCredentials(creds))
+}
+
+func run(hubbleFlags, otlpFlags flags, logBufferSize int) error {
 	ctx := context.Background()
 
-	hubbleConn, err := grpc.DialContext(ctx, hubbleAddress, grpc.WithInsecure())
+	hubbleConn, err := dialContext(ctx, &hubbleFlags)
 	if err != nil {
 		return fmt.Errorf("failed to connect to Hubble server: %w", err)
 	}
 
 	defer hubbleConn.Close()
 
-	otlpConn, err := grpc.DialContext(ctx, otlpAddress, grpc.WithInsecure())
+	otlpConn, err := dialContext(ctx, &otlpFlags)
 	if err != nil {
 		return fmt.Errorf("failed to connect to OTLP receiver: %w", err)
 	}
