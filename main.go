@@ -71,6 +71,16 @@ func (f *flagsTLS) loadCredentials() (credentials.TransportCredentials, error) {
 		InsecureSkipVerify: *f.insecureSkipVerify,
 	}
 
+	if *f.clientCertificate != "" && *f.clientKey != "" {
+		keyPair, err := tls.LoadX509KeyPair(*f.clientCertificate, *f.clientKey)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse client certificate/key pair: %w", err)
+		}
+		config.Certificates = []tls.Certificate{keyPair}
+	} else {
+		return nil, fmt.Errorf("cleint certificate/key pair must be specified when TLS is enabled")
+	}
+
 	if *f.certificateAuthority != "" {
 		config.RootCAs = x509.NewCertPool()
 		data, err := os.ReadFile(*f.certificateAuthority)
@@ -80,7 +90,10 @@ func (f *flagsTLS) loadCredentials() (credentials.TransportCredentials, error) {
 		if ok := config.RootCAs.AppendCertsFromPEM(data); !ok {
 			return nil, fmt.Errorf("cannot parse CA certificate %q: invalid PEM", *f.certificateAuthority)
 		}
+	} else if !*f.insecureSkipVerify {
+		return nil, fmt.Errorf("when verification is required CA certificate must be specified")
 	}
+
 	return credentials.NewTLS(config), nil
 }
 

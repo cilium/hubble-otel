@@ -14,6 +14,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/cilium/cilium/pkg/crypto/certloader"
 	"github.com/cilium/cilium/pkg/hubble/server"
 	"github.com/cilium/cilium/pkg/hubble/server/serveroption"
 	"github.com/cilium/cilium/pkg/logging/logfields"
@@ -39,22 +40,22 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 
 	go runMockHubble(ctx, log, "testdata/2021-06-16-sample-flows-istio-gke", hubbleAddress, 100)
 
+	commonFlagsTLS := &flagsTLS{
+		enable:               &isTrue,
+		insecureSkipVerify:   &isFalse,
+		clientCertificate:    newString("testdata/certs/test-client.pem"),
+		clientKey:            newString("testdata/certs/test-client-key.pem"),
+		certificateAuthority: newString("testdata/certs/ca.pem"),
+	}
+
 	flagsHubble := flags{
 		address: &hubbleAddress,
-		tls: &flagsTLS{
-			enable: &isFalse,
-		},
+		tls:     commonFlagsTLS,
 	}
 
 	flagsOTLP := flags{
 		address: &colletorAddressGRPC,
-		tls: &flagsTLS{
-			enable:               &isTrue,
-			insecureSkipVerify:   &isFalse,
-			clientCertificate:    newString("testdata/certs/test-server.pem"),
-			clientKey:            newString("testdata/certs/test-server-key.pem"),
-			certificateAuthority: newString("testdata/certs/ca.pem"),
-		},
+		tls:     commonFlagsTLS,
 	}
 
 	waitForServer(t, colletorAddressGRPC)
@@ -108,11 +109,20 @@ func runMockHubble(ctx context.Context, log *logrus.Logger, dir, address string,
 		return err
 	}
 
+	serverConfigBuilder, err := certloader.NewWatchedServerConfig(log,
+		[]string{"testdata/certs/ca.pem"},
+		"testdata/certs/test-server.pem",
+		"testdata/certs/test-server-key.pem",
+	)
+	if err != nil {
+		return err
+	}
+
 	mockServer, err := server.NewServer(log.WithField(logfields.LogSubsys, "mock-hubble-server"),
 		serveroption.WithTCPListener(address),
+		serveroption.WithServerTLS(serverConfigBuilder),
 		serveroption.WithHealthService(),
 		serveroption.WithObserverService(mockObeserver),
-		serveroption.WithInsecure(),
 	)
 	if err != nil {
 		return err
