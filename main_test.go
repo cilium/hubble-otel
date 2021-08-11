@@ -2,15 +2,14 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net"
-	"os"
 	"testing"
 	"time"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/service"
 	"go.opentelemetry.io/collector/service/defaultcomponents"
+	"google.golang.org/grpc/status"
 
 	"github.com/sirupsen/logrus"
 
@@ -62,8 +61,10 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 	waitForServer(t, hubbleAddress)
 
 	if err := run(flagsHubble, flagsOTLP, 10); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		if s, ok := status.FromError(err); ok && s.Proto().GetMessage() == "EOF" {
+			return
+		}
+		t.Fatalf("run failed: %v", err)
 	}
 }
 
@@ -134,13 +135,8 @@ func runMockHubble(ctx context.Context, log *logrus.Logger, dir, address string,
 		return err
 	}
 
-	errs := make(chan error)
-	defer close(errs)
-
 	for {
 		select {
-		case err = <-errs:
-			return err
 		case <-ctx.Done():
 			log.WithField("address", address).Info("Stopping Hubble server")
 			mockServer.Stop()

@@ -10,7 +10,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.2
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/isovalent/mock-hubble v0.0.0-20210720155043-42461f5b7c13 // indirect
+	github.com/isovalent/mock-hubble v0.0.0-20210811191953-d295cb73bf57 // indirect
 	github.com/open-telemetry/opentelemetry-collector-builder v0.29.0
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/zmap/zlint v0.0.0-20190806154020-fd021b4cfbeb // indirect

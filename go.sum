@@ -843,6 +843,10 @@ github.com/influxdata/usage-client v0.0.0-20160829180054-6d3895376368/go.mod h1:
 github.com/ishidawataru/sctp v0.0.0-20180213033435-07191f837fed/go.mod h1:DM4VvS+hD/kDi1U1QsX2fnZowwBhqD0Dk3bRPKF/Oc8=
 github.com/isovalent/mock-hubble v0.0.0-20210720155043-42461f5b7c13 h1:ZT6bd9M/kgtFEMDqbXtg1AeOALiyktyyJ3A2PJnz114=
 github.com/isovalent/mock-hubble v0.0.0-20210720155043-42461f5b7c13/go.mod h1:OZiBIeX6Ml99GKe4Mk0XXg5Acs1aufFwKdKrgmsIna4=
+github.com/isovalent/mock-hubble v0.0.0-20210811184532-8b4bbda8d0d4 h1:GolL1ro9U5KZ8mzSjrGdPQScUY/XC2KbF9OJwpNJga8=
+github.com/isovalent/mock-hubble v0.0.0-20210811184532-8b4bbda8d0d4/go.mod h1:OZiBIeX6Ml99GKe4Mk0XXg5Acs1aufFwKdKrgmsIna4=
+github.com/isovalent/mock-hubble v0.0.0-20210811191953-d295cb73bf57 h1:odVCre5Z3ou19Nccn/WTGS1HST+XKzMVbiQeyB5ofbI=
+github.com/isovalent/mock-hubble v0.0.0-20210811191953-d295cb73bf57/go.mod h1:OZiBIeX6Ml99GKe4Mk0XXg5Acs1aufFwKdKrgmsIna4=
 github.com/j-keck/arping v0.0.0-20160618110441-2cf9dc699c56/go.mod h1:ymszkNOg6tORTn+6F6j+Jc8TOr5osrynvN6ivFWZ2GA=
 github.com/jaegertracing/jaeger v1.23.0 h1:jdv6xzB7esPVIbXXZ5GWkFwX0cGwfbGJVf//xYnV0v8=
 github.com/jaegertracing/jaeger v1.23.0/go.mod h1:gB6Qc+Kjd/IX1G82oGTArbHI3ZRO//iUkaMW+gzL9uw=
