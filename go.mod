@@ -12,6 +12,9 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/isovalent/mock-hubble v0.0.0-20210811191953-d295cb73bf57 // indirect
 	github.com/open-telemetry/opentelemetry-collector-builder v0.29.0
+	github.com/prometheus/client_golang v1.11.0 // indirect
+	github.com/prometheus/client_model v0.2.1-0.20200623203004-60555c9708c7 // indirect
+	github.com/prometheus/common v0.29.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/zmap/zlint v0.0.0-20190806154020-fd021b4cfbeb // indirect
 	go.opentelemetry.io/collector v0.30.1

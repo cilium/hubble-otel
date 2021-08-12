@@ -33,6 +33,8 @@ type flagsTLS struct {
 	clientCertificate, clientKey, certificateAuthority *string
 }
 
+// TODO: add prometheus metircs for buffer size, throughput, errors, etc
+
 func main() {
 	flagsHubble := flags{
 		address: flag.String("hubble.address", "localhost:4245", "connect to Hubble on this address"),
@@ -219,6 +221,10 @@ const (
 func newFlowLog(hubbleResp *observer.GetFlowsResponse) (*logsV1.ResourceLogs, error) {
 	flow := hubbleResp.GetFlow()
 
+	// TODO: efficiency considerations
+	// - store JSON as bytes or keep it as a string?
+	// - can raw flow protobuf be extracted from the observer.GetFlowsResponse envelope? it maybe more efficient...
+	// - what about ecoding to nested commonV1.KeyValueList structure instead of JSON?
 	body, err := flow.MarshalJSON()
 	if err != nil {
 		return nil, err
