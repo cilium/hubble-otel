@@ -225,6 +225,7 @@ func newFlowLog(hubbleResp *observer.GetFlowsResponse) (*logsV1.ResourceLogs, er
 	// - store JSON as bytes or keep it as a string?
 	// - can raw flow protobuf be extracted from the observer.GetFlowsResponse envelope? it maybe more efficient...
 	// - what about ecoding to nested commonV1.KeyValueList structure instead of JSON?
+	//   - it maybe an option to encode into a flat map with keys being JSON paths
 	body, err := flow.MarshalJSON()
 	if err != nil {
 		return nil, err
