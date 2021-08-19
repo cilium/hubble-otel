@@ -20,6 +20,7 @@ import (
 	resourceV1 "go.opentelemetry.io/proto/otlp/resource/v1"
 
 	"github.com/cilium/cilium/api/v1/observer"
+	"github.com/isovalent/hubble-otel/converter"
 )
 
 type flags struct {
@@ -155,6 +156,10 @@ func flowReciever(ctx context.Context, hubbleConn *grpc.ClientConn, flows chan<-
 		return
 	}
 
+	c := converter.FlowConverter{
+		Encoding: converter.FlowLogEncodingKeyedList,
+	}
+
 	for {
 		hubbleResp, err := flowObsever.Recv()
 		switch err {
@@ -169,7 +174,7 @@ func flowReciever(ctx context.Context, hubbleConn *grpc.ClientConn, flows chan<-
 			return
 		}
 
-		flow, err := newFlowLog(hubbleResp)
+		flow, err := c.Convert(hubbleResp)
 		if err != nil {
 			errs <- err
 			return

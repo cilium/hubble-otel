@@ -20,5 +20,6 @@ require (
 	go.opentelemetry.io/proto v0.9.0 // indirect
 	go.opentelemetry.io/proto/otlp v0.7.0
 	google.golang.org/grpc v1.40.0
+	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
 )
