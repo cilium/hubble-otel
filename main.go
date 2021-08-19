@@ -239,7 +239,7 @@ func newFlowLog(hubbleResp *observer.GetFlowsResponse) (*logsV1.ResourceLogs, er
 		},
 		InstrumentationLibraryLogs: []*logsV1.InstrumentationLibraryLogs{{
 			Logs: []*logsV1.LogRecord{{
-				TimeUnixNano: uint64(flow.GetTime().GetNanos()),
+				TimeUnixNano: uint64(flow.GetTime().AsTime().UnixNano()),
 				Attributes: newStringAttributes(map[string]string{
 					FlowLogAttributeLogKindVersion: FlowLogAttributeLogKindVersionFlowV1alpha1,
 					FlowLogAttributeLogEncoding:    FlowLogAttributeLogEncodingJSON,
