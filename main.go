@@ -15,9 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	logsCollectorV1 "go.opentelemetry.io/proto/otlp/collector/logs/v1"
-	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
 	logsV1 "go.opentelemetry.io/proto/otlp/logs/v1"
-	resourceV1 "go.opentelemetry.io/proto/otlp/resource/v1"
 
 	"github.com/cilium/cilium/api/v1/observer"
 	"github.com/isovalent/hubble-otel/converter"
@@ -60,10 +58,11 @@ func main() {
 	}
 
 	logBufferSize := flag.Int("logBufferSize", 2048, "size of the buffer")
+	encodingFormat := flag.String("encodingFormat", converter.DefaultFlowLogEncoding, fmt.Sprintf("encoding format (valid options: %v)", converter.EncodingFormats()))
 
 	flag.Parse()
 
-	if err := run(flagsHubble, flagsOTLP, *logBufferSize); err != nil {
+	if err := run(flagsHubble, flagsOTLP, *logBufferSize, *encodingFormat); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -111,7 +110,7 @@ func dialContext(ctx context.Context, f *flags) (*grpc.ClientConn, error) {
 	return grpc.DialContext(ctx, *f.address, grpc.WithTransportCredentials(creds))
 }
 
-func run(hubbleFlags, otlpFlags flags, logBufferSize int) error {
+func run(hubbleFlags, otlpFlags flags, logBufferSize int, encodingFormat string) error {
 	ctx := context.Background()
 
 	hubbleConn, err := dialContext(ctx, &hubbleFlags)
@@ -134,7 +133,7 @@ func run(hubbleFlags, otlpFlags flags, logBufferSize int) error {
 
 	go logSender(ctx, otlpConn, logBufferSize, flows, errs)
 
-	go flowReciever(ctx, hubbleConn, flows, errs)
+	go flowReciever(ctx, hubbleConn, encodingFormat, flows, errs)
 
 	for {
 		select {
@@ -148,7 +147,7 @@ func run(hubbleFlags, otlpFlags flags, logBufferSize int) error {
 	}
 }
 
-func flowReciever(ctx context.Context, hubbleConn *grpc.ClientConn, flows chan<- *logsV1.ResourceLogs, errs chan<- error) {
+func flowReciever(ctx context.Context, hubbleConn *grpc.ClientConn, encodingFormat string, flows chan<- *logsV1.ResourceLogs, errs chan<- error) {
 	flowObsever, err := observer.NewObserverClient(hubbleConn).
 		GetFlows(ctx, &observer.GetFlowsRequest{Follow: true})
 	if err != nil {
@@ -157,7 +156,7 @@ func flowReciever(ctx context.Context, hubbleConn *grpc.ClientConn, flows chan<-
 	}
 
 	c := converter.FlowConverter{
-		Encoding: converter.FlowLogEncodingKeyedList,
+		Encoding: encodingFormat,
 	}
 
 	for {
@@ -207,79 +206,4 @@ func logSender(ctx context.Context, otlpConn *grpc.ClientConn, logBufferSize int
 			return
 		}
 	}
-}
-
-const (
-	keyPrefix = "io.cilium.otel."
-
-	FlowLogAttributeLogKindVersion             = keyPrefix + "log_kind_version"
-	FlowLogAttributeLogKindVersionFlowV1alpha1 = "flow/v1alpha1"
-	FlowLogAttributeLogEncoding                = keyPrefix + "log_encoding"
-	FlowLogAttributeLogEncodingJSON            = "JSON"
-
-	FlowLogResourceCiliumClusterID = keyPrefix + "cluster_id"
-	FlowLogResourceCiliumNodeName  = keyPrefix + "node_name"
-
-	FlowLogBodyKeyFlowV1JSON = keyPrefix + "flow_v1_json"
-)
-
-func newFlowLog(hubbleResp *observer.GetFlowsResponse) (*logsV1.ResourceLogs, error) {
-	flow := hubbleResp.GetFlow()
-
-	// TODO: efficiency considerations
-	// - store JSON as bytes or keep it as a string?
-	// - can raw flow protobuf be extracted from the observer.GetFlowsResponse envelope? it maybe more efficient...
-	// - what about ecoding to nested commonV1.KeyValueList structure instead of JSON?
-	//   - it maybe an option to encode into a flat map with keys being JSON paths
-	// - should encoding be user-settable?
-	body, err := flow.MarshalJSON()
-	if err != nil {
-		return nil, err
-	}
-
-	return &logsV1.ResourceLogs{
-		Resource: &resourceV1.Resource{
-			Attributes: newStringAttributes(map[string]string{
-				FlowLogResourceCiliumNodeName: flow.GetNodeName(),
-			}),
-		},
-		InstrumentationLibraryLogs: []*logsV1.InstrumentationLibraryLogs{{
-			Logs: []*logsV1.LogRecord{{
-				TimeUnixNano: uint64(flow.GetTime().AsTime().UnixNano()),
-				Attributes: newStringAttributes(map[string]string{
-					FlowLogAttributeLogKindVersion: FlowLogAttributeLogKindVersionFlowV1alpha1,
-					FlowLogAttributeLogEncoding:    FlowLogAttributeLogEncodingJSON,
-				}),
-				Body: &commonV1.AnyValue{
-					Value: &commonV1.AnyValue_KvlistValue{
-						KvlistValue: &commonV1.KeyValueList{
-							Values: []*commonV1.KeyValue{{
-								Key: FlowLogBodyKeyFlowV1JSON,
-								Value: &commonV1.AnyValue{
-									Value: &commonV1.AnyValue_StringValue{
-										StringValue: string(body),
-									},
-								},
-							}},
-						},
-					},
-				},
-			}},
-		}},
-	}, nil
-}
-
-func newStringAttributes(attributes map[string]string) []*commonV1.KeyValue {
-	results := []*commonV1.KeyValue{}
-	for k, v := range attributes {
-		results = append(results, &commonV1.KeyValue{
-			Key: k,
-			Value: &commonV1.AnyValue{
-				Value: &commonV1.AnyValue_StringValue{
-					StringValue: v,
-				},
-			},
-		})
-	}
-	return results
 }
