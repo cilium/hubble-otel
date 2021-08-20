@@ -58,11 +58,12 @@ func main() {
 	}
 
 	logBufferSize := flag.Int("logBufferSize", 2048, "size of the buffer")
-	encodingFormat := flag.String("encodingFormat", converter.DefaultFlowLogEncoding, fmt.Sprintf("encoding format (valid options: %v)", converter.EncodingFormats()))
+	encodingFormat := flag.String("encodingFormat", converter.DefaultEncoding, fmt.Sprintf("encoding format (valid options: %v)", converter.EncodingFormats()))
+	useAttributes := flag.Bool("useAttributes", false, "use attributes instead of body")
 
 	flag.Parse()
 
-	if err := run(flagsHubble, flagsOTLP, *logBufferSize, *encodingFormat); err != nil {
+	if err := run(flagsHubble, flagsOTLP, *logBufferSize, *encodingFormat, *useAttributes); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -110,7 +111,7 @@ func dialContext(ctx context.Context, f *flags) (*grpc.ClientConn, error) {
 	return grpc.DialContext(ctx, *f.address, grpc.WithTransportCredentials(creds))
 }
 
-func run(hubbleFlags, otlpFlags flags, logBufferSize int, encodingFormat string) error {
+func run(hubbleFlags, otlpFlags flags, logBufferSize int, encodingFormat string, useAttributes bool) error {
 	ctx := context.Background()
 
 	hubbleConn, err := dialContext(ctx, &hubbleFlags)
@@ -133,7 +134,7 @@ func run(hubbleFlags, otlpFlags flags, logBufferSize int, encodingFormat string)
 
 	go logSender(ctx, otlpConn, logBufferSize, flows, errs)
 
-	go flowReciever(ctx, hubbleConn, encodingFormat, flows, errs)
+	go flowReciever(ctx, hubbleConn, encodingFormat, useAttributes, flows, errs)
 
 	for {
 		select {
@@ -147,7 +148,7 @@ func run(hubbleFlags, otlpFlags flags, logBufferSize int, encodingFormat string)
 	}
 }
 
-func flowReciever(ctx context.Context, hubbleConn *grpc.ClientConn, encodingFormat string, flows chan<- *logsV1.ResourceLogs, errs chan<- error) {
+func flowReciever(ctx context.Context, hubbleConn *grpc.ClientConn, encodingFormat string, useAttributes bool, flows chan<- *logsV1.ResourceLogs, errs chan<- error) {
 	flowObsever, err := observer.NewObserverClient(hubbleConn).
 		GetFlows(ctx, &observer.GetFlowsRequest{Follow: true})
 	if err != nil {
@@ -156,7 +157,8 @@ func flowReciever(ctx context.Context, hubbleConn *grpc.ClientConn, encodingForm
 	}
 
 	c := converter.FlowConverter{
-		Encoding: encodingFormat,
+		Encoding:      encodingFormat,
+		UseAttributes: useAttributes,
 	}
 
 	for {
