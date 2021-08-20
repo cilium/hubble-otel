@@ -21,6 +21,7 @@ import (
 	"github.com/cilium/cilium/pkg/hubble/server"
 	"github.com/cilium/cilium/pkg/hubble/server/serveroption"
 	"github.com/cilium/cilium/pkg/logging/logfields"
+	"github.com/isovalent/hubble-otel/converter"
 	mockHubbleObeserver "github.com/isovalent/mock-hubble/observer"
 )
 
@@ -110,12 +111,47 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 		}
 	}
 
-	if err := run(flagsHubble, flagsOTLP, 10); err != nil {
-		if isEOF(err) {
-			checkCollectorMetrics()
-			return
+	modes := []struct {
+		useAttributes bool
+		encoding      string
+	}{
+		{
+			encoding: converter.EncodingJSON,
+		},
+		{
+			encoding: converter.EncodingJSONBASE64,
+		},
+		{
+			encoding: converter.EncodingFlatStringMap,
+		},
+		{
+			encoding:      converter.EncodingFlatStringMap,
+			useAttributes: true,
+		},
+		{
+			encoding: converter.EncodingSemiFlatTypedMap,
+		},
+		{
+			encoding:      converter.EncodingSemiFlatTypedMap,
+			useAttributes: true,
+		},
+		{
+			encoding: converter.EncodingTypedMap,
+		},
+		{
+			encoding:      converter.EncodingTypedMap,
+			useAttributes: true,
+		},
+	}
+
+	for _, mode := range modes {
+		if err := run(flagsHubble, flagsOTLP, 10, mode.encoding, mode.useAttributes); err != nil {
+			if isEOF(err) {
+				checkCollectorMetrics()
+				return
+			}
+			t.Fatalf("run failed for mode=%v: %v", mode, err)
 		}
-		t.Fatalf("run failed: %v", err)
 	}
 }
 
@@ -140,7 +176,7 @@ func runOpenTelemtryCollector(ctx context.Context, t *testing.T) {
 	go func() {
 		svc.Command().SetArgs([]string{
 			"--config=testdata/collector-with-tls.yaml",
-			"--log-level=debug",
+			"--log-level=error",
 		})
 		if err := svc.Run(); err != nil {
 			t.Logf("collector server run finished with error: %v", err)
