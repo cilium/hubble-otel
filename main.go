@@ -199,7 +199,8 @@ func logSender(ctx context.Context, otlpConn *grpc.ClientConn, logBufferSize int
 		case io.EOF, context.Canceled:
 			return
 		case nil:
-			fmt.Printf("wrote %d entries to the OTLP receiver\n", logBufferSize)
+			// fmt.Printf("wrote %d entries to the OTLP receiver\n", logBufferSize)
+			continue
 		default:
 			if status.Code(err) == codes.Canceled {
 				return
