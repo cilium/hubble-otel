@@ -18,6 +18,8 @@ const (
 
 	FlowLogAttributeLogKindVersion             = keyPrefix + "log_kind_version"
 	FlowLogAttributeLogKindVersionFlowV1alpha1 = "flow/v1alpha1"
+	FlowLogAttributeLogKindVersion             = keyPrefix + "log_kind_version"
+	FlowLogAttributeEventPayload               = keyPrefix + "event_payload"
 
 	FlowLogAttributeLogEncoding     = keyPrefix + "log_encoding"
 	DefaultFlowLogEncoding          = FlowLogEncodingJSON
@@ -42,37 +44,50 @@ func EncodingFormats() []string {
 }
 
 type FlowConverter struct {
-	Encoding string
+	Encoding      string
+	UseAttributes bool
 }
 
 func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (*logsV1.ResourceLogs, error) {
 	flow := hubbleResp.GetFlow()
 
-	body, err := c.body(hubbleResp)
+	v, err := c.toValue(hubbleResp)
 	if err != nil {
 		return nil, err
 	}
 
-	return &logsV1.ResourceLogs{
+	logRecord := &logsV1.LogRecord{
+		TimeUnixNano: uint64(flow.GetTime().AsTime().UnixNano()),
+		Attributes: newStringAttributes(map[string]string{
+			FlowLogAttributeLogKindVersion: FlowLogAttributeLogKindVersionFlowV1alpha1,
+			FlowLogAttributeLogEncoding:    c.Encoding,
+		}),
+	}
+
+	resourceLogs := &logsV1.ResourceLogs{
 		Resource: &resourceV1.Resource{
 			Attributes: newStringAttributes(map[string]string{
 				FlowLogResourceCiliumNodeName: flow.GetNodeName(),
 			}),
 		},
 		InstrumentationLibraryLogs: []*logsV1.InstrumentationLibraryLogs{{
-			Logs: []*logsV1.LogRecord{{
-				TimeUnixNano: uint64(flow.GetTime().AsTime().UnixNano()),
-				Attributes: newStringAttributes(map[string]string{
-					FlowLogAttributeLogKindVersion: FlowLogAttributeLogKindVersionFlowV1alpha1,
-					FlowLogAttributeLogEncoding:    c.Encoding,
-				}),
-				Body: body,
-			}},
+			Logs: []*logsV1.LogRecord{logRecord},
 		}},
-	}, nil
+	}
+
+	if c.UseAttributes {
+		logRecord.Attributes = append(logRecord.Attributes, &commonV1.KeyValue{
+			Key:   FlowLogAttributeEventPayload,
+			Value: v,
+		})
+	} else {
+		logRecord.Body = v
+	}
+
+	return resourceLogs, nil
 }
 
-func (c *FlowConverter) body(hubbleResp *observer.GetFlowsResponse) (*commonV1.AnyValue, error) {
+func (c *FlowConverter) toValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.AnyValue, error) {
 	switch c.Encoding {
 	case FlowLogEncodingJSON, FlowLogEncodingJSONBASE64:
 		data, err := hubbleResp.GetFlow().MarshalJSON()
