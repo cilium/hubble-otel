@@ -203,15 +203,14 @@ func newStringValue(s string) *commonV1.AnyValue {
 	}
 }
 
-func toList(fd protoreflect.FieldDescriptor, v protoreflect.Value) []*commonV1.KeyValue {
-	list := []*commonV1.KeyValue{}
+func toList(fd protoreflect.FieldDescriptor, v protoreflect.Value) *commonV1.ArrayValue {
 	items := v.List()
+	list := &commonV1.ArrayValue{
+		Values: make([]*commonV1.AnyValue, items.Len()),
+	}
 	for i := 0; i < items.Len(); i++ {
 		if item := newValue(false, fd, items.Get(i)); item != nil {
-			list = append(list, &commonV1.KeyValue{
-				Key:   strconv.Itoa(i),
-				Value: item,
-			})
+			list.Values[i] = item
 		}
 	}
 	return list
@@ -220,12 +219,11 @@ func toList(fd protoreflect.FieldDescriptor, v protoreflect.Value) []*commonV1.K
 func newValue(mayBeAList bool, fd protoreflect.FieldDescriptor, v protoreflect.Value) *commonV1.AnyValue {
 	if mayBeAList && fd.IsList() {
 		return &commonV1.AnyValue{
-			Value: &commonV1.AnyValue_KvlistValue{
-				KvlistValue: &commonV1.KeyValueList{
-					Values: toList(fd, v),
-				},
+			Value: &commonV1.AnyValue_ArrayValue{
+				ArrayValue: toList(fd, v),
 			},
 		}
+
 	}
 	switch fd.Kind() {
 	case protoreflect.BoolKind:
