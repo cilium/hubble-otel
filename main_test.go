@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"testing"
@@ -26,7 +27,6 @@ import (
 )
 
 func TestBasicIntegrationWithTLS(t *testing.T) {
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -36,13 +36,23 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 
 	hubbleAddress := "localhost:4245"
 	colletorAddressGRPC := "localhost:55690"
+	promAddress := "localhost:8889"
 
-	go runOpenTelemtryCollector(ctx, t)
+	fatal := make(chan error, 1)
+
+	go runOpenTelemtryCollector(ctx, t, fatal)
 
 	log := logrus.New()
-	log.SetLevel(logrus.DebugLevel)
+	//log.SetLevel(logrus.DebugLevel)
+	go runMockHubble(ctx, log, "testdata/2021-06-16-sample-flows-istio-gke", hubbleAddress, 100, fatal)
 
-	go runMockHubble(ctx, log, "testdata/2021-06-16-sample-flows-istio-gke", hubbleAddress, 100)
+	go func() {
+		for err := range fatal {
+			t.Errorf("fatal error in a goroutine: %v", err)
+			cancel()
+			return
+		}
+	}()
 
 	commonFlagsTLS := &flagsTLS{
 		enable:               &isTrue,
@@ -62,11 +72,12 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 		tls:     commonFlagsTLS,
 	}
 
-	waitForServer(t, colletorAddressGRPC)
-	waitForServer(t, hubbleAddress)
+	waitForServer(ctx, t, colletorAddressGRPC)
+	waitForServer(ctx, t, hubbleAddress)
+	waitForServer(ctx, t, promAddress)
 
 	checkCollectorMetrics := func() {
-		mf := getMetricFamilies(t, "http://localhost:8889/metrics")
+		mf := getMetricFamilies(t, "http://"+promAddress+"/metrics")
 
 		/*
 			main_test.go:78: metrics: map[
@@ -97,6 +108,10 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 		//t.Logf("metrics: %v", mf)
 
 		for _, k := range []string{"otelcol_exporter_send_failed_log_records", "otelcol_receiver_refused_log_records"} {
+			if len(mf[k].GetMetric()) == 0 {
+				t.Errorf("%q should be present", k)
+				continue
+			}
 			if v := mf[k].GetMetric()[0].Counter.Value; *v != 0.0 {
 				t.Errorf("%q should be zero", k)
 			}
@@ -105,6 +120,10 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 		// sample set contains 20000 flows, collector usually record 19000+ by this point
 		minLogRecords := 18000.0
 		for _, k := range []string{"otelcol_exporter_sent_log_records", "otelcol_receiver_accepted_log_records"} {
+			if len(mf[k].GetMetric()) == 0 {
+				t.Errorf("%q should be present", k)
+				continue
+			}
 			if v := mf[k].GetMetric()[0].Counter.Value; *v < minLogRecords {
 				t.Errorf("%q should be at least %f, not %f", k, minLogRecords, *v)
 			}
@@ -145,6 +164,7 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 	}
 
 	for _, mode := range modes {
+		t.Logf("runing mode=%v", mode)
 		if err := run(flagsHubble, flagsOTLP, 10, mode.encoding, mode.useAttributes); err != nil {
 			if isEOF(err) {
 				checkCollectorMetrics()
@@ -155,7 +175,7 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 	}
 }
 
-func runOpenTelemtryCollector(ctx context.Context, t *testing.T) {
+func runOpenTelemtryCollector(ctx context.Context, t *testing.T, fatal chan<- error) {
 	factories, err := defaultcomponents.Components()
 	if err != nil {
 		t.Fatalf("failed to build default components: %v", err)
@@ -170,7 +190,8 @@ func runOpenTelemtryCollector(ctx context.Context, t *testing.T) {
 
 	svc, err := service.New(settings)
 	if err != nil {
-		t.Fatalf("failed to construct the collector server: %v", err)
+		fatal <- fmt.Errorf("failed to construct the collector server: %v", err)
+		return
 	}
 
 	go func() {
@@ -178,8 +199,10 @@ func runOpenTelemtryCollector(ctx context.Context, t *testing.T) {
 			"--config=testdata/collector-with-tls.yaml",
 			"--log-level=error",
 		})
-		if err := svc.Run(); err != nil {
-			t.Logf("collector server run finished with error: %v", err)
+
+		if err = svc.Run(); err != nil {
+			fatal <- fmt.Errorf("collector server run finished with error: %v", err)
+			return
 		} else {
 			t.Log("collector server run finished without errors")
 		}
@@ -189,13 +212,14 @@ func runOpenTelemtryCollector(ctx context.Context, t *testing.T) {
 	svc.Shutdown()
 }
 
-func runMockHubble(ctx context.Context, log *logrus.Logger, dir, address string, rateAdjustment int) error {
+func runMockHubble(ctx context.Context, log *logrus.Logger, dir, address string, rateAdjustment int, fatal chan<- error) {
 	mockObeserver, err := mockHubbleObeserver.New(log.WithField(logfields.LogSubsys, "mock-hubble-observer"),
 		mockHubbleObeserver.WithSampleDir(dir),
 		mockHubbleObeserver.WithRateAdjustment(int64(rateAdjustment)),
 	)
 	if err != nil {
-		return err
+		fatal <- err
+		return
 	}
 
 	serverConfigBuilder, err := certloader.NewWatchedServerConfig(log,
@@ -204,7 +228,8 @@ func runMockHubble(ctx context.Context, log *logrus.Logger, dir, address string,
 		"testdata/certs/test-server-key.pem",
 	)
 	if err != nil {
-		return err
+		fatal <- err
+		return
 	}
 
 	mockServer, err := server.NewServer(log.WithField(logfields.LogSubsys, "mock-hubble-server"),
@@ -214,13 +239,15 @@ func runMockHubble(ctx context.Context, log *logrus.Logger, dir, address string,
 		serveroption.WithObserverService(mockObeserver),
 	)
 	if err != nil {
-		return err
+		fatal <- err
+		return
 	}
 
 	log.WithField("address", address).Info("Starting Hubble server")
 
 	if err := mockServer.Serve(); err != nil {
-		return err
+		fatal <- err
+		return
 	}
 
 	for {
@@ -229,20 +256,26 @@ func runMockHubble(ctx context.Context, log *logrus.Logger, dir, address string,
 			log.WithField("address", address).Info("Stopping Hubble server")
 			mockServer.Stop()
 			mockObeserver.Stop()
-			return nil
+			return
 		}
 	}
 
 }
 
-func waitForServer(t *testing.T, address string) {
+func waitForServer(ctx context.Context, t *testing.T, address string) {
 	for {
-		_, err := net.Dial("tcp", address)
-		if err == nil {
-			break
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			_, err := net.Dial("tcp", address)
+			if err == nil {
+				break
+			}
+			t.Logf("waiting for a server to listen on %q (err: %v)", address, err)
+			time.Sleep(250 * time.Millisecond)
 		}
-		t.Logf("waiting for a server to listen on %q (err: %v)", address, err)
-		time.Sleep(250 * time.Millisecond)
+
 	}
 }
 
