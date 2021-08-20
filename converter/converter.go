@@ -8,7 +8,6 @@ import (
 	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
 	logsV1 "go.opentelemetry.io/proto/otlp/logs/v1"
 	resourceV1 "go.opentelemetry.io/proto/otlp/resource/v1"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/cilium/cilium/api/v1/observer"
@@ -236,15 +235,7 @@ func newValue(mayBeAList bool, fd protoreflect.FieldDescriptor, v protoreflect.V
 			},
 		}
 	case protoreflect.EnumKind:
-		opts := protojson.MarshalOptions{
-			UseProtoNames:  true,
-			UseEnumNumbers: false,
-		}
-		data, err := opts.Marshal(v.Message().Interface())
-		if err != nil {
-			panic(fmt.Sprintf("unexpected error: %s", err))
-		}
-		return newStringValue(string(data))
+		return newStringValue(string(fd.Enum().Values().ByNumber(v.Enum()).Name()))
 	case protoreflect.Int32Kind,
 		protoreflect.Sint32Kind,
 		protoreflect.Sfixed32Kind,
