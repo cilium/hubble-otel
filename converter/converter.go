@@ -16,30 +16,29 @@ import (
 const (
 	keyPrefix = "io.cilium.otel."
 
-	FlowLogAttributeLogKindVersion             = keyPrefix + "log_kind_version"
-	FlowLogAttributeLogKindVersionFlowV1alpha1 = "flow/v1alpha1"
-	FlowLogAttributeLogKindVersion             = keyPrefix + "log_kind_version"
-	FlowLogAttributeEventPayload               = keyPrefix + "event_payload"
+	AttributeEventKindVersion             = keyPrefix + "event_kind"
+	AttributeEventPayload                 = keyPrefix + "event_payload"
+	AttributeEventKindVersionFlowV1alpha1 = "flow/v1alpha1"
 
-	FlowLogAttributeLogEncoding     = keyPrefix + "log_encoding"
-	DefaultFlowLogEncoding          = FlowLogEncodingJSON
-	FlowLogEncodingJSON             = "JSON"
-	FlowLogEncodingJSONBASE64       = "JSON+base64"
-	FlowLogEncodingFlatStringMap    = "FlatStringMap"
-	FlowLogEncodingSemiFlatTypedMap = "SemiFlatTypedMap"
-	FlowLogEncodingTypedMap         = "TypedMap"
+	AttributeEventEncoding   = keyPrefix + "event_encoding"
+	DefaultEncoding          = EncodingJSON
+	EncodingJSON             = "JSON"
+	EncodingJSONBASE64       = "JSON+base64"
+	EncodingFlatStringMap    = "FlatStringMap"
+	EncodingSemiFlatTypedMap = "SemiFlatTypedMap"
+	EncodingTypedMap         = "TypedMap"
 
-	FlowLogResourceCiliumClusterID = keyPrefix + "cluster_id"
-	FlowLogResourceCiliumNodeName  = keyPrefix + "node_name"
+	ResourceCiliumClusterID = keyPrefix + "cluster_id"
+	ResourceCiliumNodeName  = keyPrefix + "node_name"
 )
 
 func EncodingFormats() []string {
 	return []string{
-		FlowLogEncodingJSON,
-		FlowLogEncodingJSONBASE64,
-		FlowLogEncodingFlatStringMap,
-		FlowLogEncodingSemiFlatTypedMap,
-		FlowLogEncodingTypedMap,
+		EncodingJSON,
+		EncodingJSONBASE64,
+		EncodingFlatStringMap,
+		EncodingSemiFlatTypedMap,
+		EncodingTypedMap,
 	}
 }
 
@@ -59,15 +58,15 @@ func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (*logsV1.
 	logRecord := &logsV1.LogRecord{
 		TimeUnixNano: uint64(flow.GetTime().AsTime().UnixNano()),
 		Attributes: newStringAttributes(map[string]string{
-			FlowLogAttributeLogKindVersion: FlowLogAttributeLogKindVersionFlowV1alpha1,
-			FlowLogAttributeLogEncoding:    c.Encoding,
+			AttributeEventKindVersion: AttributeEventKindVersionFlowV1alpha1,
+			AttributeEventEncoding:    c.Encoding,
 		}),
 	}
 
 	resourceLogs := &logsV1.ResourceLogs{
 		Resource: &resourceV1.Resource{
 			Attributes: newStringAttributes(map[string]string{
-				FlowLogResourceCiliumNodeName: flow.GetNodeName(),
+				ResourceCiliumNodeName: flow.GetNodeName(),
 			}),
 		},
 		InstrumentationLibraryLogs: []*logsV1.InstrumentationLibraryLogs{{
@@ -77,7 +76,7 @@ func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (*logsV1.
 
 	if c.UseAttributes {
 		logRecord.Attributes = append(logRecord.Attributes, &commonV1.KeyValue{
-			Key:   FlowLogAttributeEventPayload,
+			Key:   AttributeEventPayload,
 			Value: v,
 		})
 	} else {
@@ -89,7 +88,7 @@ func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (*logsV1.
 
 func (c *FlowConverter) toValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.AnyValue, error) {
 	switch c.Encoding {
-	case FlowLogEncodingJSON, FlowLogEncodingJSONBASE64:
+	case EncodingJSON, EncodingJSONBASE64:
 		data, err := hubbleResp.GetFlow().MarshalJSON()
 		if err != nil {
 			return nil, err
@@ -97,20 +96,20 @@ func (c *FlowConverter) toValue(hubbleResp *observer.GetFlowsResponse) (*commonV
 
 		var s string
 		switch c.Encoding {
-		case FlowLogEncodingJSON:
+		case EncodingJSON:
 			s = string(data)
-		case FlowLogEncodingJSONBASE64:
+		case EncodingJSONBASE64:
 			s = base64.RawStdEncoding.EncodeToString(data)
 		}
 		return newStringValue(s), nil
-	case FlowLogEncodingFlatStringMap, FlowLogEncodingSemiFlatTypedMap, FlowLogEncodingTypedMap:
+	case EncodingFlatStringMap, EncodingSemiFlatTypedMap, EncodingTypedMap:
 		var mb mapBuilder
 		switch c.Encoding {
-		case FlowLogEncodingFlatStringMap:
+		case EncodingFlatStringMap:
 			mb = &flatStringMap{}
-		case FlowLogEncodingSemiFlatTypedMap:
+		case EncodingSemiFlatTypedMap:
 			mb = &semiFlatTypedMap{}
-		case FlowLogEncodingTypedMap:
+		case EncodingTypedMap:
 			mb = &typedMap{}
 		}
 
