@@ -197,7 +197,7 @@ func runOpenTelemtryCollector(ctx context.Context, t *testing.T, fatal chan<- er
 	go func() {
 		svc.Command().SetArgs([]string{
 			"--config=testdata/collector-with-tls.yaml",
-			"--log-level=error",
+			"--log-level=info",
 		})
 
 		if err = svc.Run(); err != nil {
@@ -268,8 +268,9 @@ func waitForServer(ctx context.Context, t *testing.T, address string) {
 		case <-ctx.Done():
 			return
 		default:
-			_, err := net.Dial("tcp", address)
+			conn, err := net.Dial("tcp", address)
 			if err == nil {
+				conn.Close()
 				break
 			}
 			t.Logf("waiting for a server to listen on %q (err: %v)", address, err)
