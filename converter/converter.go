@@ -19,12 +19,13 @@ const (
 	FlowLogAttributeLogKindVersion             = keyPrefix + "log_kind_version"
 	FlowLogAttributeLogKindVersionFlowV1alpha1 = "flow/v1alpha1"
 
-	FlowLogAttributeLogEncoding           = keyPrefix + "log_encoding"
-	DefaultFlowLogEncoding                = FlowLogEncodingJSON
-	FlowLogEncodingJSON                   = "JSON"
-	FlowLogEncodingJSONBASE64             = "JSON+base64"
-	FlowLogEncodingFlatKeyedStringList    = "FKSL"
-	FlowLogEncodingSemiFlatKeyedTypedList = "SFKTL"
+	FlowLogAttributeLogEncoding     = keyPrefix + "log_encoding"
+	DefaultFlowLogEncoding          = FlowLogEncodingJSON
+	FlowLogEncodingJSON             = "JSON"
+	FlowLogEncodingJSONBASE64       = "JSON+base64"
+	FlowLogEncodingFlatStringMap    = "FlatStringMap"
+	FlowLogEncodingSemiFlatTypedMap = "SemiFlatTypedMap"
+	FlowLogEncodingTypedMap         = "TypedMap"
 
 	FlowLogResourceCiliumClusterID = keyPrefix + "cluster_id"
 	FlowLogResourceCiliumNodeName  = keyPrefix + "node_name"
@@ -34,8 +35,9 @@ func EncodingFormats() []string {
 	return []string{
 		FlowLogEncodingJSON,
 		FlowLogEncodingJSONBASE64,
-		FlowLogEncodingFlatKeyedStringList,
-		FlowLogEncodingSemiFlatKeyedTypedList,
+		FlowLogEncodingFlatStringMap,
+		FlowLogEncodingSemiFlatTypedMap,
+		FlowLogEncodingTypedMap,
 	}
 }
 
@@ -71,65 +73,64 @@ func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (*logsV1.
 }
 
 func (c *FlowConverter) body(hubbleResp *observer.GetFlowsResponse) (*commonV1.AnyValue, error) {
-	var (
-		data []byte
-		err  error
-		v    *commonV1.AnyValue
-	)
-
 	switch c.Encoding {
 	case FlowLogEncodingJSON, FlowLogEncodingJSONBASE64:
-		data, err = hubbleResp.GetFlow().MarshalJSON()
+		data, err := hubbleResp.GetFlow().MarshalJSON()
 		if err != nil {
 			return nil, err
 		}
 
+		var s string
 		switch c.Encoding {
 		case FlowLogEncodingJSON:
-			v = newStringValue(string(data))
+			s = string(data)
 		case FlowLogEncodingJSONBASE64:
-			v = newStringValue(base64.RawStdEncoding.EncodeToString(data))
+			s = base64.RawStdEncoding.EncodeToString(data)
 		}
-	case FlowLogEncodingFlatKeyedStringList, FlowLogEncodingSemiFlatKeyedTypedList:
-		var l listAppender
+		return newStringValue(s), nil
+	case FlowLogEncodingFlatStringMap, FlowLogEncodingSemiFlatTypedMap, FlowLogEncodingTypedMap:
+		var mb mapBuilder
 		switch c.Encoding {
-		case FlowLogEncodingFlatKeyedStringList:
-			l = &flatKeyedList{}
-		case FlowLogEncodingSemiFlatKeyedTypedList:
-			l = &semiFlatKeyedTypedList{}
+		case FlowLogEncodingFlatStringMap:
+			mb = &flatStringMap{}
+		case FlowLogEncodingSemiFlatTypedMap:
+			mb = &semiFlatTypedMap{}
+		case FlowLogEncodingTypedMap:
+			mb = &typedMap{}
 		}
 
-		hubbleResp.GetFlow().ProtoReflect().Range(l.newAppender(""))
+		hubbleResp.GetFlow().ProtoReflect().Range(mb.newLeaf(""))
 
-		v = &commonV1.AnyValue{
+		v := &commonV1.AnyValue{
 			Value: &commonV1.AnyValue_KvlistValue{
 				KvlistValue: &commonV1.KeyValueList{
-					Values: l.items(),
+					Values: mb.items(),
 				},
 			},
 		}
+		return v, nil
+	default:
+		return nil, fmt.Errorf("unsuported encoding format: %s", c.Encoding)
 	}
-
-	return v, nil
 }
 
-type listAppender interface {
-	newAppender(string) func(protoreflect.FieldDescriptor, protoreflect.Value) bool
+type mapBuilder interface {
+	newLeaf(string) func(protoreflect.FieldDescriptor, protoreflect.Value) bool
 	items() []*commonV1.KeyValue
 }
 
-type flatKeyedList struct {
+type flatStringMap struct {
 	list []*commonV1.KeyValue
 }
 
-func (l *flatKeyedList) items() []*commonV1.KeyValue { return l.list }
+func (l *flatStringMap) items() []*commonV1.KeyValue { return l.list }
 
-func (l *flatKeyedList) newAppender(keyPathPrefix string) func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+func (l *flatStringMap) newLeaf(keyPathPrefix string) func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
 	return func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
 		keyPath := fmtKeyPath(keyPathPrefix, fd.JSONName())
 		switch {
 		case fd.Kind() == protoreflect.MessageKind:
-			v.Message().Range(l.newAppender(keyPath))
+			v.Message().Range(l.newLeaf(keyPath))
 		case fd.IsList():
 			items := v.List()
 			for i := 0; i < items.Len(); i++ {
@@ -148,22 +149,56 @@ func (l *flatKeyedList) newAppender(keyPathPrefix string) func(fd protoreflect.F
 	}
 }
 
-type semiFlatKeyedTypedList struct {
+type semiFlatTypedMap struct {
 	list []*commonV1.KeyValue
 }
 
-func (l *semiFlatKeyedTypedList) items() []*commonV1.KeyValue { return l.list }
+func (l *semiFlatTypedMap) items() []*commonV1.KeyValue { return l.list }
 
-func (l *semiFlatKeyedTypedList) newAppender(keyPathPrefix string) func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+func (l *semiFlatTypedMap) newLeaf(keyPathPrefix string) func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
 	return func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
 		keyPath := fmtKeyPath(keyPathPrefix, fd.JSONName())
 		switch {
 		case fd.Kind() == protoreflect.MessageKind:
-			v.Message().Range(l.newAppender(keyPath))
+			v.Message().Range(l.newLeaf(keyPath))
 		default:
 			if item := newValue(true, fd, v); item != nil {
 				l.list = append(l.list, &commonV1.KeyValue{
 					Key:   keyPath,
+					Value: item,
+				})
+			}
+		}
+		return true
+	}
+}
+
+type typedMap struct {
+	list []*commonV1.KeyValue
+}
+
+func (l *typedMap) items() []*commonV1.KeyValue { return l.list }
+
+func (l *typedMap) newLeaf(_ string) func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+	return func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+		switch {
+		case fd.Kind() == protoreflect.MessageKind:
+			mb := typedMap{}
+			v.Message().Range(mb.newLeaf(""))
+			l.list = append(l.list, &commonV1.KeyValue{
+				Key: fd.JSONName(),
+				Value: &commonV1.AnyValue{
+					Value: &commonV1.AnyValue_KvlistValue{
+						KvlistValue: &commonV1.KeyValueList{
+							Values: mb.items(),
+						},
+					},
+				},
+			})
+		default:
+			if item := newValue(true, fd, v); item != nil {
+				l.list = append(l.list, &commonV1.KeyValue{
+					Key:   fd.JSONName(),
 					Value: item,
 				})
 			}
