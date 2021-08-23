@@ -27,7 +27,7 @@ processors:
 
 exporters:
   logging:
-    loglevel: debug
+    # loglevel: debug
   prometheus:
     endpoint: "localhost:8889"
 

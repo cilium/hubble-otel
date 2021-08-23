@@ -36,7 +36,8 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 
 	hubbleAddress := "localhost:4245"
 	colletorAddressGRPC := "localhost:55690"
-	promAddress := "localhost:8889"
+	promReceiverAddress := "localhost:8888"
+	promExporterAddress := "localhost:8889"
 
 	fatal := make(chan error, 1)
 
@@ -74,10 +75,13 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 
 	waitForServer(ctx, t, colletorAddressGRPC)
 	waitForServer(ctx, t, hubbleAddress)
-	waitForServer(ctx, t, promAddress)
+	waitForServer(ctx, t, promExporterAddress)
+	waitForServer(ctx, t, promReceiverAddress)
 
-	checkCollectorMetrics := func() {
-		mf := getMetricFamilies(t, "http://"+promAddress+"/metrics")
+	_ = getMetricFamilies(ctx, t, "http://"+promExporterAddress+"/metrics")
+
+	checkCollectorMetrics := func(iteration int) {
+		mf := getMetricFamilies(ctx, t, "http://"+promExporterAddress+"/metrics")
 
 		/*
 			main_test.go:78: metrics: map[
@@ -105,27 +109,29 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 			]
 		*/
 
-		//t.Logf("metrics: %v", mf)
+		// t.Logf("metrics: %v", mf)
 
 		for _, k := range []string{"otelcol_exporter_send_failed_log_records", "otelcol_receiver_refused_log_records"} {
-			if len(mf[k].GetMetric()) == 0 {
-				t.Errorf("%q should be present", k)
+			m, ok := mf[k]
+			if ok && len(m.GetMetric()) == 0 {
+				t.Errorf("metric %q should be present", k)
 				continue
 			}
-			if v := mf[k].GetMetric()[0].Counter.Value; *v != 0.0 {
-				t.Errorf("%q should be zero", k)
+			if v := m.GetMetric()[0].Counter.Value; *v != 0.0 {
+				t.Errorf("metric %q should be zero", k)
 			}
 		}
 
-		// sample set contains 20000 flows, collector usually record 19000+ by this point
-		minLogRecords := 18000.0
+		// sample set contains 20000 flows, collector usually record between 17000 and 20000 for each iteration
+		minLogRecords := float64(15000.0 * (iteration + 1))
 		for _, k := range []string{"otelcol_exporter_sent_log_records", "otelcol_receiver_accepted_log_records"} {
-			if len(mf[k].GetMetric()) == 0 {
-				t.Errorf("%q should be present", k)
+			m, ok := mf[k]
+			if ok && len(m.GetMetric()) == 0 {
+				t.Errorf("metric %q should be present", k)
 				continue
 			}
-			if v := mf[k].GetMetric()[0].Counter.Value; *v < minLogRecords {
-				t.Errorf("%q should be at least %f, not %f", k, minLogRecords, *v)
+			if v := m.GetMetric()[0].Counter.Value; *v < minLogRecords {
+				t.Errorf("metric %q should be at least %f, not %f", k, minLogRecords, *v)
 			}
 		}
 	}
@@ -163,14 +169,14 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 		},
 	}
 
-	for _, mode := range modes {
-		t.Logf("runing mode=%v", mode)
+	for i, mode := range modes {
+		t.Logf("running with mode=%+v", mode)
 		if err := run(flagsHubble, flagsOTLP, 10, mode.encoding, mode.useAttributes); err != nil {
 			if isEOF(err) {
-				checkCollectorMetrics()
-				return
+				checkCollectorMetrics(i)
+				continue
 			}
-			t.Fatalf("run failed for mode=%v: %v", mode, err)
+			t.Fatalf("run failed for mode=%+v: %v", mode, err)
 		}
 	}
 }
@@ -263,35 +269,56 @@ func runMockHubble(ctx context.Context, log *logrus.Logger, dir, address string,
 }
 
 func waitForServer(ctx context.Context, t *testing.T, address string) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
 			conn, err := net.Dial("tcp", address)
-			if err == nil {
-				conn.Close()
-				break
+			if conn != nil {
+				if err := conn.Close(); err != nil {
+					t.Logf("ignoring connection closure error: %v", err)
+				}
 			}
-			t.Logf("waiting for a server to listen on %q (err: %v)", address, err)
-			time.Sleep(250 * time.Millisecond)
+			if err == nil {
+				t.Logf("server is now listening on %q", address)
+				return
+			}
+			t.Logf("waiting for server to listen on %q (err: %v)", address, err)
+			time.Sleep(330 * time.Millisecond)
 		}
 
 	}
 }
 
-func getMetricFamilies(t *testing.T, url string) map[string]*promdto.MetricFamily {
-	resp, err := http.Get(url)
-	if err != nil {
-		t.Fatalf("failed to get prometheus metrics: %v", err)
-	}
+func getMetricFamilies(ctx context.Context, t *testing.T, url string) map[string]*promdto.MetricFamily {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			resp, err := http.Get(url)
+			if err != nil {
+				t.Fatalf("failed to get prometheus metrics: %v", err)
+				return nil
+			}
 
-	mf, err := (&promexpfmt.TextParser{}).TextToMetricFamilies(resp.Body)
-	if err != nil {
-		t.Fatalf("failed to parse prometheus metrics: %v", err)
+			mf, err := (&promexpfmt.TextParser{}).TextToMetricFamilies(resp.Body)
+			if err != nil {
+				t.Fatalf("failed to parse prometheus metrics: %v", err)
+				return nil
+			}
+			if up, ok := mf["up"]; ok && len(up.GetMetric()) > 0 {
+				return mf
+			}
+			t.Logf("waiting for prom metrics to become available")
+			time.Sleep(250 * time.Millisecond)
+		}
 	}
-
-	return mf
 }
 
 func isEOF(err error) bool {
