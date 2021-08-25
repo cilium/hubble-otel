@@ -2,12 +2,22 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/isovalent/hubble-otel/converter"
 	"github.com/isovalent/hubble-otel/testutils"
+)
+
+const (
+	hubbleAddress       = "localhost:4245"
+	colletorAddressGRPC = "localhost:55690"
+	promReceiverAddress = "localhost:8888"
+	promExporterAddress = "localhost:8889"
+
+	metricsURL = "http://" + promExporterAddress + "/metrics"
 )
 
 func TestBasicIntegrationWithTLS(t *testing.T) {
@@ -17,11 +27,6 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 	isFalse := false
 	isTrue := true
 	newString := func(s string) *string { return &s }
-
-	hubbleAddress := "localhost:4245"
-	colletorAddressGRPC := "localhost:55690"
-	promReceiverAddress := "localhost:8888"
-	promExporterAddress := "localhost:8889"
 
 	fatal := make(chan error, 1)
 
@@ -55,24 +60,28 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 	}
 
 	flagsHubble := flags{
-		address: &hubbleAddress,
+		address: new(string),
 		tls:     commonFlagsTLS,
 	}
 
+	*flagsHubble.address = hubbleAddress
+
 	flagsOTLP := flags{
-		address: &colletorAddressGRPC,
+		address: new(string),
 		tls:     commonFlagsTLS,
 	}
+
+	*flagsOTLP.address = colletorAddressGRPC
 
 	testutils.WaitForServer(ctx, t, colletorAddressGRPC)
 	testutils.WaitForServer(ctx, t, hubbleAddress)
 	testutils.WaitForServer(ctx, t, promExporterAddress)
 	testutils.WaitForServer(ctx, t, promReceiverAddress)
 
-	_ = testutils.GetMetricFamilies(ctx, t, "http://"+promExporterAddress+"/metrics")
+	_ = testutils.GetMetricFamilies(ctx, t, metricsURL)
 
-	checkCollectorMetrics := func(iteration int) {
-		mf := testutils.GetMetricFamilies(ctx, t, "http://"+promExporterAddress+"/metrics")
+	checkCollectorMetrics := func(t *testing.T, iteration int) {
+		mf := testutils.GetMetricFamilies(ctx, t, metricsURL)
 
 		/*
 			main_test.go:78: metrics: map[
@@ -161,13 +170,14 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 	}
 
 	for i, mode := range modes {
-		t.Logf("running with mode=%+v", mode)
-		if err := run(flagsHubble, flagsOTLP, 10, mode.encoding, mode.useAttributes); err != nil {
-			if testutils.IsEOF(err) {
-				checkCollectorMetrics(i)
-				continue
+		t.Run(fmt.Sprintf("mode=%+v", mode), func(t *testing.T) {
+			if err := run(flagsHubble, flagsOTLP, 10, mode.encoding, mode.useAttributes); err != nil {
+				if testutils.IsEOF(err) {
+					checkCollectorMetrics(t, i)
+					return
+				}
+				t.Fatal(err)
 			}
-			t.Fatalf("run failed for mode=%+v: %v", mode, err)
-		}
+		})
 	}
 }
