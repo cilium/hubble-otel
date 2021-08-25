@@ -2,28 +2,12 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"net"
-	"net/http"
 	"testing"
-	"time"
-
-	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/service"
-	"go.opentelemetry.io/collector/service/defaultcomponents"
-	"google.golang.org/grpc/status"
-
-	promdto "github.com/prometheus/client_model/go"
-	promexpfmt "github.com/prometheus/common/expfmt"
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/cilium/cilium/pkg/crypto/certloader"
-	"github.com/cilium/cilium/pkg/hubble/server"
-	"github.com/cilium/cilium/pkg/hubble/server/serveroption"
-	"github.com/cilium/cilium/pkg/logging/logfields"
 	"github.com/isovalent/hubble-otel/converter"
-	mockHubbleObeserver "github.com/isovalent/mock-hubble/observer"
+	"github.com/isovalent/hubble-otel/testutils"
 )
 
 func TestBasicIntegrationWithTLS(t *testing.T) {
@@ -41,11 +25,18 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 
 	fatal := make(chan error, 1)
 
-	go runOpenTelemtryCollector(ctx, t, fatal)
+	go testutils.RunOpenTelemtryCollector(ctx, t, "testdata/collector-with-tls.yaml", "info", fatal)
 
 	log := logrus.New()
 	//log.SetLevel(logrus.DebugLevel)
-	go runMockHubble(ctx, log, "testdata/2021-06-16-sample-flows-istio-gke", hubbleAddress, 100, fatal)
+
+	tlsPaths := &testutils.TLSPaths{
+		Certificate:          "testdata/certs/test-server.pem",
+		Key:                  "testdata/certs/test-server-key.pem",
+		CertificateAuthority: "testdata/certs/ca.pem",
+	}
+
+	go testutils.RunMockHubble(ctx, log, "testdata/2021-06-16-sample-flows-istio-gke", hubbleAddress, 100, tlsPaths, fatal)
 
 	go func() {
 		for err := range fatal {
@@ -73,15 +64,15 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 		tls:     commonFlagsTLS,
 	}
 
-	waitForServer(ctx, t, colletorAddressGRPC)
-	waitForServer(ctx, t, hubbleAddress)
-	waitForServer(ctx, t, promExporterAddress)
-	waitForServer(ctx, t, promReceiverAddress)
+	testutils.WaitForServer(ctx, t, colletorAddressGRPC)
+	testutils.WaitForServer(ctx, t, hubbleAddress)
+	testutils.WaitForServer(ctx, t, promExporterAddress)
+	testutils.WaitForServer(ctx, t, promReceiverAddress)
 
-	_ = getMetricFamilies(ctx, t, "http://"+promExporterAddress+"/metrics")
+	_ = testutils.GetMetricFamilies(ctx, t, "http://"+promExporterAddress+"/metrics")
 
 	checkCollectorMetrics := func(iteration int) {
-		mf := getMetricFamilies(ctx, t, "http://"+promExporterAddress+"/metrics")
+		mf := testutils.GetMetricFamilies(ctx, t, "http://"+promExporterAddress+"/metrics")
 
 		/*
 			main_test.go:78: metrics: map[
@@ -172,156 +163,11 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 	for i, mode := range modes {
 		t.Logf("running with mode=%+v", mode)
 		if err := run(flagsHubble, flagsOTLP, 10, mode.encoding, mode.useAttributes); err != nil {
-			if isEOF(err) {
+			if testutils.IsEOF(err) {
 				checkCollectorMetrics(i)
 				continue
 			}
 			t.Fatalf("run failed for mode=%+v: %v", mode, err)
 		}
 	}
-}
-
-func runOpenTelemtryCollector(ctx context.Context, t *testing.T, fatal chan<- error) {
-	factories, err := defaultcomponents.Components()
-	if err != nil {
-		t.Fatalf("failed to build default components: %v", err)
-	}
-	info := component.BuildInfo{
-		Command:     "otelcol-test",
-		Description: "test OpenTelemetry Collector",
-		Version:     "v0.30.1",
-	}
-
-	settings := service.CollectorSettings{BuildInfo: info, Factories: factories}
-
-	svc, err := service.New(settings)
-	if err != nil {
-		fatal <- fmt.Errorf("failed to construct the collector server: %v", err)
-		return
-	}
-
-	go func() {
-		svc.Command().SetArgs([]string{
-			"--config=testdata/collector-with-tls.yaml",
-			"--log-level=info",
-		})
-
-		if err = svc.Run(); err != nil {
-			fatal <- fmt.Errorf("collector server run finished with error: %v", err)
-			return
-		} else {
-			t.Log("collector server run finished without errors")
-		}
-	}()
-
-	<-ctx.Done()
-	svc.Shutdown()
-}
-
-func runMockHubble(ctx context.Context, log *logrus.Logger, dir, address string, rateAdjustment int, fatal chan<- error) {
-	mockObeserver, err := mockHubbleObeserver.New(log.WithField(logfields.LogSubsys, "mock-hubble-observer"),
-		mockHubbleObeserver.WithSampleDir(dir),
-		mockHubbleObeserver.WithRateAdjustment(int64(rateAdjustment)),
-	)
-	if err != nil {
-		fatal <- err
-		return
-	}
-
-	serverConfigBuilder, err := certloader.NewWatchedServerConfig(log,
-		[]string{"testdata/certs/ca.pem"},
-		"testdata/certs/test-server.pem",
-		"testdata/certs/test-server-key.pem",
-	)
-	if err != nil {
-		fatal <- err
-		return
-	}
-
-	mockServer, err := server.NewServer(log.WithField(logfields.LogSubsys, "mock-hubble-server"),
-		serveroption.WithTCPListener(address),
-		serveroption.WithServerTLS(serverConfigBuilder),
-		serveroption.WithHealthService(),
-		serveroption.WithObserverService(mockObeserver),
-	)
-	if err != nil {
-		fatal <- err
-		return
-	}
-
-	log.WithField("address", address).Info("Starting Hubble server")
-
-	if err := mockServer.Serve(); err != nil {
-		fatal <- err
-		return
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			log.WithField("address", address).Info("Stopping Hubble server")
-			mockServer.Stop()
-			mockObeserver.Stop()
-			return
-		}
-	}
-
-}
-
-func waitForServer(ctx context.Context, t *testing.T, address string) {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-	defer cancel()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			conn, err := net.Dial("tcp", address)
-			if conn != nil {
-				if err := conn.Close(); err != nil {
-					t.Logf("ignoring connection closure error: %v", err)
-				}
-			}
-			if err == nil {
-				t.Logf("server is now listening on %q", address)
-				return
-			}
-			t.Logf("waiting for server to listen on %q (err: %v)", address, err)
-			time.Sleep(330 * time.Millisecond)
-		}
-
-	}
-}
-
-func getMetricFamilies(ctx context.Context, t *testing.T, url string) map[string]*promdto.MetricFamily {
-	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-	defer cancel()
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-			resp, err := http.Get(url)
-			if err != nil {
-				t.Fatalf("failed to get prometheus metrics: %v", err)
-				return nil
-			}
-
-			mf, err := (&promexpfmt.TextParser{}).TextToMetricFamilies(resp.Body)
-			if err != nil {
-				t.Fatalf("failed to parse prometheus metrics: %v", err)
-				return nil
-			}
-			if up, ok := mf["up"]; ok && len(up.GetMetric()) > 0 {
-				return mf
-			}
-			t.Logf("waiting for prom metrics to become available")
-			time.Sleep(250 * time.Millisecond)
-		}
-	}
-}
-
-func isEOF(err error) bool {
-	s, ok := status.FromError(err)
-	return ok && s.Proto().GetMessage() == "EOF"
 }
