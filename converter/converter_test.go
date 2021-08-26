@@ -2,7 +2,6 @@ package converter_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -47,33 +46,12 @@ func BenchmarkAllModes(b *testing.B) {
 
 	defer hubbleConn.Close()
 
-	modes := []struct {
-		useAttributes bool
-		encoding      string
-	}{
-		{
-			encoding: converter.EncodingJSON,
-		},
-		{
-			encoding: converter.EncodingJSONBASE64,
-		},
-		{
-			encoding: converter.EncodingFlatStringMap,
-		},
-		{
-			encoding: converter.EncodingSemiFlatTypedMap,
-		},
-		{
-			encoding: converter.EncodingTypedMap,
-		},
-	}
-
-	for _, mode := range modes {
+	for _, encoding := range converter.EncodingFormats() {
 		process := func() {
 			flows := make(chan *logsV1.ResourceLogs, logBufferSize)
 			errs := make(chan error)
 
-			go processors.FlowReciever(ctx, hubbleConn, mode.encoding, mode.useAttributes, flows, errs)
+			go processors.FlowReciever(ctx, hubbleConn, encoding, false, flows, errs)
 			for {
 				select {
 				case _ = <-flows: // drop
@@ -88,7 +66,7 @@ func BenchmarkAllModes(b *testing.B) {
 			}
 		}
 
-		b.Run(fmt.Sprintf("mode=%+v", mode), func(b *testing.B) {
+		b.Run(encoding, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				process()
 			}
