@@ -126,7 +126,7 @@ func RunOpenTelemtryCollector(ctx context.Context, t *testing.T, configPath, log
 	svc.Shutdown()
 }
 
-func WaitForServer(ctx context.Context, t *testing.T, address string) {
+func WaitForServer(ctx context.Context, logf func(format string, args ...interface{}), address string) {
 	ctx, cancel := context.WithTimeout(ctx, pollingTimeout)
 	defer cancel()
 	for {
@@ -137,14 +137,14 @@ func WaitForServer(ctx context.Context, t *testing.T, address string) {
 			conn, err := net.Dial("tcp", address)
 			if conn != nil {
 				if err := conn.Close(); err != nil {
-					t.Logf("ignoring connection closure error: %v", err)
+					logf("ignoring connection closure error: %v", err)
 				}
 			}
 			if err == nil {
-				t.Logf("server is now listening on %q", address)
+				logf("server is now listening on %q", address)
 				return
 			}
-			t.Logf("waiting for server to listen on %q (err: %v)", address, err)
+			logf("waiting for server to listen on %q (err: %v)", address, err)
 			time.Sleep(waitPeriod)
 		}
 	}

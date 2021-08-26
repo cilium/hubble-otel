@@ -73,10 +73,10 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 
 	*flagsOTLP.address = colletorAddressGRPC
 
-	testutils.WaitForServer(ctx, t, colletorAddressGRPC)
-	testutils.WaitForServer(ctx, t, hubbleAddress)
-	testutils.WaitForServer(ctx, t, promExporterAddress)
-	testutils.WaitForServer(ctx, t, promReceiverAddress)
+	testutils.WaitForServer(ctx, t.Logf, colletorAddressGRPC)
+	testutils.WaitForServer(ctx, t.Logf, hubbleAddress)
+	testutils.WaitForServer(ctx, t.Logf, promExporterAddress)
+	testutils.WaitForServer(ctx, t.Logf, promReceiverAddress)
 
 	_ = testutils.GetMetricFamilies(ctx, t, metricsURL)
 
