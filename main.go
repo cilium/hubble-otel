@@ -55,7 +55,7 @@ func main() {
 
 	logBufferSize := flag.Int("logBufferSize", 2048, "size of the buffer")
 	encodingFormat := flag.String("encodingFormat", converter.DefaultEncoding, fmt.Sprintf("encoding format (valid options: %v)", converter.EncodingFormats()))
-	useAttributes := flag.Bool("useAttributes", false, "use attributes instead of body")
+	useAttributes := flag.Bool("useAttributes", true, "use attributes instead of body")
 
 	flag.Parse()
 

@@ -21,7 +21,7 @@ const (
 	AttributeEventKindVersionFlowV1alpha1 = "flow/v1alpha1"
 
 	AttributeEventEncoding   = keyPrefix + "event_encoding"
-	DefaultEncoding          = EncodingJSON
+	DefaultEncoding          = EncodingTypedMap
 	EncodingJSON             = "JSON"
 	EncodingJSONBASE64       = "JSON+base64"
 	EncodingFlatStringMap    = "FlatStringMap"
