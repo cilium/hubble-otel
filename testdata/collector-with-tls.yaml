@@ -28,6 +28,8 @@ processors:
 exporters:
   logging:
     # loglevel: debug
+  # file:
+  #   path: /tmp/otel-test.json
   prometheus:
     endpoint: "localhost:8889"
 
@@ -36,7 +38,9 @@ service:
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [logging]
+      exporters:
+       - logging
+       # - file
     metrics:
       receivers: [prometheus]
       exporters: [prometheus]
