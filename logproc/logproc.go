@@ -1,4 +1,4 @@
-package processors
+package logproc
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 
 	"github.com/cilium/cilium/api/v1/observer"
 
-	"github.com/isovalent/hubble-otel/converter"
+	"github.com/isovalent/hubble-otel/logconv"
 )
 
 func FlowReciever(ctx context.Context, hubbleConn *grpc.ClientConn, encodingFormat string, useAttributes bool, flows chan<- *logsV1.ResourceLogs, errs chan<- error) {
@@ -24,7 +24,7 @@ func FlowReciever(ctx context.Context, hubbleConn *grpc.ClientConn, encodingForm
 		return
 	}
 
-	c := converter.FlowConverter{
+	c := logconv.FlowConverter{
 		Encoding:      encodingFormat,
 		UseAttributes: useAttributes,
 	}

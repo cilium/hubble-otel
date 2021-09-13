@@ -7,8 +7,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/isovalent/hubble-otel/converter"
-	"github.com/isovalent/hubble-otel/testutils"
+	"github.com/isovalent/hubble-otel/logconv"
+	"github.com/isovalent/hubble-otel/testutil"
 )
 
 const (
@@ -30,18 +30,18 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 
 	fatal := make(chan error, 1)
 
-	go testutils.RunOpenTelemtryCollector(ctx, t, "testdata/collector-with-tls.yaml", "info", fatal)
+	go testutil.RunOpenTelemtryCollector(ctx, t, "testdata/collector-with-tls.yaml", "info", fatal)
 
 	log := logrus.New()
 	//log.SetLevel(logrus.DebugLevel)
 
-	tlsPaths := &testutils.TLSPaths{
+	tlsPaths := &testutil.TLSPaths{
 		Certificate:          "testdata/certs/test-server.pem",
 		Key:                  "testdata/certs/test-server-key.pem",
 		CertificateAuthority: "testdata/certs/ca.pem",
 	}
 
-	go testutils.RunMockHubble(ctx, log, "testdata/2021-06-16-sample-flows-istio-gke", hubbleAddress, 100, tlsPaths, fatal)
+	go testutil.RunMockHubble(ctx, log, "testdata/2021-06-16-sample-flows-istio-gke", hubbleAddress, 100, tlsPaths, fatal)
 
 	go func() {
 		for err := range fatal {
@@ -73,15 +73,15 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 
 	*flagsOTLP.address = colletorAddressGRPC
 
-	testutils.WaitForServer(ctx, t.Logf, colletorAddressGRPC)
-	testutils.WaitForServer(ctx, t.Logf, hubbleAddress)
-	testutils.WaitForServer(ctx, t.Logf, promExporterAddress)
-	testutils.WaitForServer(ctx, t.Logf, promReceiverAddress)
+	testutil.WaitForServer(ctx, t.Logf, colletorAddressGRPC)
+	testutil.WaitForServer(ctx, t.Logf, hubbleAddress)
+	testutil.WaitForServer(ctx, t.Logf, promExporterAddress)
+	testutil.WaitForServer(ctx, t.Logf, promReceiverAddress)
 
-	_ = testutils.GetMetricFamilies(ctx, t, metricsURL)
+	_ = testutil.GetMetricFamilies(ctx, t, metricsURL)
 
 	checkCollectorMetrics := func(t *testing.T, iteration int) {
-		mf := testutils.GetMetricFamilies(ctx, t, metricsURL)
+		mf := testutil.GetMetricFamilies(ctx, t, metricsURL)
 
 		/*
 			main_test.go:78: metrics: map[
@@ -141,30 +141,30 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 		encoding      string
 	}{
 		{
-			encoding: converter.EncodingJSON,
+			encoding: logconv.EncodingJSON,
 		},
 		{
-			encoding: converter.EncodingJSONBASE64,
+			encoding: logconv.EncodingJSONBASE64,
 		},
 		{
-			encoding: converter.EncodingFlatStringMap,
+			encoding: logconv.EncodingFlatStringMap,
 		},
 		{
-			encoding:      converter.EncodingFlatStringMap,
+			encoding:      logconv.EncodingFlatStringMap,
 			useAttributes: true,
 		},
 		{
-			encoding: converter.EncodingSemiFlatTypedMap,
+			encoding: logconv.EncodingSemiFlatTypedMap,
 		},
 		{
-			encoding:      converter.EncodingSemiFlatTypedMap,
+			encoding:      logconv.EncodingSemiFlatTypedMap,
 			useAttributes: true,
 		},
 		{
-			encoding: converter.EncodingTypedMap,
+			encoding: logconv.EncodingTypedMap,
 		},
 		{
-			encoding:      converter.EncodingTypedMap,
+			encoding:      logconv.EncodingTypedMap,
 			useAttributes: true,
 		},
 	}
@@ -172,7 +172,7 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 	for i, mode := range modes {
 		t.Run(fmt.Sprintf("mode=%+v", mode), func(t *testing.T) {
 			if err := run(flagsHubble, flagsOTLP, 10, mode.encoding, mode.useAttributes); err != nil {
-				if testutils.IsEOF(err) {
+				if testutil.IsEOF(err) {
 					checkCollectorMetrics(t, i)
 					return
 				}
