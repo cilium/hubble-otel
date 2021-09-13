@@ -1,4 +1,4 @@
-package converter
+package logconv
 
 import (
 	"encoding/base64"

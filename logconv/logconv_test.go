@@ -1,4 +1,4 @@
-package converter_test
+package logconv_test
 
 import (
 	"bufio"
@@ -15,9 +15,9 @@ import (
 	logsV1 "go.opentelemetry.io/proto/otlp/logs/v1"
 	"google.golang.org/grpc"
 
-	"github.com/isovalent/hubble-otel/converter"
-	"github.com/isovalent/hubble-otel/processors"
-	"github.com/isovalent/hubble-otel/testutils"
+	"github.com/isovalent/hubble-otel/logconv"
+	"github.com/isovalent/hubble-otel/logproc"
+	"github.com/isovalent/hubble-otel/testutil"
 )
 
 const (
@@ -34,7 +34,7 @@ func BenchmarkAllModes(b *testing.B) {
 	log := logrus.New()
 	log.SetLevel(logrus.ErrorLevel)
 
-	go testutils.RunMockHubble(ctx, log, "../testdata/2021-06-16-sample-flows-istio-gke", hubbleAddress, 100, nil, fatal)
+	go testutil.RunMockHubble(ctx, log, "../testdata/2021-06-16-sample-flows-istio-gke", hubbleAddress, 100, nil, fatal)
 
 	go func() {
 		for err := range fatal {
@@ -44,7 +44,7 @@ func BenchmarkAllModes(b *testing.B) {
 		}
 	}()
 
-	testutils.WaitForServer(ctx, b.Logf, hubbleAddress)
+	testutil.WaitForServer(ctx, b.Logf, hubbleAddress)
 
 	hubbleConn, err := grpc.DialContext(ctx, hubbleAddress, grpc.WithInsecure())
 	if err != nil {
@@ -53,19 +53,19 @@ func BenchmarkAllModes(b *testing.B) {
 
 	defer hubbleConn.Close()
 
-	for _, encoding := range converter.EncodingFormats() {
+	for _, encoding := range logconv.EncodingFormats() {
 		process := func() {
 			flows := make(chan *logsV1.ResourceLogs, logBufferSize)
 			errs := make(chan error)
 
-			go processors.FlowReciever(ctx, hubbleConn, encoding, false, flows, errs)
+			go logproc.FlowReciever(ctx, hubbleConn, encoding, false, flows, errs)
 			for {
 				select {
 				case _ = <-flows: // drop
 				case <-ctx.Done():
 					return
 				case err := <-errs:
-					if testutils.IsEOF(err) {
+					if testutil.IsEOF(err) {
 						return
 					}
 					b.Fatal(err)
@@ -82,32 +82,32 @@ func BenchmarkAllModes(b *testing.B) {
 }
 
 func TestAllModes(t *testing.T) {
-	modes := []*converter.FlowConverter{
+	modes := []*logconv.FlowConverter{
 		{
-			Encoding: converter.EncodingJSON,
+			Encoding: logconv.EncodingJSON,
 		},
 		{
-			Encoding: converter.EncodingJSONBASE64,
+			Encoding: logconv.EncodingJSONBASE64,
 		},
 		{
-			Encoding: converter.EncodingFlatStringMap,
+			Encoding: logconv.EncodingFlatStringMap,
 		},
 		{
-			Encoding:      converter.EncodingFlatStringMap,
+			Encoding:      logconv.EncodingFlatStringMap,
 			UseAttributes: true,
 		},
 		{
-			Encoding: converter.EncodingSemiFlatTypedMap,
+			Encoding: logconv.EncodingSemiFlatTypedMap,
 		},
 		{
-			Encoding:      converter.EncodingSemiFlatTypedMap,
+			Encoding:      logconv.EncodingSemiFlatTypedMap,
 			UseAttributes: true,
 		},
 		{
-			Encoding: converter.EncodingTypedMap,
+			Encoding: logconv.EncodingTypedMap,
 		},
 		{
-			Encoding:      converter.EncodingTypedMap,
+			Encoding:      logconv.EncodingTypedMap,
 			UseAttributes: true,
 		},
 	}
@@ -133,7 +133,7 @@ func TestAllModes(t *testing.T) {
 				}
 				hasNodeName := false
 				for _, attr := range logs.Resource.Attributes {
-					if attr.Key == converter.ResourceCiliumNodeName {
+					if attr.Key == logconv.ResourceCiliumNodeName {
 						hasNodeName = true
 						if attr.Value.GetStringValue() != flow.GetNodeName() {
 							t.Error("node name is wrong")
@@ -159,17 +159,17 @@ func TestAllModes(t *testing.T) {
 				hasPayloadAttr := false
 				for _, attr := range logRecord.Attributes {
 					switch attr.Key {
-					case converter.AttributeEventKindVersion:
+					case logconv.AttributeEventKindVersion:
 						hasVersionAttr = true
-						if attr.Value.GetStringValue() != converter.AttributeEventKindVersionFlowV1alpha1 {
+						if attr.Value.GetStringValue() != logconv.AttributeEventKindVersionFlowV1alpha1 {
 							t.Error("version is wrong")
 						}
-					case converter.AttributeEventEncoding:
+					case logconv.AttributeEventEncoding:
 						hasEncodingAttr = true
 						if attr.Value.GetStringValue() != c.Encoding {
 							t.Error("econding is wrong")
 						}
-					case converter.AttributeEventPayload:
+					case logconv.AttributeEventPayload:
 						hasPayloadAttr = true
 						payload = attr.Value
 					}
@@ -202,11 +202,11 @@ func TestAllModes(t *testing.T) {
 					t.Error("payload cannot be nil")
 				}
 				switch c.Encoding {
-				case converter.EncodingJSON, converter.EncodingJSONBASE64:
+				case logconv.EncodingJSON, logconv.EncodingJSONBASE64:
 					if payload.GetStringValue() == "" {
 						t.Error("payload should be a non-empty string")
 					}
-				case converter.EncodingFlatStringMap, converter.EncodingSemiFlatTypedMap, converter.EncodingTypedMap:
+				case logconv.EncodingFlatStringMap, logconv.EncodingSemiFlatTypedMap, logconv.EncodingTypedMap:
 					m := payload.GetKvlistValue()
 					if m == nil {
 						t.Error("payload should be a map")

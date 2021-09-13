@@ -13,8 +13,8 @@ import (
 
 	logsV1 "go.opentelemetry.io/proto/otlp/logs/v1"
 
-	"github.com/isovalent/hubble-otel/converter"
-	"github.com/isovalent/hubble-otel/processors"
+	"github.com/isovalent/hubble-otel/logconv"
+	"github.com/isovalent/hubble-otel/logproc"
 )
 
 type flags struct {
@@ -54,7 +54,7 @@ func main() {
 	}
 
 	logBufferSize := flag.Int("logBufferSize", 2048, "size of the buffer")
-	encodingFormat := flag.String("encodingFormat", converter.DefaultEncoding, fmt.Sprintf("encoding format (valid options: %v)", converter.EncodingFormats()))
+	encodingFormat := flag.String("encodingFormat", logconv.DefaultEncoding, fmt.Sprintf("encoding format (valid options: %v)", logconv.EncodingFormats()))
 	useAttributes := flag.Bool("useAttributes", true, "use attributes instead of body")
 
 	flag.Parse()
@@ -128,9 +128,9 @@ func run(hubbleFlags, otlpFlags flags, logBufferSize int, encodingFormat string,
 
 	errs := make(chan error)
 
-	go processors.FlowReciever(ctx, hubbleConn, encodingFormat, useAttributes, flows, errs)
+	go logproc.FlowReciever(ctx, hubbleConn, encodingFormat, useAttributes, flows, errs)
 
-	go processors.LogSender(ctx, otlpConn, logBufferSize, flows, errs)
+	go logproc.LogSender(ctx, otlpConn, logBufferSize, flows, errs)
 
 	for {
 		select {
