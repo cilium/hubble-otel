@@ -47,7 +47,13 @@ type FlowConverter struct {
 	UseAttributes bool
 }
 
-func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (*logsV1.ResourceLogs, error) {
+func NewFlowConverter(encoding string, useAttributes bool) FlowConverter {
+	return FlowConverter{
+		Encoding:      encoding,
+		UseAttributes: useAttributes,
+	}
+}
+func (c FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoreflect.Message, error) {
 	flow := hubbleResp.GetFlow()
 
 	v, err := c.toValue(hubbleResp)
@@ -83,7 +89,7 @@ func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (*logsV1.
 		logRecord.Body = v
 	}
 
-	return resourceLogs, nil
+	return resourceLogs.ProtoReflect(), nil
 }
 
 func (c *FlowConverter) toValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.AnyValue, error) {
