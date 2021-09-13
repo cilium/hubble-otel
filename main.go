@@ -10,11 +10,12 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-
-	logsV1 "go.opentelemetry.io/proto/otlp/logs/v1"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/isovalent/hubble-otel/logconv"
 	"github.com/isovalent/hubble-otel/logproc"
+	"github.com/isovalent/hubble-otel/reciever"
+	"github.com/isovalent/hubble-otel/sender"
 )
 
 type flags struct {
@@ -124,13 +125,13 @@ func run(hubbleFlags, otlpFlags flags, logBufferSize int, encodingFormat string,
 
 	defer otlpConn.Close()
 
-	flows := make(chan *logsV1.ResourceLogs, logBufferSize)
+	flows := make(chan protoreflect.Message, logBufferSize)
 
 	errs := make(chan error)
 
-	go logproc.FlowReciever(ctx, hubbleConn, encodingFormat, useAttributes, flows, errs)
+	go reciever.Run(ctx, hubbleConn, logconv.NewFlowConverter(encodingFormat, useAttributes), flows, errs)
 
-	go logproc.LogSender(ctx, otlpConn, logBufferSize, flows, errs)
+	go sender.Run(ctx, logproc.NewBufferedLogExporter(otlpConn, logBufferSize), flows, errs)
 
 	for {
 		select {
