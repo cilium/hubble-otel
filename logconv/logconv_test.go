@@ -1,15 +1,10 @@
 package logconv_test
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"testing"
 
-	"github.com/cilium/cilium/api/v1/flow"
-	"github.com/cilium/cilium/api/v1/observer"
 	"github.com/sirupsen/logrus"
 	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
 	logsV1 "go.opentelemetry.io/proto/otlp/logs/v1"
@@ -115,7 +110,7 @@ func TestAllModes(t *testing.T) {
 
 	for _, c := range modes {
 		t.Run(fmt.Sprintf("c=%+v", *c), func(t *testing.T) {
-			for _, flow := range getFlowSamples(t, "../testdata/basic-sample-10-flows.json") {
+			for _, flow := range testutil.GetFlowSamples(t, "../testdata/basic-sample-10-flows.json") {
 				logsMsg, err := c.Convert(flow)
 				if err != nil {
 					t.Error(err)
@@ -226,42 +221,4 @@ func TestAllModes(t *testing.T) {
 			}
 		})
 	}
-}
-
-func getFlowSamples(t *testing.T, path string) []*observer.GetFlowsResponse {
-	file, err := os.Open(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	samples := []*observer.GetFlowsResponse{}
-
-	scanner := bufio.NewScanner(file)
-
-	for scanner.Scan() {
-		f := &flow.Flow{}
-		var obj struct {
-			Flow *flow.Flow `json:"flow"`
-		}
-		obj.Flow = f
-		if err := json.Unmarshal(scanner.Bytes(), &obj); err == nil {
-			if f == nil {
-				continue
-			}
-
-			samples = append(samples, &observer.GetFlowsResponse{
-				NodeName: f.GetNodeName(),
-				Time:     f.GetTime(),
-				ResponseTypes: &observer.GetFlowsResponse_Flow{
-					Flow: f,
-				},
-			})
-		} else {
-			t.Fatal(err)
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		t.Fatal(err)
-	}
-	return samples
 }

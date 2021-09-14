@@ -1,10 +1,13 @@
 package testutil
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -18,6 +21,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"github.com/cilium/cilium/api/v1/flow"
+	"github.com/cilium/cilium/api/v1/observer"
 	"github.com/cilium/cilium/pkg/crypto/certloader"
 	"github.com/cilium/cilium/pkg/hubble/server"
 	"github.com/cilium/cilium/pkg/hubble/server/serveroption"
@@ -87,6 +92,44 @@ func RunMockHubble(ctx context.Context, log *logrus.Logger, dir, address string,
 		}
 	}
 
+}
+
+func GetFlowSamples(t *testing.T, path string) []*observer.GetFlowsResponse {
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	samples := []*observer.GetFlowsResponse{}
+
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		f := &flow.Flow{}
+		var obj struct {
+			Flow *flow.Flow `json:"flow"`
+		}
+		obj.Flow = f
+		if err := json.Unmarshal(scanner.Bytes(), &obj); err == nil {
+			if f == nil {
+				continue
+			}
+
+			samples = append(samples, &observer.GetFlowsResponse{
+				NodeName: f.GetNodeName(),
+				Time:     f.GetTime(),
+				ResponseTypes: &observer.GetFlowsResponse_Flow{
+					Flow: f,
+				},
+			})
+		} else {
+			t.Fatal(err)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return samples
 }
 
 func RunOpenTelemtryCollector(ctx context.Context, t *testing.T, configPath, logLevel string, fatal chan<- error) {
