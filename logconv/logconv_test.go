@@ -14,9 +14,10 @@ import (
 	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
 	logsV1 "go.opentelemetry.io/proto/otlp/logs/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/isovalent/hubble-otel/logconv"
-	"github.com/isovalent/hubble-otel/logproc"
+	"github.com/isovalent/hubble-otel/reciever"
 	"github.com/isovalent/hubble-otel/testutil"
 )
 
@@ -55,10 +56,10 @@ func BenchmarkAllModes(b *testing.B) {
 
 	for _, encoding := range logconv.EncodingFormats() {
 		process := func() {
-			flows := make(chan *logsV1.ResourceLogs, logBufferSize)
+			flows := make(chan protoreflect.Message, logBufferSize)
 			errs := make(chan error)
 
-			go logproc.FlowReciever(ctx, hubbleConn, encoding, false, flows, errs)
+			go reciever.Run(ctx, hubbleConn, logconv.NewFlowConverter(encoding, false), flows, errs)
 			for {
 				select {
 				case _ = <-flows: // drop
@@ -115,9 +116,14 @@ func TestAllModes(t *testing.T) {
 	for _, c := range modes {
 		t.Run(fmt.Sprintf("c=%+v", *c), func(t *testing.T) {
 			for _, flow := range getFlowSamples(t, "../testdata/basic-sample-10-flows.json") {
-				logs, err := c.Convert(flow)
+				logsMsg, err := c.Convert(flow)
 				if err != nil {
 					t.Error(err)
+				}
+
+				logs, ok := logsMsg.Interface().(*logsV1.ResourceLogs)
+				if !ok {
+					t.Fatal("cannot convert protoreflect.Message to *logsV1.ResourceLogs")
 				}
 				if logs == nil {
 					t.Error("logs shouldn't be nil")
