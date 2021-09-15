@@ -35,12 +35,18 @@ exporters:
 
 service:
   pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters:
+      - logging
+      # - file
     logs:
       receivers: [otlp]
       processors: [batch]
       exporters:
-       - logging
-       # - file
+      - logging
+      # - file
     metrics:
       receivers: [prometheus]
       exporters: [prometheus]
