@@ -3,6 +3,7 @@ package traceconv
 import (
 	"fmt"
 	"hash/fnv"
+	"os"
 	"time"
 
 	badger "github.com/dgraph-io/badger/v3"
@@ -71,6 +72,15 @@ func (tc *TraceCache) GetIDs(f *flow.Flow) (trace.TraceID, trace.SpanID, error) 
 		return traceID, spanID, err
 	}
 	return traceID, spanID, nil
+}
+
+func (tc *TraceCache) Close() error {
+	return tc.badgerDB.Close()
+}
+
+func (tc *TraceCache) Delete() {
+	_ = tc.Close()
+	os.RemoveAll(tc.badgerDB.Opts().Dir)
 }
 
 type keyTuple [2]string

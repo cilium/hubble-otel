@@ -17,6 +17,8 @@ func TestBadger(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	defer tc.Delete()
+
 	traces := map[string]struct{}{}
 	spans := map[string]struct{}{}
 
@@ -42,4 +44,5 @@ func TestBadger(t *testing.T) {
 	if len(traces) == len(spans) {
 		t.Error("all traces seem to have just a single span")
 	}
+
 }
