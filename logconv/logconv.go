@@ -38,13 +38,13 @@ type FlowConverter struct {
 	UseAttributes bool
 }
 
-func NewFlowConverter(encoding string, useAttributes bool) FlowConverter {
-	return FlowConverter{
+func NewFlowConverter(encoding string, useAttributes bool) *FlowConverter {
+	return &FlowConverter{
 		Encoding:      encoding,
 		UseAttributes: useAttributes,
 	}
 }
-func (c FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoreflect.Message, error) {
+func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoreflect.Message, error) {
 	flow := hubbleResp.GetFlow()
 
 	v, err := c.toValue(hubbleResp)
