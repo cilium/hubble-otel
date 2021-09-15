@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/cilium/cilium/api/v1/observer"
 	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
