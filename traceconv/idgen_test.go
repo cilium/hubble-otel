@@ -44,5 +44,4 @@ func TestBadger(t *testing.T) {
 	if len(traces) == len(spans) {
 		t.Error("all traces seem to have just a single span")
 	}
-
 }
