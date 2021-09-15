@@ -7,7 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/isovalent/hubble-otel/logconv"
+	"github.com/isovalent/hubble-otel/common"
 	"github.com/isovalent/hubble-otel/testutil"
 )
 
@@ -141,30 +141,30 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 		encoding      string
 	}{
 		{
-			encoding: logconv.EncodingJSON,
+			encoding: common.EncodingJSON,
 		},
 		{
-			encoding: logconv.EncodingJSONBASE64,
+			encoding: common.EncodingJSONBASE64,
 		},
 		{
-			encoding: logconv.EncodingFlatStringMap,
+			encoding: common.EncodingFlatStringMap,
 		},
 		{
-			encoding:      logconv.EncodingFlatStringMap,
+			encoding:      common.EncodingFlatStringMap,
 			useAttributes: true,
 		},
 		{
-			encoding: logconv.EncodingSemiFlatTypedMap,
+			encoding: common.EncodingSemiFlatTypedMap,
 		},
 		{
-			encoding:      logconv.EncodingSemiFlatTypedMap,
+			encoding:      common.EncodingSemiFlatTypedMap,
 			useAttributes: true,
 		},
 		{
-			encoding: logconv.EncodingTypedMap,
+			encoding: common.EncodingTypedMap,
 		},
 		{
-			encoding:      logconv.EncodingTypedMap,
+			encoding:      common.EncodingTypedMap,
 			useAttributes: true,
 		},
 	}

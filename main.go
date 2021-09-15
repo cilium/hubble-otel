@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	"github.com/isovalent/hubble-otel/common"
 	"github.com/isovalent/hubble-otel/logconv"
 	"github.com/isovalent/hubble-otel/logproc"
 	"github.com/isovalent/hubble-otel/reciever"
@@ -55,7 +56,7 @@ func main() {
 	}
 
 	logBufferSize := flag.Int("logBufferSize", 2048, "size of the buffer")
-	encodingFormat := flag.String("encodingFormat", logconv.DefaultEncoding, fmt.Sprintf("encoding format (valid options: %v)", logconv.EncodingFormats()))
+	encodingFormat := flag.String("encodingFormat", common.DefaultEncoding, fmt.Sprintf("encoding format (valid options: %v)", common.EncodingFormats()))
 	useAttributes := flag.Bool("useAttributes", true, "use attributes instead of body")
 
 	flag.Parse()
