@@ -12,6 +12,10 @@ import (
 
 func TestBadger(t *testing.T) {
 	dir, err := ioutil.TempDir("", "badger")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	tc, err := traceconv.NewTraceCache(badger.DefaultOptions(dir))
 	if err != nil {
 		t.Fatal(err)
