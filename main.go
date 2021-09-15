@@ -17,6 +17,7 @@ import (
 	"github.com/isovalent/hubble-otel/logproc"
 	"github.com/isovalent/hubble-otel/receiver"
 	"github.com/isovalent/hubble-otel/sender"
+	"github.com/isovalent/hubble-otel/traceconv"
 )
 
 type flags struct {
@@ -30,7 +31,7 @@ type flagsTLS struct {
 	clientCertificate, clientKey, certificateAuthority *string
 }
 
-// TODO: add prometheus metircs for buffer size, throughput, errors, etc
+// TODO: add prometheus metircs for buffer size, throughput, errors, badger ops etc
 
 func main() {
 	flagsHubble := flags{
@@ -55,13 +56,13 @@ func main() {
 		},
 	}
 
-	logBufferSize := flag.Int("logBufferSize", 2048, "size of the buffer")
+	bufferSize := flag.Int("bufferSize", 2048, "number of logs/spans to buffer before exporting")
 	encodingFormat := flag.String("encodingFormat", common.DefaultEncoding, fmt.Sprintf("encoding format (valid options: %v)", common.EncodingFormats()))
-	useAttributes := flag.Bool("useAttributes", true, "use attributes instead of body")
+	useLogAttributes := flag.Bool("useLogAttributes", true, "use attributes instead of body")
 
 	flag.Parse()
 
-	if err := run(flagsHubble, flagsOTLP, *logBufferSize, *encodingFormat, *useAttributes); err != nil {
+	if err := run(flagsHubble, flagsOTLP, *bufferSize, *encodingFormat, *useLogAttributes); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -109,7 +110,7 @@ func dialContext(ctx context.Context, f *flags) (*grpc.ClientConn, error) {
 	return grpc.DialContext(ctx, *f.address, grpc.WithTransportCredentials(creds))
 }
 
-func run(hubbleFlags, otlpFlags flags, logBufferSize int, encodingFormat string, useAttributes bool) error {
+func run(hubbleFlags, otlpFlags flags, bufferSize int, encodingFormat string, useLogAttributes bool) error {
 	ctx := context.Background()
 
 	hubbleConn, err := dialContext(ctx, &hubbleFlags)
@@ -126,13 +127,27 @@ func run(hubbleFlags, otlpFlags flags, logBufferSize int, encodingFormat string,
 
 	defer otlpConn.Close()
 
-	flows := make(chan protoreflect.Message, logBufferSize)
+	spanDB, err := os.MkdirTemp("", "hubble-otel-spandb")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary directory for span database: %w", err)
+	}
+
+	flowsToLogs := make(chan protoreflect.Message, bufferSize)
+	flowsToTraces := make(chan protoreflect.Message, bufferSize)
 
 	errs := make(chan error)
 
-	go receiver.Run(ctx, hubbleConn, logconv.NewFlowConverter(encodingFormat, useAttributes), flows, errs)
+	logConverter := logconv.NewFlowConverter(encodingFormat, useLogAttributes)
+	go receiver.Run(ctx, hubbleConn, logConverter, flowsToLogs, errs)
 
-	go sender.Run(ctx, logproc.NewBufferedLogExporter(otlpConn, logBufferSize), flows, errs)
+	traceConverter, err := traceconv.NewFlowConverter(encodingFormat, spanDB)
+	if err != nil {
+		return fmt.Errorf("failed to create trace converter: %w", err)
+	}
+	go receiver.Run(ctx, hubbleConn, traceConverter, flowsToTraces, errs)
+
+	go sender.Run(ctx, logproc.NewBufferedLogExporter(otlpConn, bufferSize), flowsToLogs, errs)
+	go sender.Run(ctx, &sender.NullExporter{}, flowsToTraces, errs)
 
 	for {
 		select {

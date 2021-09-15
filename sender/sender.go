@@ -13,6 +13,14 @@ type Exporter interface {
 	Export(context.Context, <-chan protoreflect.Message) error
 }
 
+type NullExporter struct{}
+
+func (s *NullExporter) Export(ctx context.Context, flows <-chan protoreflect.Message) error {
+	for {
+		<-flows
+	}
+}
+
 func Run(ctx context.Context, s Exporter, flows <-chan protoreflect.Message, errs chan<- error) {
 	for {
 		switch err := s.Export(ctx, flows); err {
