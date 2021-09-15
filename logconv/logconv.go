@@ -11,25 +11,16 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/cilium/cilium/api/v1/observer"
+	"github.com/isovalent/hubble-otel/common"
 )
 
 const (
-	keyPrefix = "io.cilium.otel."
-
-	AttributeEventKindVersion             = keyPrefix + "event_kind"
-	AttributeEventPayload                 = keyPrefix + "event_payload"
-	AttributeEventKindVersionFlowV1alpha1 = "flow/v1alpha1"
-
-	AttributeEventEncoding   = keyPrefix + "event_encoding"
 	DefaultEncoding          = EncodingTypedMap
 	EncodingJSON             = "JSON"
 	EncodingJSONBASE64       = "JSON+base64"
 	EncodingFlatStringMap    = "FlatStringMap"
 	EncodingSemiFlatTypedMap = "SemiFlatTypedMap"
 	EncodingTypedMap         = "TypedMap"
-
-	ResourceCiliumClusterID = keyPrefix + "cluster_id"
-	ResourceCiliumNodeName  = keyPrefix + "node_name"
 )
 
 func EncodingFormats() []string {
@@ -63,16 +54,16 @@ func (c FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protorefl
 
 	logRecord := &logsV1.LogRecord{
 		TimeUnixNano: uint64(flow.GetTime().AsTime().UnixNano()),
-		Attributes: newStringAttributes(map[string]string{
-			AttributeEventKindVersion: AttributeEventKindVersionFlowV1alpha1,
-			AttributeEventEncoding:    c.Encoding,
+		Attributes: common.NewStringAttributes(map[string]string{
+			common.AttributeEventKindVersion: common.AttributeEventKindVersionFlowV1alpha1,
+			common.AttributeEventEncoding:    c.Encoding,
 		}),
 	}
 
 	resourceLogs := &logsV1.ResourceLogs{
 		Resource: &resourceV1.Resource{
-			Attributes: newStringAttributes(map[string]string{
-				ResourceCiliumNodeName: flow.GetNodeName(),
+			Attributes: common.NewStringAttributes(map[string]string{
+				common.ResourceCiliumNodeName: flow.GetNodeName(),
 			}),
 		},
 		InstrumentationLibraryLogs: []*logsV1.InstrumentationLibraryLogs{{
@@ -82,7 +73,7 @@ func (c FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protorefl
 
 	if c.UseAttributes {
 		logRecord.Attributes = append(logRecord.Attributes, &commonV1.KeyValue{
-			Key:   AttributeEventPayload,
+			Key:   common.AttributeEventPayload,
 			Value: v,
 		})
 	} else {
@@ -107,7 +98,7 @@ func (c *FlowConverter) toValue(hubbleResp *observer.GetFlowsResponse) (*commonV
 		case EncodingJSONBASE64:
 			s = base64.RawStdEncoding.EncodeToString(data)
 		}
-		return newStringValue(s), nil
+		return common.NewStringValue(s), nil
 	case EncodingFlatStringMap, EncodingSemiFlatTypedMap, EncodingTypedMap:
 		var mb mapBuilder
 		switch c.Encoding {
@@ -156,13 +147,13 @@ func (l *flatStringMap) newLeaf(keyPathPrefix string) func(fd protoreflect.Field
 			for i := 0; i < items.Len(); i++ {
 				l.list = append(l.list, &commonV1.KeyValue{
 					Key:   fmtKeyPath(keyPath, strconv.Itoa(i)),
-					Value: newStringValue(items.Get(i).String()),
+					Value: common.NewStringValue(items.Get(i).String()),
 				})
 			}
 		default:
 			l.list = append(l.list, &commonV1.KeyValue{
 				Key:   keyPath,
-				Value: newStringValue(v.String()),
+				Value: common.NewStringValue(v.String()),
 			})
 		}
 		return true
@@ -182,7 +173,7 @@ func (l *semiFlatTypedMap) newLeaf(keyPathPrefix string) func(fd protoreflect.Fi
 		case fd.Kind() == protoreflect.MessageKind:
 			v.Message().Range(l.newLeaf(keyPath))
 		default:
-			if item := newValue(true, fd, v); item != nil {
+			if item := common.NewValue(true, fd, v); item != nil {
 				l.list = append(l.list, &commonV1.KeyValue{
 					Key:   keyPath,
 					Value: item,
@@ -216,7 +207,7 @@ func (l *typedMap) newLeaf(_ string) func(fd protoreflect.FieldDescriptor, v pro
 				},
 			})
 		default:
-			if item := newValue(true, fd, v); item != nil {
+			if item := common.NewValue(true, fd, v); item != nil {
 				l.list = append(l.list, &commonV1.KeyValue{
 					Key:   fd.JSONName(),
 					Value: item,
@@ -237,91 +228,4 @@ func fmtKeyPath(keyPathPrefix, fieldName string) string {
 		return fieldName
 	}
 	return fmt.Sprintf("%s.%s", keyPathPrefix, fieldName)
-}
-
-func newStringAttributes(attributes map[string]string) []*commonV1.KeyValue {
-	results := []*commonV1.KeyValue{}
-	for k, v := range attributes {
-		results = append(results, &commonV1.KeyValue{
-			Key:   k,
-			Value: newStringValue(v),
-		})
-	}
-	return results
-}
-
-func newStringValue(s string) *commonV1.AnyValue {
-	return &commonV1.AnyValue{
-		Value: &commonV1.AnyValue_StringValue{
-			StringValue: s,
-		},
-	}
-}
-
-func toList(fd protoreflect.FieldDescriptor, v protoreflect.Value) *commonV1.ArrayValue {
-	items := v.List()
-	list := &commonV1.ArrayValue{
-		Values: make([]*commonV1.AnyValue, items.Len()),
-	}
-	for i := 0; i < items.Len(); i++ {
-		if item := newValue(false, fd, items.Get(i)); item != nil {
-			list.Values[i] = item
-		}
-	}
-	return list
-}
-
-func newValue(mayBeAList bool, fd protoreflect.FieldDescriptor, v protoreflect.Value) *commonV1.AnyValue {
-	if mayBeAList && fd.IsList() {
-		return &commonV1.AnyValue{
-			Value: &commonV1.AnyValue_ArrayValue{
-				ArrayValue: toList(fd, v),
-			},
-		}
-
-	}
-	switch fd.Kind() {
-	case protoreflect.BoolKind:
-		return &commonV1.AnyValue{
-			Value: &commonV1.AnyValue_BoolValue{
-				BoolValue: v.Bool(),
-			},
-		}
-	case protoreflect.EnumKind:
-		return newStringValue(string(fd.Enum().Values().ByNumber(v.Enum()).Name()))
-	case protoreflect.Int32Kind,
-		protoreflect.Sint32Kind,
-		protoreflect.Sfixed32Kind,
-		protoreflect.Int64Kind,
-		protoreflect.Sint64Kind,
-		protoreflect.Sfixed64Kind:
-		return &commonV1.AnyValue{
-			Value: &commonV1.AnyValue_IntValue{
-				IntValue: v.Int(),
-			},
-		}
-	case protoreflect.Uint32Kind,
-		protoreflect.Fixed32Kind,
-		protoreflect.Uint64Kind,
-		protoreflect.Fixed64Kind:
-		return &commonV1.AnyValue{
-			Value: &commonV1.AnyValue_IntValue{
-				IntValue: int64(v.Uint()),
-			},
-		}
-	case
-		protoreflect.FloatKind,
-		protoreflect.DoubleKind:
-		return &commonV1.AnyValue{
-			Value: &commonV1.AnyValue_BoolValue{
-				BoolValue: v.Bool(),
-			},
-		}
-	case protoreflect.StringKind:
-		return newStringValue(v.String())
-	case protoreflect.BytesKind:
-		return newStringValue(base64.StdEncoding.EncodeToString(v.Bytes()))
-	default:
-		return nil
-	}
 }
