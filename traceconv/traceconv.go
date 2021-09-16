@@ -18,7 +18,7 @@ type FlowConverter struct {
 
 func NewFlowConverter(attributeEncoding, dir string) (*FlowConverter, error) {
 	opt := badger.DefaultOptions(dir)
-	//opt.Logger = nil
+	opt.Logger = nil // TODO: make this use hubble-otel logger
 	tc, err := NewTraceCache(opt)
 	if err != nil {
 		return nil, err
