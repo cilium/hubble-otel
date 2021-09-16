@@ -17,7 +17,9 @@ type FlowConverter struct {
 }
 
 func NewFlowConverter(attributeEncoding, dir string) (*FlowConverter, error) {
-	tc, err := NewTraceCache(badger.DefaultOptions(dir))
+	opt := badger.DefaultOptions(dir)
+	//opt.Logger = nil
+	tc, err := NewTraceCache(opt)
 	if err != nil {
 		return nil, err
 	}
