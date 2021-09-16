@@ -57,7 +57,7 @@ func (tc *TraceCache) GetIDs(f *flow.Flow) (trace.TraceID, trace.SpanID, error) 
 			return fmt.Errorf("unable to get span/trace ID: %w", err)
 		}
 		if fetchedTraceID.IsValid() {
-			copy(traceID[:], fetchedTraceID[:])
+			traceID = fetchedTraceID
 		} else {
 			// generate new trace ID and store it
 			_ = traceHash.Sum(traceID[:0])
