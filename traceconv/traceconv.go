@@ -32,7 +32,7 @@ func NewFlowConverter(attributeEncoding, dir string) (*FlowConverter, error) {
 func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoreflect.Message, error) {
 	flow := hubbleResp.GetFlow()
 
-	spanID, traceID, err := c.traceCache.GetIDs(flow)
+	traceID, spanID, err := c.traceCache.GetIDs(flow)
 	if err != nil {
 		return nil, err
 	}
