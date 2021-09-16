@@ -3,6 +3,7 @@ package traceconv
 import (
 	"fmt"
 	"hash/fnv"
+	"io"
 	"os"
 	"time"
 
@@ -44,11 +45,13 @@ func (tc *TraceCache) GetIDs(f *flow.Flow) (trace.TraceID, trace.SpanID, error) 
 			return fmt.Errorf("unable to serialise flow: %w", err)
 		}
 
-		hash := fnv.New64a()
+		spanHash := fnv.New64a()
+		traceHash := fnv.New128a()
 
-		_, _ = hash.Write(flowData) // this FNV generator never returns errors
+		_, _ = io.MultiWriter(spanHash, traceHash).Write(flowData) // this FNV generator never returns errors
 
-		_ = hash.Sum(spanID[:0]) // aways generate new span ID
+		_ = spanHash.Sum(spanID[:0]) // aways generate new span ID
+
 		fetchedTraceID, err := kt.fetchTraceID(txn)
 		if err != nil {
 			return fmt.Errorf("unable to get span/trace ID: %w", err)
@@ -56,7 +59,8 @@ func (tc *TraceCache) GetIDs(f *flow.Flow) (trace.TraceID, trace.SpanID, error) 
 		if fetchedTraceID.IsValid() {
 			copy(traceID[:], fetchedTraceID[:])
 		} else {
-			_ = hash.Sum(traceID[:0]) // trace ID is same as the one of the first span
+			// generate new trace ID and store it
+			_ = traceHash.Sum(traceID[:0])
 			data := map[string][]byte{
 				traceIDKey(kt.primary()):  traceID[:],
 				flowDataKey(kt.primary()): flowData,
