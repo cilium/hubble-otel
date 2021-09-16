@@ -45,7 +45,7 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 
 	go func() {
 		for err := range fatal {
-			t.Errorf("fatal error in a goroutine: %v", err)
+			fmt.Printf("fatal error in a goroutine: %v\n", err)
 			cancel()
 			return
 		}
