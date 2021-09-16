@@ -72,3 +72,11 @@ func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoref
 
 	return resourceSpans.ProtoReflect(), nil
 }
+
+func (c *FlowConverter) CloseCache() error {
+	return c.traceCache.Close()
+}
+
+func (c *FlowConverter) DeleteCache() {
+	c.traceCache.Delete()
+}
