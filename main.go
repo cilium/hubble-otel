@@ -60,10 +60,12 @@ func main() {
 	bufferSize := flag.Int("bufferSize", 2048, "number of logs/spans to buffer before exporting")
 	encodingFormat := flag.String("encodingFormat", common.DefaultEncoding, fmt.Sprintf("encoding format (valid options: %v)", common.EncodingFormats()))
 	useLogAttributes := flag.Bool("useLogAttributes", true, "use attributes instead of body")
+	exportLogs := flag.Bool("exportLogs", true, "export flows as logs")
+	exportTraces := flag.Bool("exportTraces", true, "export flows as traces")
 
 	flag.Parse()
 
-	if err := run(flagsHubble, flagsOTLP, *bufferSize, *encodingFormat, *useLogAttributes); err != nil {
+	if err := run(flagsHubble, flagsOTLP, *exportLogs, *exportTraces, *bufferSize, *encodingFormat, *useLogAttributes); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -111,7 +113,7 @@ func dialContext(ctx context.Context, f *flags) (*grpc.ClientConn, error) {
 	return grpc.DialContext(ctx, *f.address, grpc.WithTransportCredentials(creds))
 }
 
-func run(hubbleFlags, otlpFlags flags, bufferSize int, encodingFormat string, useLogAttributes bool) error {
+func run(hubbleFlags, otlpFlags flags, exportLogs, exportTraces bool, bufferSize int, encodingFormat string, useLogAttributes bool) error {
 	ctx := context.Background()
 
 	hubbleConn, err := dialContext(ctx, &hubbleFlags)
@@ -128,27 +130,35 @@ func run(hubbleFlags, otlpFlags flags, bufferSize int, encodingFormat string, us
 
 	defer otlpConn.Close()
 
-	spanDB, err := os.MkdirTemp("", "hubble-otel-spandb")
-	if err != nil {
-		return fmt.Errorf("failed to create temporary directory for span database: %w", err)
-	}
-
-	flowsToLogs := make(chan protoreflect.Message, bufferSize)
-	flowsToTraces := make(chan protoreflect.Message, bufferSize)
-
 	errs := make(chan error)
 
-	logConverter := logconv.NewFlowConverter(encodingFormat, useLogAttributes)
-	go receiver.Run(ctx, hubbleConn, logConverter, flowsToLogs, errs)
+	if exportLogs {
+		flowsToLogs := make(chan protoreflect.Message, bufferSize)
 
-	traceConverter, err := traceconv.NewFlowConverter(encodingFormat, spanDB)
-	if err != nil {
-		return fmt.Errorf("failed to create trace converter: %w", err)
+		logConverter := logconv.NewFlowConverter(encodingFormat, useLogAttributes)
+		go receiver.Run(ctx, hubbleConn, logConverter, flowsToLogs, errs)
+
+		go sender.Run(ctx, logproc.NewBufferedLogExporter(otlpConn, bufferSize), flowsToLogs, errs)
 	}
-	go receiver.Run(ctx, hubbleConn, traceConverter, flowsToTraces, errs)
 
-	go sender.Run(ctx, logproc.NewBufferedLogExporter(otlpConn, bufferSize), flowsToLogs, errs)
-	go sender.Run(ctx, traceproc.NewBufferedTraceExporter(otlpConn, bufferSize), flowsToTraces, errs)
+	if exportTraces {
+		spanDB, err := os.MkdirTemp("", "hubble-otel-trace-cache-") // TODO: allow user to pass dir name for persistence
+		if err != nil {
+			return fmt.Errorf("failed to create temporary directory for span database: %w", err)
+		}
+
+		flowsToTraces := make(chan protoreflect.Message, bufferSize)
+
+		traceConverter, err := traceconv.NewFlowConverter(encodingFormat, spanDB)
+		if err != nil {
+			return fmt.Errorf("failed to create trace converter: %w", err)
+		}
+		defer traceConverter.DeleteCache() // TODO: make this optional when persistence is enabled
+
+		go receiver.Run(ctx, hubbleConn, traceConverter, flowsToTraces, errs)
+
+		go sender.Run(ctx, traceproc.NewBufferedTraceExporter(otlpConn, bufferSize), flowsToTraces, errs)
+	}
 
 	for {
 		select {

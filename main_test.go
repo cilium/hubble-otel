@@ -171,7 +171,7 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 
 	for i, mode := range modes {
 		t.Run(fmt.Sprintf("mode=%+v", mode), func(t *testing.T) {
-			if err := run(flagsHubble, flagsOTLP, 10, mode.encoding, mode.useAttributes); err != nil {
+			if err := run(flagsHubble, flagsOTLP, true, true, 10, mode.encoding, mode.useAttributes); err != nil {
 				if testutil.IsEOF(err) {
 					checkCollectorMetrics(t, i)
 					return
