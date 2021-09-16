@@ -18,6 +18,7 @@ import (
 	"github.com/isovalent/hubble-otel/receiver"
 	"github.com/isovalent/hubble-otel/sender"
 	"github.com/isovalent/hubble-otel/traceconv"
+	"github.com/isovalent/hubble-otel/traceproc"
 )
 
 type flags struct {
@@ -147,7 +148,7 @@ func run(hubbleFlags, otlpFlags flags, bufferSize int, encodingFormat string, us
 	go receiver.Run(ctx, hubbleConn, traceConverter, flowsToTraces, errs)
 
 	go sender.Run(ctx, logproc.NewBufferedLogExporter(otlpConn, bufferSize), flowsToLogs, errs)
-	go sender.Run(ctx, &sender.NullExporter{}, flowsToTraces, errs)
+	go sender.Run(ctx, traceproc.NewBufferedTraceExporter(otlpConn, bufferSize), flowsToTraces, errs)
 
 	for {
 		select {
