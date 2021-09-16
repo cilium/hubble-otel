@@ -153,7 +153,7 @@ func run(hubbleFlags, otlpFlags flags, exportLogs, exportTraces bool, bufferSize
 		if err != nil {
 			return fmt.Errorf("failed to create trace converter: %w", err)
 		}
-		defer traceConverter.DeleteCache() // TODO: make this optional when persistence is enabled
+		// defer traceConverter.DeleteCache() // TODO: make this optional when persistence is enabled
 
 		go receiver.Run(ctx, hubbleConn, traceConverter, flowsToTraces, errs)
 
