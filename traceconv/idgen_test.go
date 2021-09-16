@@ -33,11 +33,13 @@ func TestBadger(t *testing.T) {
 		}
 		if traceID.IsValid() {
 			traces[traceID.String()] = struct{}{}
+			//t.Logf("traceID %v is valid", traceID)
 		} else {
 			t.Errorf("traceID %v is invalid", traceID)
 		}
 		if spanID.IsValid() {
 			spans[spanID.String()] = struct{}{}
+			//t.Logf("spanID %v is valid", spanID)
 		} else {
 			t.Errorf("spanID %v is invalid", spanID)
 		}
@@ -45,7 +47,10 @@ func TestBadger(t *testing.T) {
 
 	t.Logf("%d traces, %d spans", len(traces), len(spans))
 
-	if len(traces) == len(spans) {
-		t.Error("all traces seem to have just a single span")
+	if l, e := len(traces), 2145; l != e {
+		t.Errorf("unexpected number of traces generated (have: %d, expected %d)", l, e)
+	}
+	if l, e := len(spans), 20000; l != e {
+		t.Errorf("unexpected number of spans generated (have: %d, expected %d)", l, e)
 	}
 }
