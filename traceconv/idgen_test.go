@@ -33,13 +33,13 @@ func TestBadger(t *testing.T) {
 		}
 		if traceID.IsValid() {
 			traces[traceID.String()] = struct{}{}
-			//t.Logf("traceID %v is valid", traceID)
+			t.Logf("traceID %v is valid", traceID)
 		} else {
 			t.Errorf("traceID %v is invalid", traceID)
 		}
 		if spanID.IsValid() {
 			spans[spanID.String()] = struct{}{}
-			//t.Logf("spanID %v is valid", spanID)
+			t.Logf("spanID %v is valid", spanID)
 		} else {
 			t.Errorf("spanID %v is invalid", spanID)
 		}
