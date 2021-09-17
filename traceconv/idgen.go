@@ -1,6 +1,7 @@
 package traceconv
 
 import (
+	"encoding/binary"
 	"fmt"
 	"hash/fnv"
 	"io"
@@ -60,7 +61,13 @@ func (tc *TraceCache) GetIDs(f *flow.Flow) (trace.TraceID, trace.SpanID, error) 
 			traceID = fetchedTraceID
 		} else {
 			// generate new trace ID and store it
-			_ = traceHash.Sum(traceID[:0])
+			// ensure trace prefix is a timestamp for AWS XRay compatibility
+			binary.BigEndian.PutUint32(traceID[:4], uint32(time.Now().Unix()))
+			// remaining bytes contain the first 12 bytes of FNV hash that fit
+			fullHash := trace.TraceID{}
+			_ = traceHash.Sum(fullHash[:0])
+			copy(traceID[4:], fullHash[:])
+
 			data := map[string][]byte{
 				traceIDKey(kt.primary()):  traceID[:],
 				flowDataKey(kt.primary()): flowData,
