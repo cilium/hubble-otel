@@ -3,7 +3,8 @@ module github.com/isovalent/hubble-otel
 go 1.16
 
 require (
-	github.com/cilium/cilium v1.10.3
+	github.com/cilium/cilium v1.10.4
+	github.com/cilium/hubble v0.8.2 // indirect
 	github.com/cloudflare/cfssl v1.6.0 // indirect
 	github.com/cloudflare/go-metrics v0.0.0-20151117154305-6a9aea36fb41 // indirect
 	github.com/dgraph-io/badger v1.6.2 // indirect
