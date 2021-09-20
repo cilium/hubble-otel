@@ -1,13 +1,18 @@
 package traceconv
 
 import (
+	"bytes"
+	"strings"
+
 	badger "github.com/dgraph-io/badger/v3"
 	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
 	resourceV1 "go.opentelemetry.io/proto/otlp/resource/v1"
 	traceV1 "go.opentelemetry.io/proto/otlp/trace/v1"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	"github.com/cilium/cilium/api/v1/observer"
+	hubbleObserver "github.com/cilium/cilium/api/v1/observer"
+	hubblePrinter "github.com/cilium/hubble/pkg/printer"
+
 	"github.com/isovalent/hubble-otel/common"
 )
 
@@ -23,6 +28,7 @@ func NewFlowConverter(attributeEncoding, dir string) (*FlowConverter, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &FlowConverter{
 		FlowEncoder: &common.FlowEncoder{
 			Encoding: attributeEncoding,
@@ -31,7 +37,7 @@ func NewFlowConverter(attributeEncoding, dir string) (*FlowConverter, error) {
 	}, nil
 }
 
-func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoreflect.Message, error) {
+func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (protoreflect.Message, error) {
 	flow := hubbleResp.GetFlow()
 
 	traceID, spanID, err := c.traceCache.GetIDs(flow)
@@ -44,8 +50,14 @@ func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoref
 		return nil, err
 	}
 
+	name, err := c.getName(hubbleResp)
+	if err != nil {
+		return nil, err
+	}
+
 	ts := uint64(flow.GetTime().AsTime().UnixNano())
 	span := &traceV1.Span{
+		Name: name,
 		// TODO: should ParentSpanId be resolved and set for reply packets?
 		SpanId:            spanID[:],
 		TraceId:           traceID[:],
@@ -81,4 +93,22 @@ func (c *FlowConverter) CloseCache() error {
 
 func (c *FlowConverter) DeleteCache() {
 	c.traceCache.Delete()
+}
+
+func (c *FlowConverter) getName(hubbleResp *hubbleObserver.GetFlowsResponse) (string, error) {
+	b := bytes.NewBuffer([]byte{})
+	p := hubblePrinter.New(
+		hubblePrinter.Compact(),
+		hubblePrinter.IgnoreStderr(),
+		hubblePrinter.Writer(b),
+		hubblePrinter.WithTimeFormat(""),
+	)
+	if err := p.WriteProtoFlow(hubbleResp); err != nil {
+		return "", err
+	}
+	s := strings.TrimSuffix(
+		strings.TrimPrefix(b.String(), ": "),
+		"\n",
+	)
+	return s, nil
 }
