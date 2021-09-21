@@ -98,11 +98,11 @@ func (c *FlowConverter) DeleteCache() {
 func (c *FlowConverter) getName(hubbleResp *hubbleObserver.GetFlowsResponse) (string, error) {
 	b := bytes.NewBuffer([]byte{})
 	p := hubblePrinter.New(
-		hubblePrinter.Compact(),
-		hubblePrinter.IgnoreStderr(),
 		hubblePrinter.Writer(b),
+		hubblePrinter.Compact(),
 		hubblePrinter.WithTimeFormat(""),
 		hubblePrinter.WithColor("never"),
+		hubblePrinter.IgnoreStderr(),
 	)
 	if err := p.WriteProtoFlow(hubbleResp); err != nil {
 		return "", err
