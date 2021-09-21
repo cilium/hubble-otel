@@ -102,6 +102,7 @@ func (c *FlowConverter) getName(hubbleResp *hubbleObserver.GetFlowsResponse) (st
 		hubblePrinter.IgnoreStderr(),
 		hubblePrinter.Writer(b),
 		hubblePrinter.WithTimeFormat(""),
+		hubblePrinter.WithColor("never"),
 	)
 	if err := p.WriteProtoFlow(hubbleResp); err != nil {
 		return "", err
