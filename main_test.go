@@ -137,36 +137,17 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 	}
 
 	modes := []struct {
-		useAttributes bool
 		encoding      string
+		useAttributes bool
 	}{
-		{
-			encoding: common.EncodingJSON,
-		},
-		{
-			encoding: common.EncodingJSONBASE64,
-		},
-		{
-			encoding: common.EncodingFlatStringMap,
-		},
-		{
-			encoding:      common.EncodingFlatStringMap,
-			useAttributes: true,
-		},
-		{
-			encoding: common.EncodingSemiFlatTypedMap,
-		},
-		{
-			encoding:      common.EncodingSemiFlatTypedMap,
-			useAttributes: true,
-		},
-		{
-			encoding: common.EncodingTypedMap,
-		},
-		{
-			encoding:      common.EncodingTypedMap,
-			useAttributes: true,
-		},
+		{common.EncodingJSON, false},
+		{common.EncodingJSONBASE64, false},
+		{common.EncodingFlatStringMap, false},
+		{common.EncodingFlatStringMap, true},
+		{common.EncodingSemiFlatTypedMap, false},
+		{common.EncodingSemiFlatTypedMap, true},
+		{common.EncodingTypedMap, false},
+		{common.EncodingTypedMap, true},
 	}
 
 	for i, mode := range modes {
