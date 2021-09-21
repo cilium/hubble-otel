@@ -27,21 +27,21 @@ func TestBadger(t *testing.T) {
 	spans := map[string]struct{}{}
 
 	for _, flow := range testutil.GetFlowSamples(t, "../testdata/2021-06-16-sample-flows-istio-gke/1.json") {
-		traceID, spanID, err := tc.GetIDs(flow.GetFlow())
+		ids, err := tc.GetIDs(flow.GetFlow())
 		if err != nil {
 			t.Error(err)
 		}
-		if traceID.IsValid() {
-			traces[traceID.String()] = struct{}{}
-			t.Logf("traceID %v is valid", traceID)
+		if ids.TraceID.IsValid() {
+			traces[ids.TraceID.String()] = struct{}{}
+			t.Logf("traceID %v is valid", ids.TraceID)
 		} else {
-			t.Errorf("traceID %v is invalid", traceID)
+			t.Errorf("traceID %v is invalid", ids.TraceID)
 		}
-		if spanID.IsValid() {
-			spans[spanID.String()] = struct{}{}
-			t.Logf("spanID %v is valid", spanID)
+		if ids.SpanID.IsValid() {
+			spans[ids.SpanID.String()] = struct{}{}
+			t.Logf("spanID %v is valid", ids.SpanID)
 		} else {
-			t.Errorf("spanID %v is invalid", spanID)
+			t.Errorf("spanID %v is invalid", ids.SpanID)
 		}
 	}
 
