@@ -14,6 +14,8 @@ import (
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/service"
 	"go.opentelemetry.io/collector/service/defaultcomponents"
+	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
+	resourceV1 "go.opentelemetry.io/proto/otlp/resource/v1"
 	"google.golang.org/grpc/status"
 
 	promdto "github.com/prometheus/client_model/go"
@@ -28,6 +30,8 @@ import (
 	"github.com/cilium/cilium/pkg/hubble/server/serveroption"
 	"github.com/cilium/cilium/pkg/logging/logfields"
 	mockHubbleObeserver "github.com/isovalent/mock-hubble/observer"
+
+	"github.com/isovalent/hubble-otel/common"
 )
 
 const (
@@ -95,6 +99,8 @@ func RunMockHubble(ctx context.Context, log *logrus.Logger, dir, address string,
 }
 
 func GetFlowSamples(t *testing.T, path string) []*observer.GetFlowsResponse {
+	t.Helper()
+
 	file, err := os.Open(path)
 	if err != nil {
 		t.Fatal(err)
@@ -133,6 +139,8 @@ func GetFlowSamples(t *testing.T, path string) []*observer.GetFlowsResponse {
 }
 
 func RunOpenTelemtryCollector(ctx context.Context, t *testing.T, configPath, logLevel string, fatal chan<- error) {
+	t.Helper()
+
 	factories, err := defaultcomponents.Components()
 	if err != nil {
 		t.Fatalf("failed to build default components: %v", err)
@@ -194,6 +202,8 @@ func WaitForServer(ctx context.Context, logf func(format string, args ...interfa
 }
 
 func GetMetricFamilies(ctx context.Context, t *testing.T, url string) map[string]*promdto.MetricFamily {
+	t.Helper()
+
 	ctx, cancel := context.WithTimeout(ctx, pollingTimeout)
 	defer cancel()
 	for {
@@ -224,4 +234,96 @@ func GetMetricFamilies(ctx context.Context, t *testing.T, url string) map[string
 func IsEOF(err error) bool {
 	s, ok := status.FromError(err)
 	return ok && s.Proto().GetMessage() == "EOF"
+}
+
+func CheckResource(t *testing.T, res *resourceV1.Resource, hubbleResp *observer.GetFlowsResponse) {
+	t.Helper()
+
+	if res == nil {
+		t.Error("resource shouldn't be nil")
+	}
+	if len(res.Attributes) == 0 {
+		t.Error("resource attributes shouldn't be empty")
+	}
+	hasNodeName := false
+	for _, attr := range res.Attributes {
+		if attr.Key == common.ResourceCiliumNodeName {
+			hasNodeName = true
+			if attr.Value.GetStringValue() != hubbleResp.GetNodeName() {
+				t.Error("node name is wrong")
+			}
+		}
+	}
+	if !hasNodeName {
+		t.Error("node name is not set")
+	}
+}
+
+func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encoding string) *commonV1.AnyValue {
+	t.Helper()
+
+	var payload *commonV1.AnyValue
+
+	hasVersionAttr := false
+	hasEncodingAttr := false
+
+	expectedLen := 2
+
+	for _, attr := range attrs {
+		switch attr.Key {
+		case common.AttributeEventKindVersion:
+			hasVersionAttr = true
+			if attr.Value.GetStringValue() != common.AttributeEventKindVersionFlowV1alpha1 {
+				t.Error("version is wrong")
+			}
+		case common.AttributeEventEncoding:
+			hasEncodingAttr = true
+			if attr.Value.GetStringValue() != encoding {
+				t.Error("econding is wrong")
+			}
+		case common.AttributeEventPayload:
+			payload = attr.Value
+		}
+	}
+
+	if !hasVersionAttr {
+		t.Error("version is not set")
+	}
+	if !hasEncodingAttr {
+		t.Error("encoding is not set")
+	}
+
+	if payload != nil {
+		expectedLen = 3
+	}
+	if len(attrs) != expectedLen {
+		t.Errorf("should have %d attributes", expectedLen)
+	}
+
+	return payload
+}
+
+func CheckPayload(t *testing.T, payload *commonV1.AnyValue, encoding string) {
+	t.Helper()
+
+	if payload == nil {
+		t.Error("payload should be set")
+	}
+
+	switch encoding {
+	case common.EncodingJSON, common.EncodingJSONBASE64:
+		if payload.GetStringValue() == "" {
+			t.Error("payload should be a non-empty string")
+		}
+	case common.EncodingFlatStringMap, common.EncodingSemiFlatTypedMap, common.EncodingTypedMap:
+		m := payload.GetKvlistValue()
+		if m == nil {
+			t.Error("payload should be a map")
+		}
+		if len(m.GetValues()) == 0 {
+			t.Error("payload should not be empty")
+		}
+	default:
+		t.Errorf("untested ecoding: %s", encoding)
+	}
 }
