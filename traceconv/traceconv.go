@@ -40,7 +40,7 @@ func NewFlowConverter(attributeEncoding, dir string) (*FlowConverter, error) {
 func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (protoreflect.Message, error) {
 	flow := hubbleResp.GetFlow()
 
-	traceID, spanID, err := c.traceCache.GetIDs(flow)
+	ids, err := c.traceCache.GetIDs(flow)
 	if err != nil {
 		return nil, err
 	}
@@ -59,8 +59,8 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 	span := &traceV1.Span{
 		Name: name,
 		// TODO: should ParentSpanId be resolved and set for reply packets?
-		SpanId:            spanID[:],
-		TraceId:           traceID[:],
+		SpanId:            ids.SpanID[:],
+		TraceId:           ids.TraceID[:],
 		StartTimeUnixNano: ts,
 		EndTimeUnixNano:   ts,
 		// TODO: optionally set Kind for TCP flows via a user-settable peramater

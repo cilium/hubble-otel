@@ -1,14 +1,17 @@
 package traceconv
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
+	"hash"
 	"hash/fnv"
 	"io"
 	"os"
 	"time"
 
 	badger "github.com/dgraph-io/badger/v3"
+	"github.com/gogo/protobuf/jsonpb"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/cilium/cilium/api/v1/flow"
@@ -20,112 +23,72 @@ type TraceCache struct {
 	badgerDB *badger.DB
 }
 
-func NewTraceCache(opt badger.Options) (*TraceCache, error) {
-	db, err := badger.Open(opt)
-	if err != nil {
-		return nil, err
-	}
-	return &TraceCache{
-		MaxTraceLength: 20 * time.Minute,
-		badgerDB:       db,
-	}, nil
-}
-
-func (tc *TraceCache) GetIDs(f *flow.Flow) (trace.TraceID, trace.SpanID, error) {
-	traceID := trace.TraceID{}
-	spanID := trace.SpanID{}
-
-	err := tc.badgerDB.Update(func(txn *badger.Txn) error {
-		kt := getFlowKeyPrefices(f)
-		if !kt.isValid() {
-			return nil
-		}
-
-		flowData, err := f.MarshalJSON()
-		if err != nil {
-			return fmt.Errorf("unable to serialise flow: %w", err)
-		}
-
-		spanHash := fnv.New64a()
-		traceHash := fnv.New128a()
-
-		_, _ = io.MultiWriter(spanHash, traceHash).Write(flowData) // this FNV generator never returns errors
-
-		_ = spanHash.Sum(spanID[:0]) // aways generate new span ID
-
-		fetchedTraceID, err := kt.fetchTraceID(txn)
-		if err != nil {
-			return fmt.Errorf("unable to get span/trace ID: %w", err)
-		}
-		if fetchedTraceID.IsValid() {
-			traceID = fetchedTraceID
-		} else {
-			// generate new trace ID and store it
-			// ensure trace prefix is a timestamp for AWS XRay compatibility
-			binary.BigEndian.PutUint32(traceID[:4], uint32(time.Now().Unix()))
-			// remaining bytes contain the first 12 bytes of FNV hash that fit
-			fullHash := trace.TraceID{}
-			_ = traceHash.Sum(fullHash[:0])
-			copy(traceID[4:], fullHash[:])
-
-			data := map[string][]byte{
-				traceIDKey(kt.primary()):  traceID[:],
-				flowDataKey(kt.primary()): flowData,
-			}
-			if err := tc.storeKeys(txn, data); err != nil {
-				return fmt.Errorf("unable to store generated new trace ID: %w", err)
-			}
-		}
-		return nil
-	})
-
-	if err != nil {
-		return traceID, spanID, err
-	}
-	return traceID, spanID, nil
-}
-
-func (tc *TraceCache) Close() error {
-	return tc.badgerDB.Close()
-}
-
-func (tc *TraceCache) Delete() {
-	_ = tc.Close()
-	os.RemoveAll(tc.badgerDB.Opts().Dir)
+type IDTuple struct {
+	TraceID trace.TraceID
+	SpanID  trace.SpanID
 }
 
 type keyTuple [2]string
 
-func (kt keyTuple) primary() string { return kt[0] }
-
 func (kt keyTuple) isValid() bool { return kt != (keyTuple{}) }
 
-func (kt keyTuple) fetchTraceID(txn *badger.Txn) (trace.TraceID, error) {
-	traceID := trace.TraceID{}
-	for _, keyPrefix := range kt {
-		item, err := txn.Get([]byte(traceIDKey(keyPrefix)))
-		switch err {
-		case nil:
-			err := item.Value(func(val []byte) error {
-				if len(val) != len(traceID) {
-					return fmt.Errorf("stored trace ID is invlaid")
-				}
-				copy(traceID[:], val)
-				return nil
-			})
-			if err != nil {
-				return trace.TraceID{}, err
-			}
-		case badger.ErrKeyNotFound:
-			continue
-		default:
-			return trace.TraceID{}, fmt.Errorf("unexpected error getting trace ID: %w", err)
-		}
-	}
-	return traceID, nil
+type entryHelper struct {
+	keys      keyTuple
+	flowData  []byte
+	spanHash  hash.Hash64
+	traceHash hash.Hash
+	traceID   trace.TraceID
+	spanID    trace.SpanID
 }
 
-func getFlowKeyPrefices(f *flow.Flow) keyTuple {
+func newEntry() *entryHelper {
+	return &entryHelper{
+		keys:      keyTuple{},
+		spanHash:  fnv.New64a(),
+		traceHash: fnv.New128a(),
+		spanID:    trace.SpanID{},
+		traceID:   trace.TraceID{},
+	}
+}
+
+func (e *entryHelper) processFlowData(f *flow.Flow) error {
+	kt := e.generateKeys(f)
+	if !kt.isValid() {
+		// skip flows where keyTuple cannot be generated
+		return nil
+	}
+	e.keys = kt
+
+	w := io.MultiWriter(bytes.NewBuffer(e.flowData), e.spanHash, e.traceHash)
+
+	return (&jsonpb.Marshaler{
+		EnumsAsInts:  false,
+		EmitDefaults: false,
+		OrigName:     true,
+	}).Marshal(w, f)
+}
+
+func (e *entryHelper) generateSpanID() {
+	_ = e.spanHash.Sum(e.spanID[:0])
+}
+
+func (e *entryHelper) idTuple() *IDTuple {
+	return &IDTuple{
+		SpanID:  e.spanID,
+		TraceID: e.traceID,
+	}
+}
+
+func (e *entryHelper) generateTraceID() {
+	// ensure trace prefix is a timestamp for AWS XRay compatibility
+	binary.BigEndian.PutUint32(e.traceID[:4], uint32(time.Now().Unix()))
+	// remaining bytes contain the first 12 bytes of FNV hash that fit
+	fullHash := trace.TraceID{}
+	_ = e.traceHash.Sum(fullHash[:0])
+	copy(e.traceID[4:], fullHash[:])
+}
+
+func (e *entryHelper) generateKeys(f *flow.Flow) keyTuple {
 	var src, dst string
 
 	if ip := f.GetIP(); ip != nil {
@@ -165,6 +128,99 @@ func getFlowKeyPrefices(f *flow.Flow) keyTuple {
 	return keyTuple{src + "<=>" + dst, dst + "<=>" + src}
 }
 
+func (e *entryHelper) flowDataKey(i int) string {
+	return e.keys[i] + "/flowdData"
+}
+
+func (e *entryHelper) traceIDKey(i int) string {
+	return e.keys[i] + "/traceID"
+}
+
+func (e *entryHelper) fetchTraceID(txn *badger.Txn) (trace.TraceID, error) {
+	traceID := trace.TraceID{}
+	for i := range e.keys {
+		item, err := txn.Get([]byte(e.traceIDKey(i)))
+		switch err {
+		case nil:
+			err := item.Value(func(val []byte) error {
+				if len(val) != len(traceID) {
+					return fmt.Errorf("stored trace ID is invlaid")
+				}
+				copy(traceID[:], val)
+				return nil
+			})
+			if err != nil {
+				return trace.TraceID{}, err
+			}
+		case badger.ErrKeyNotFound:
+			continue
+		default:
+			return trace.TraceID{}, fmt.Errorf("unexpected error getting trace ID: %w", err)
+		}
+	}
+	return traceID, nil
+}
+
+func (tc *TraceCache) generateAndStoreTraceID(txn *badger.Txn, e *entryHelper) error {
+	e.generateTraceID()
+	data := map[string][]byte{
+		e.traceIDKey(0):  e.traceID[:],
+		e.flowDataKey(0): e.flowData,
+	}
+	if err := tc.storeKeys(txn, data); err != nil {
+		return fmt.Errorf("unable to store newly generated trace ID: %w", err)
+	}
+	return nil
+}
+
+func NewTraceCache(opt badger.Options) (*TraceCache, error) {
+	db, err := badger.Open(opt)
+	if err != nil {
+		return nil, err
+	}
+	return &TraceCache{
+		MaxTraceLength: 20 * time.Minute,
+		badgerDB:       db,
+	}, nil
+}
+
+func (tc *TraceCache) GetIDs(f *flow.Flow) (*IDTuple, error) {
+	e := newEntry()
+
+	if err := e.processFlowData(f); err != nil {
+		return nil, fmt.Errorf("unable to serialise flow: %w", err)
+	}
+
+	e.generateSpanID() // aways generate new span ID
+
+	err := tc.badgerDB.Update(func(txn *badger.Txn) error {
+
+		fetchedTraceID, err := e.fetchTraceID(txn)
+		if err != nil {
+			return fmt.Errorf("unable to get span/trace ID: %w", err)
+		}
+		if !fetchedTraceID.IsValid() {
+			return tc.generateAndStoreTraceID(txn, e)
+		}
+		e.traceID = fetchedTraceID
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return e.idTuple(), nil
+}
+
+func (tc *TraceCache) Close() error {
+	return tc.badgerDB.Close()
+}
+
+func (tc *TraceCache) Delete() {
+	_ = tc.Close()
+	os.RemoveAll(tc.badgerDB.Opts().Dir)
+}
+
 func (tc *TraceCache) storeKeys(txn *badger.Txn, data map[string][]byte) error {
 	for k, v := range data {
 		entry := badger.NewEntry([]byte(k), v).WithTTL(tc.MaxTraceLength)
@@ -173,12 +229,4 @@ func (tc *TraceCache) storeKeys(txn *badger.Txn, data map[string][]byte) error {
 		}
 	}
 	return nil
-}
-
-func flowDataKey(k string) string {
-	return k + "/flowdData"
-}
-
-func traceIDKey(k string) string {
-	return k + "/traceID"
 }
