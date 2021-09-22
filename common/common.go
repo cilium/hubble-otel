@@ -45,13 +45,13 @@ func NewStringAttributes(attributes map[string]string) []*commonV1.KeyValue {
 	for k, v := range attributes {
 		results = append(results, &commonV1.KeyValue{
 			Key:   k,
-			Value: NewStringValue(v),
+			Value: newStringValue(v),
 		})
 	}
 	return results
 }
 
-func NewStringValue(s string) *commonV1.AnyValue {
+func newStringValue(s string) *commonV1.AnyValue {
 	return &commonV1.AnyValue{
 		Value: &commonV1.AnyValue_StringValue{
 			StringValue: s,
@@ -88,7 +88,7 @@ func newValue(mayBeAList bool, fd protoreflect.FieldDescriptor, v protoreflect.V
 			},
 		}
 	case protoreflect.EnumKind:
-		return NewStringValue(string(fd.Enum().Values().ByNumber(v.Enum()).Name()))
+		return newStringValue(string(fd.Enum().Values().ByNumber(v.Enum()).Name()))
 	case protoreflect.Int32Kind,
 		protoreflect.Sint32Kind,
 		protoreflect.Sfixed32Kind,
@@ -118,9 +118,9 @@ func newValue(mayBeAList bool, fd protoreflect.FieldDescriptor, v protoreflect.V
 			},
 		}
 	case protoreflect.StringKind:
-		return NewStringValue(v.String())
+		return newStringValue(v.String())
 	case protoreflect.BytesKind:
-		return NewStringValue(base64.StdEncoding.EncodeToString(v.Bytes()))
+		return newStringValue(base64.StdEncoding.EncodeToString(v.Bytes()))
 	default:
 		return nil
 	}
@@ -145,7 +145,7 @@ func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.
 		case EncodingJSONBASE64:
 			s = base64.RawStdEncoding.EncodeToString(data)
 		}
-		return NewStringValue(s), nil
+		return newStringValue(s), nil
 	case EncodingFlatStringMap, EncodingSemiFlatTypedMap, EncodingTypedMap:
 		var mb mapBuilder
 		switch c.Encoding {
@@ -194,13 +194,13 @@ func (l *flatStringMap) newLeaf(keyPathPrefix string) func(fd protoreflect.Field
 			for i := 0; i < items.Len(); i++ {
 				l.list = append(l.list, &commonV1.KeyValue{
 					Key:   fmtKeyPath(keyPath, strconv.Itoa(i)),
-					Value: NewStringValue(items.Get(i).String()),
+					Value: newStringValue(items.Get(i).String()),
 				})
 			}
 		default:
 			l.list = append(l.list, &commonV1.KeyValue{
 				Key:   keyPath,
-				Value: NewStringValue(v.String()),
+				Value: newStringValue(v.String()),
 			})
 		}
 		return true
