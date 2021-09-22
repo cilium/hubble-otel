@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -57,6 +58,8 @@ func main() {
 		},
 	}
 
+	otlpHeaders := flag.String("otlp.headers", "", "specify OTLP headers to use as a JSON object")
+
 	bufferSize := flag.Int("bufferSize", 2048, "number of logs/spans to buffer before exporting")
 	encodingFormat := flag.String("encodingFormat", common.DefaultEncoding, fmt.Sprintf("encoding format (valid options: %v)", common.EncodingFormats()))
 	useLogAttributes := flag.Bool("useLogAttributes", true, "use attributes instead of body")
@@ -65,7 +68,13 @@ func main() {
 
 	flag.Parse()
 
-	if err := run(flagsHubble, flagsOTLP, *exportLogs, *exportTraces, *bufferSize, *encodingFormat, *useLogAttributes); err != nil {
+	otlpHeadersObj := map[string]string{}
+
+	if err := json.Unmarshal([]byte(*otlpHeaders), &otlpHeadersObj); err != nil {
+		fmt.Printf("cannot parse OTLP headers: %s\n", err)
+	}
+
+	if err := run(flagsHubble, flagsOTLP, otlpHeadersObj, *exportLogs, *exportTraces, *bufferSize, *encodingFormat, *useLogAttributes); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -82,9 +91,10 @@ func (f *flagsTLS) loadCredentials() (credentials.TransportCredentials, error) {
 			return nil, fmt.Errorf("cannot parse client certificate/key pair: %w", err)
 		}
 		config.Certificates = []tls.Certificate{keyPair}
-	} else {
-		return nil, fmt.Errorf("cleint certificate/key pair must be specified when TLS is enabled")
 	}
+	// else {
+	// 	return nil, fmt.Errorf("cleint certificate/key pair must be specified when TLS is enabled")
+	// }
 
 	if *f.certificateAuthority != "" {
 		config.RootCAs = x509.NewCertPool()
@@ -113,7 +123,7 @@ func dialContext(ctx context.Context, f *flags) (*grpc.ClientConn, error) {
 	return grpc.DialContext(ctx, *f.address, grpc.WithTransportCredentials(creds))
 }
 
-func run(hubbleFlags, otlpFlags flags, exportLogs, exportTraces bool, bufferSize int, encodingFormat string, useLogAttributes bool) error {
+func run(hubbleFlags, otlpFlags flags, otlpHeaders map[string]string, exportLogs, exportTraces bool, bufferSize int, encodingFormat string, useLogAttributes bool) error {
 	ctx := context.Background()
 
 	hubbleConn, err := dialContext(ctx, &hubbleFlags)
@@ -138,7 +148,8 @@ func run(hubbleFlags, otlpFlags flags, exportLogs, exportTraces bool, bufferSize
 		logConverter := logconv.NewFlowConverter(encodingFormat, useLogAttributes)
 		go receiver.Run(ctx, hubbleConn, logConverter, flowsToLogs, errs)
 
-		go sender.Run(ctx, logproc.NewBufferedLogExporter(otlpConn, bufferSize), flowsToLogs, errs)
+		exporter := logproc.NewBufferedLogExporter(otlpConn, bufferSize, otlpHeaders)
+		go sender.Run(ctx, exporter, flowsToLogs, errs)
 	}
 
 	if exportTraces {
@@ -157,7 +168,8 @@ func run(hubbleFlags, otlpFlags flags, exportLogs, exportTraces bool, bufferSize
 
 		go receiver.Run(ctx, hubbleConn, traceConverter, flowsToTraces, errs)
 
-		go sender.Run(ctx, traceproc.NewBufferedTraceExporter(otlpConn, bufferSize), flowsToTraces, errs)
+		exporter := traceproc.NewBufferedTraceExporter(otlpConn, bufferSize, otlpHeaders)
+		go sender.Run(ctx, exporter, flowsToTraces, errs)
 	}
 
 	for {
