@@ -8,6 +8,7 @@ import (
 	"hash/fnv"
 	"io"
 	"os"
+	"strconv"
 	"time"
 
 	badger "github.com/dgraph-io/badger/v3"
@@ -104,21 +105,21 @@ func (e *entryHelper) generateKeys(f *flow.Flow) keyTuple {
 
 	haveL4 := false
 	if tcp := f.L4.GetTCP(); tcp != nil {
-		src += fmt.Sprintf(":%d", tcp.SourcePort)
-		dst += fmt.Sprintf(":%d", tcp.DestinationPort)
+		src += ":" + strconv.Itoa(int(tcp.SourcePort))
+		dst += ":" + strconv.Itoa(int(tcp.DestinationPort))
 		haveL4 = true
 	}
 	if udp := f.L4.GetUDP(); udp != nil {
-		src += fmt.Sprintf(":%d", udp.SourcePort)
-		dst += fmt.Sprintf(":%d", udp.DestinationPort)
+		src += ":" + strconv.Itoa(int(udp.SourcePort))
+		dst += ":" + strconv.Itoa(int(udp.DestinationPort))
 		haveL4 = true
 	}
 	if icmp := f.L4.GetICMPv4(); icmp != nil {
-		src += fmt.Sprintf("/%d", icmp.Type)
+		src += "/" + strconv.Itoa(int(icmp.Type))
 		haveL4 = true
 	}
 	if icmp := f.L4.GetICMPv6(); icmp != nil {
-		src += fmt.Sprintf("/%d", icmp.Type)
+		src += "/" + strconv.Itoa(int(icmp.Type))
 		haveL4 = true
 	}
 
