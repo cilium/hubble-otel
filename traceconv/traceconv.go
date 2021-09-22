@@ -69,10 +69,17 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 			common.AttributeEventEncoding:    c.Encoding,
 		}),
 	}
-	span.Attributes = append(span.Attributes, &commonV1.KeyValue{
-		Key:   common.AttributeEventPayload,
-		Value: v,
-	})
+	switch c.Encoding {
+	case common.EncodingTopLevelFlatStringMap:
+		for _, payloadAttribute := range v.GetKvlistValue().Values {
+			span.Attributes = append(span.Attributes, payloadAttribute)
+		}
+	default:
+		span.Attributes = append(span.Attributes, &commonV1.KeyValue{
+			Key:   common.AttributeEventPayload,
+			Value: v,
+		})
+	}
 	resourceSpans := &traceV1.ResourceSpans{
 		Resource: &resourceV1.Resource{
 			Attributes: common.NewStringAttributes(map[string]string{

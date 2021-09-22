@@ -17,6 +17,7 @@ const (
 
 	AttributeEventKindVersion             = keyPrefix + "event_kind"
 	AttributeEventPayload                 = keyPrefix + "event_payload"
+	AttributeEventPayloadMapPrefix        = AttributeEventPayload + "/"
 	AttributeEventKindVersionFlowV1alpha1 = "flow/v1alpha1"
 
 	AttributeEventEncoding = keyPrefix + "event_encoding"
@@ -24,10 +25,12 @@ const (
 	ResourceCiliumClusterID = keyPrefix + "cluster_id"
 	ResourceCiliumNodeName  = keyPrefix + "node_name"
 
-	DefaultEncoding          = EncodingTypedMap
-	EncodingJSON             = "JSON"
-	EncodingJSONBASE64       = "JSON+base64"
-	EncodingFlatStringMap    = "FlatStringMap"
+	DefaultEncoding               = EncodingTypedMap
+	EncodingJSON                  = "JSON"
+	EncodingJSONBASE64            = "JSON+base64"
+	EncodingFlatStringMap         = "FlatStringMap"
+	EncodingTopLevelFlatStringMap = "TopLevelFlatStringMap"
+
 	EncodingSemiFlatTypedMap = "SemiFlatTypedMap"
 	EncodingTypedMap         = "TypedMap"
 )
@@ -37,6 +40,7 @@ func EncodingFormats() []string {
 		EncodingJSON,
 		EncodingJSONBASE64,
 		EncodingFlatStringMap,
+		EncodingTopLevelFlatStringMap,
 		EncodingSemiFlatTypedMap,
 		EncodingTypedMap,
 	}
@@ -147,10 +151,10 @@ func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.
 			s = base64.RawStdEncoding.EncodeToString(data)
 		}
 		return newStringValue(s), nil
-	case EncodingFlatStringMap, EncodingSemiFlatTypedMap, EncodingTypedMap:
+	case EncodingFlatStringMap, EncodingTopLevelFlatStringMap, EncodingSemiFlatTypedMap, EncodingTypedMap:
 		var mb mapBuilder
 		switch c.Encoding {
-		case EncodingFlatStringMap:
+		case EncodingFlatStringMap, EncodingTopLevelFlatStringMap:
 			mb = &flatStringMap{}
 		case EncodingSemiFlatTypedMap:
 			mb = &semiFlatTypedMap{}
@@ -158,7 +162,12 @@ func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.
 			mb = &typedMap{}
 		}
 
-		hubbleResp.GetFlow().ProtoReflect().Range(mb.newLeaf(""))
+		topLevel := ""
+		if c.Encoding == EncodingTopLevelFlatStringMap {
+			topLevel = AttributeEventPayloadMapPrefix
+		}
+
+		hubbleResp.GetFlow().ProtoReflect().Range(mb.newLeaf(topLevel))
 
 		v := &commonV1.AnyValue{
 			Value: &commonV1.AnyValue_KvlistValue{
@@ -272,8 +281,12 @@ func fmtKeyPath(keyPathPrefix, fieldName string) string {
 	// result in `[` and `\"` characters being used in the keys; i.e. it's only "IP.source"
 	// and not "[\"IP\"][\"source\"]" (which would be less pressumptions, yet harder to
 	// query for the user)
-	if keyPathPrefix == "" {
+	switch keyPathPrefix {
+	case "":
 		return fieldName
+	case AttributeEventPayloadMapPrefix:
+		return keyPathPrefix + fieldName
+	default:
+		return keyPathPrefix + "." + fieldName
 	}
-	return fmt.Sprintf("%s.%s", keyPathPrefix, fieldName)
 }
