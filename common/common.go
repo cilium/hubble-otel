@@ -79,7 +79,6 @@ func newValue(mayBeAList bool, fd protoreflect.FieldDescriptor, v protoreflect.V
 				ArrayValue: toList(fd, v),
 			},
 		}
-
 	}
 	switch fd.Kind() {
 	case protoreflect.BoolKind:
