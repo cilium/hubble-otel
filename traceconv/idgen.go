@@ -126,6 +126,10 @@ func (e *entryHelper) generateKeys(f *flow.Flow) keyTuple {
 	if !haveL4 || src == "" || dst == "" {
 		return keyTuple{}
 	}
+
+	src += "|" + strconv.Itoa(int(f.Source.Identity))
+	dst += "|" + strconv.Itoa(int(f.Destination.Identity))
+
 	return keyTuple{src + "<=>" + dst, dst + "<=>" + src}
 }
 

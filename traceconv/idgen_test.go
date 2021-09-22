@@ -47,7 +47,7 @@ func TestBadger(t *testing.T) {
 
 	t.Logf("%d traces, %d spans", len(traces), len(spans))
 
-	if l, e := len(traces), 2145; l != e {
+	if l, e := len(traces), 2147; l != e {
 		t.Errorf("unexpected number of traces generated (have: %d, expected %d)", l, e)
 	}
 	if l, e := len(spans), 20000; l != e {
