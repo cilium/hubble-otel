@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	logsCollectorV1 "go.opentelemetry.io/proto/otlp/collector/logs/v1"
@@ -12,14 +13,17 @@ import (
 )
 
 type BufferedLogExporter struct {
-	otlpLogs   logsCollectorV1.LogsServiceClient
-	bufferSize int
+	otlpLogs          logsCollectorV1.LogsServiceClient
+	bufferSize        int
+	headers           map[string]string
+	exportCallOptions []grpc.CallOption
 }
 
-func NewBufferedLogExporter(otlpConn *grpc.ClientConn, bufferSize int) *BufferedLogExporter {
+func NewBufferedLogExporter(otlpConn *grpc.ClientConn, bufferSize int, headers map[string]string, callOptions ...grpc.CallOption) *BufferedLogExporter {
 	return &BufferedLogExporter{
-		otlpLogs:   logsCollectorV1.NewLogsServiceClient(otlpConn),
-		bufferSize: bufferSize,
+		otlpLogs:          logsCollectorV1.NewLogsServiceClient(otlpConn),
+		bufferSize:        bufferSize,
+		exportCallOptions: callOptions,
 	}
 }
 
@@ -34,6 +38,9 @@ func (s *BufferedLogExporter) Export(ctx context.Context, flows <-chan protorefl
 		logs[i] = flow
 	}
 
-	_, err := s.otlpLogs.Export(ctx, &logsCollectorV1.ExportLogsServiceRequest{ResourceLogs: logs})
+	if s.headers != nil {
+		ctx = metadata.NewOutgoingContext(ctx, metadata.New(s.headers))
+	}
+	_, err := s.otlpLogs.Export(ctx, &logsCollectorV1.ExportLogsServiceRequest{ResourceLogs: logs}, s.exportCallOptions...)
 	return err
 }
