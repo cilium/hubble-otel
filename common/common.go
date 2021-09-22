@@ -151,7 +151,8 @@ func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.
 			s = base64.RawStdEncoding.EncodeToString(data)
 		}
 		return newStringValue(s), nil
-	case EncodingFlatStringMap, EncodingTopLevelFlatStringMap, EncodingSemiFlatTypedMap, EncodingTypedMap:
+	case EncodingFlatStringMap, EncodingTopLevelFlatStringMap,
+		EncodingSemiFlatTypedMap, EncodingTypedMap:
 		var mb mapBuilder
 		switch c.Encoding {
 		case EncodingFlatStringMap, EncodingTopLevelFlatStringMap:
