@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/cilium/cilium/api/v1/observer"
 	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
@@ -70,15 +71,36 @@ func toList(fd protoreflect.FieldDescriptor, v protoreflect.Value) *commonV1.Arr
 		Values: make([]*commonV1.AnyValue, items.Len()),
 	}
 	for i := 0; i < items.Len(); i++ {
-		if item := newValue(false, fd, items.Get(i)); item != nil {
+		if item := newValue(false, false, fd, items.Get(i)); item != nil {
 			list.Values[i] = item
 		}
 	}
 	return list
 }
 
-func newValue(mayBeAList bool, fd protoreflect.FieldDescriptor, v protoreflect.Value) *commonV1.AnyValue {
+func newValue(mayBeAList bool, labelsAsMaps bool, fd protoreflect.FieldDescriptor, v protoreflect.Value) *commonV1.AnyValue {
 	if mayBeAList && fd.IsList() {
+		if labelsAsMaps && fd.JSONName() == "labels" {
+			items := v.List()
+			labels := &commonV1.KeyValueList{
+				Values: make([]*commonV1.KeyValue, items.Len()),
+			}
+			for i := 0; i < items.Len(); i++ {
+				k, v, err := parseLabel(items.Get(i).String())
+				if err != nil {
+					panic(err)
+				}
+				labels.Values = append(labels.Values, &commonV1.KeyValue{
+					Key:   k,
+					Value: newStringValue(v),
+				})
+			}
+			return &commonV1.AnyValue{
+				Value: &commonV1.AnyValue_KvlistValue{
+					KvlistValue: labels,
+				},
+			}
+		}
 		return &commonV1.AnyValue{
 			Value: &commonV1.AnyValue_ArrayValue{
 				ArrayValue: toList(fd, v),
@@ -132,7 +154,8 @@ func newValue(mayBeAList bool, fd protoreflect.FieldDescriptor, v protoreflect.V
 }
 
 type FlowEncoder struct {
-	Encoding string
+	Encoding     string
+	labelsAsMaps bool
 }
 
 func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.AnyValue, error) {
@@ -189,7 +212,8 @@ type mapBuilder interface {
 }
 
 type flatStringMap struct {
-	list []*commonV1.KeyValue
+	list         []*commonV1.KeyValue
+	labelsAsMaps bool
 }
 
 func (l *flatStringMap) items() []*commonV1.KeyValue { return l.list }
@@ -202,11 +226,24 @@ func (l *flatStringMap) newLeaf(keyPathPrefix string) func(fd protoreflect.Field
 			v.Message().Range(l.newLeaf(keyPath))
 		case fd.IsList():
 			items := v.List()
+			labelsAsMap := l.labelsAsMaps && fd.JSONName() == "labels"
 			for i := 0; i < items.Len(); i++ {
-				l.list = append(l.list, &commonV1.KeyValue{
-					Key:   fmtKeyPath(keyPath, strconv.Itoa(i)),
-					Value: newStringValue(items.Get(i).String()),
-				})
+				if labelsAsMap {
+					k, v, err := parseLabel(items.Get(i).String())
+					if err != nil {
+						panic(err)
+					}
+					l.list = append(l.list, &commonV1.KeyValue{
+						Key:   fmtKeyPath(keyPath, k),
+						Value: newStringValue(v),
+					})
+
+				} else {
+					l.list = append(l.list, &commonV1.KeyValue{
+						Key:   fmtKeyPath(keyPath, strconv.Itoa(i)),
+						Value: newStringValue(items.Get(i).String()),
+					})
+				}
 			}
 		default:
 			l.list = append(l.list, &commonV1.KeyValue{
@@ -219,7 +256,8 @@ func (l *flatStringMap) newLeaf(keyPathPrefix string) func(fd protoreflect.Field
 }
 
 type semiFlatTypedMap struct {
-	list []*commonV1.KeyValue
+	list         []*commonV1.KeyValue
+	labelsAsMaps bool
 }
 
 func (l *semiFlatTypedMap) items() []*commonV1.KeyValue { return l.list }
@@ -231,7 +269,7 @@ func (l *semiFlatTypedMap) newLeaf(keyPathPrefix string) func(fd protoreflect.Fi
 		case fd.Kind() == protoreflect.MessageKind:
 			v.Message().Range(l.newLeaf(keyPath))
 		default:
-			if item := newValue(true, fd, v); item != nil {
+			if item := newValue(true, l.labelsAsMaps, fd, v); item != nil {
 				l.list = append(l.list, &commonV1.KeyValue{
 					Key:   keyPath,
 					Value: item,
@@ -243,7 +281,8 @@ func (l *semiFlatTypedMap) newLeaf(keyPathPrefix string) func(fd protoreflect.Fi
 }
 
 type typedMap struct {
-	list []*commonV1.KeyValue
+	list         []*commonV1.KeyValue
+	labelsAsMaps bool
 }
 
 func (l *typedMap) items() []*commonV1.KeyValue { return l.list }
@@ -265,7 +304,7 @@ func (l *typedMap) newLeaf(_ string) func(fd protoreflect.FieldDescriptor, v pro
 				},
 			})
 		default:
-			if item := newValue(true, fd, v); item != nil {
+			if item := newValue(true, l.labelsAsMaps, fd, v); item != nil {
 				l.list = append(l.list, &commonV1.KeyValue{
 					Key:   fd.JSONName(),
 					Value: item,
@@ -289,5 +328,17 @@ func fmtKeyPath(keyPathPrefix, fieldName string) string {
 		return keyPathPrefix + fieldName
 	default:
 		return keyPathPrefix + "." + fieldName
+	}
+}
+
+func parseLabel(label string) (string, string, error) {
+	parts := strings.Split(label, "=")
+	switch len(parts) {
+	case 2:
+		return parts[0], parts[1], nil
+	case 1:
+		return parts[0], "", nil
+	default:
+		return "", "", fmt.Errorf("cannot parse label %q, as it's not in \"k=v\" format", label)
 	}
 }
