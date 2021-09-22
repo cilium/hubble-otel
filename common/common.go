@@ -65,14 +65,14 @@ func toList(fd protoreflect.FieldDescriptor, v protoreflect.Value) *commonV1.Arr
 		Values: make([]*commonV1.AnyValue, items.Len()),
 	}
 	for i := 0; i < items.Len(); i++ {
-		if item := NewValue(false, fd, items.Get(i)); item != nil {
+		if item := newValue(false, fd, items.Get(i)); item != nil {
 			list.Values[i] = item
 		}
 	}
 	return list
 }
 
-func NewValue(mayBeAList bool, fd protoreflect.FieldDescriptor, v protoreflect.Value) *commonV1.AnyValue {
+func newValue(mayBeAList bool, fd protoreflect.FieldDescriptor, v protoreflect.Value) *commonV1.AnyValue {
 	if mayBeAList && fd.IsList() {
 		return &commonV1.AnyValue{
 			Value: &commonV1.AnyValue_ArrayValue{
@@ -221,7 +221,7 @@ func (l *semiFlatTypedMap) newLeaf(keyPathPrefix string) func(fd protoreflect.Fi
 		case fd.Kind() == protoreflect.MessageKind:
 			v.Message().Range(l.newLeaf(keyPath))
 		default:
-			if item := NewValue(true, fd, v); item != nil {
+			if item := newValue(true, fd, v); item != nil {
 				l.list = append(l.list, &commonV1.KeyValue{
 					Key:   keyPath,
 					Value: item,
@@ -255,7 +255,7 @@ func (l *typedMap) newLeaf(_ string) func(fd protoreflect.FieldDescriptor, v pro
 				},
 			})
 		default:
-			if item := NewValue(true, fd, v); item != nil {
+			if item := newValue(true, fd, v); item != nil {
 				l.list = append(l.list, &commonV1.KeyValue{
 					Key:   fd.JSONName(),
 					Value: item,
