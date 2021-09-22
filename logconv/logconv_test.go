@@ -20,6 +20,7 @@ func TestAllModes(t *testing.T) {
 		{common.EncodingJSONBASE64, false},
 		{common.EncodingFlatStringMap, false},
 		{common.EncodingFlatStringMap, true},
+		{common.EncodingTopLevelFlatStringMap, true},
 		{common.EncodingSemiFlatTypedMap, false},
 		{common.EncodingSemiFlatTypedMap, true},
 		{common.EncodingTypedMap, false},

@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -284,6 +285,16 @@ func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encoding string) 
 		case common.AttributeEventPayload:
 			payload = attr.Value
 		}
+		if strings.HasPrefix(attr.Key, common.AttributeEventPayloadMapPrefix) {
+			if payload == nil {
+				payload = &commonV1.AnyValue{
+					Value: &commonV1.AnyValue_KvlistValue{
+						KvlistValue: &commonV1.KeyValueList{},
+					},
+				}
+			}
+			payload.GetKvlistValue().Values = append(payload.GetKvlistValue().Values, attr)
+		}
 	}
 
 	if !hasVersionAttr {
@@ -296,8 +307,11 @@ func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encoding string) 
 	if payload != nil {
 		expectedLen = 3
 	}
-	if len(attrs) != expectedLen {
-		t.Errorf("should have %d attributes", expectedLen)
+	if encoding == common.EncodingTopLevelFlatStringMap {
+		expectedLen = 2 + len(payload.GetKvlistValue().Values)
+	}
+	if l := len(attrs); expectedLen != l {
+		t.Errorf("should have %d attributes, not %d", expectedLen, l)
 	}
 
 	return payload
@@ -315,7 +329,8 @@ func CheckPayload(t *testing.T, payload *commonV1.AnyValue, encoding string) {
 		if payload.GetStringValue() == "" {
 			t.Error("payload should be a non-empty string")
 		}
-	case common.EncodingFlatStringMap, common.EncodingSemiFlatTypedMap, common.EncodingTypedMap:
+	case common.EncodingFlatStringMap, common.EncodingTopLevelFlatStringMap,
+		common.EncodingSemiFlatTypedMap, common.EncodingTypedMap:
 		m := payload.GetKvlistValue()
 		if m == nil {
 			t.Error("payload should be a map")
