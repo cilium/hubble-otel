@@ -10,7 +10,7 @@ import (
 
 	"github.com/isovalent/hubble-otel/common"
 	"github.com/isovalent/hubble-otel/logconv"
-	"github.com/isovalent/hubble-otel/reciever"
+	"github.com/isovalent/hubble-otel/receiver"
 	"github.com/isovalent/hubble-otel/testutil"
 )
 
@@ -52,7 +52,7 @@ func BenchmarkAllModes(b *testing.B) {
 			flows := make(chan protoreflect.Message, logBufferSize)
 			errs := make(chan error)
 
-			go reciever.Run(ctx, hubbleConn, logconv.NewFlowConverter(encoding, false), flows, errs)
+			go receiver.Run(ctx, hubbleConn, logconv.NewFlowConverter(encoding, false), flows, errs)
 			for {
 				select {
 				case _ = <-flows: // drop

@@ -15,7 +15,7 @@ import (
 	"github.com/isovalent/hubble-otel/common"
 	"github.com/isovalent/hubble-otel/logconv"
 	"github.com/isovalent/hubble-otel/logproc"
-	"github.com/isovalent/hubble-otel/reciever"
+	"github.com/isovalent/hubble-otel/receiver"
 	"github.com/isovalent/hubble-otel/sender"
 )
 
@@ -130,7 +130,7 @@ func run(hubbleFlags, otlpFlags flags, logBufferSize int, encodingFormat string,
 
 	errs := make(chan error)
 
-	go reciever.Run(ctx, hubbleConn, logconv.NewFlowConverter(encodingFormat, useAttributes), flows, errs)
+	go receiver.Run(ctx, hubbleConn, logconv.NewFlowConverter(encodingFormat, useAttributes), flows, errs)
 
 	go sender.Run(ctx, logproc.NewBufferedLogExporter(otlpConn, logBufferSize), flows, errs)
 

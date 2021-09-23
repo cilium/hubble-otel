@@ -1,4 +1,4 @@
-package reciever
+package receiver
 
 import (
 	"context"
