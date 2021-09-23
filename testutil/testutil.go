@@ -260,15 +260,17 @@ func CheckResource(t *testing.T, res *resourceV1.Resource, hubbleResp *observer.
 	}
 }
 
-func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encoding string) *commonV1.AnyValue {
+func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encodingFormat string, encodingOptions common.EncodingOptions) *commonV1.AnyValue {
 	t.Helper()
 
 	var payload *commonV1.AnyValue
 
 	hasVersionAttr := false
 	hasEncodingAttr := false
+	hasEncodingOptionsAttr := false
+	hasPayloadInTopLevelKeys := false
 
-	expectedLen := 2
+	expectedLen := 3
 
 	for _, attr := range attrs {
 		switch attr.Key {
@@ -279,8 +281,13 @@ func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encoding string) 
 			}
 		case common.AttributeEventEncoding:
 			hasEncodingAttr = true
-			if attr.Value.GetStringValue() != encoding {
+			if attr.Value.GetStringValue() != encodingFormat {
 				t.Error("econding is wrong")
+			}
+		case common.AttributeEventEncodingOptions:
+			hasEncodingOptionsAttr = true
+			if attr.Value.GetStringValue() != encodingOptions.String() {
+				t.Error("econding options are wrong")
 			}
 		case common.AttributeEventPayload:
 			payload = attr.Value
@@ -294,6 +301,7 @@ func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encoding string) 
 				}
 			}
 			payload.GetKvlistValue().Values = append(payload.GetKvlistValue().Values, attr)
+			hasPayloadInTopLevelKeys = true
 		}
 	}
 
@@ -303,12 +311,18 @@ func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encoding string) 
 	if !hasEncodingAttr {
 		t.Error("encoding is not set")
 	}
+	if !hasEncodingOptionsAttr {
+		t.Error("encoding options are not set")
+	}
 
 	if payload != nil {
-		expectedLen = 3
+		expectedLen = 4
 	}
-	if encoding == common.EncodingTopLevelFlatStringMap {
-		expectedLen = 2 + len(payload.GetKvlistValue().Values)
+	if encodingOptions.TopLevelKeys {
+		if !hasPayloadInTopLevelKeys {
+			t.Error("missing payload keys")
+		}
+		expectedLen = 3 + len(payload.GetKvlistValue().Values)
 	}
 	if l := len(attrs); expectedLen != l {
 		t.Errorf("should have %d attributes, not %d", expectedLen, l)
@@ -329,8 +343,7 @@ func CheckPayload(t *testing.T, payload *commonV1.AnyValue, encoding string) {
 		if payload.GetStringValue() == "" {
 			t.Error("payload should be a non-empty string")
 		}
-	case common.EncodingFlatStringMap, common.EncodingTopLevelFlatStringMap,
-		common.EncodingSemiFlatTypedMap, common.EncodingTypedMap:
+	case common.EncodingFlatStringMap, common.EncodingSemiFlatTypedMap, common.EncodingTypedMap:
 		m := payload.GetKvlistValue()
 		if m == nil {
 			t.Error("payload should be a map")

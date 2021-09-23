@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cilium/cilium/api/v1/observer"
 	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
@@ -21,17 +20,16 @@ const (
 	AttributeEventPayloadMapPrefix        = AttributeEventPayload + "/"
 	AttributeEventKindVersionFlowV1alpha1 = "flow/v1alpha1"
 
-	AttributeEventEncoding = keyPrefix + "event_encoding"
+	AttributeEventEncoding        = keyPrefix + "event_encoding"
+	AttributeEventEncodingOptions = keyPrefix + "event_encoding_options"
 
 	ResourceCiliumClusterID = keyPrefix + "cluster_id"
 	ResourceCiliumNodeName  = keyPrefix + "node_name"
 
-	DefaultEncoding               = EncodingTypedMap
-	EncodingJSON                  = "JSON"
-	EncodingJSONBASE64            = "JSON+base64"
-	EncodingFlatStringMap         = "FlatStringMap"
-	EncodingTopLevelFlatStringMap = "TopLevelFlatStringMap"
-
+	DefaultEncoding          = EncodingTypedMap
+	EncodingJSON             = "JSON"
+	EncodingJSONBASE64       = "JSON+base64"
+	EncodingFlatStringMap    = "FlatStringMap"
 	EncodingSemiFlatTypedMap = "SemiFlatTypedMap"
 	EncodingTypedMap         = "TypedMap"
 )
@@ -41,7 +39,6 @@ func EncodingFormats() []string {
 		EncodingJSON,
 		EncodingJSONBASE64,
 		EncodingFlatStringMap,
-		EncodingTopLevelFlatStringMap,
 		EncodingSemiFlatTypedMap,
 		EncodingTypedMap,
 	}
@@ -154,13 +151,36 @@ func newValue(mayBeAList bool, labelsAsMaps bool, fd protoreflect.FieldDescripto
 }
 
 type FlowEncoder struct {
-	Encoding     string
-	labelsAsMaps bool
+	Encoding string
+	EncodingOptions
+}
+
+type EncodingOptions struct {
+	TopLevelKeys     bool
+	LabelsAsMaps     bool
+	LogPayloadAsBody bool
+}
+
+func (o EncodingOptions) String() string {
+	options := []string{}
+	if o.TopLevelKeys {
+		options = append(options, "TopLevelKeys")
+	}
+	if o.LabelsAsMaps {
+		options = append(options, "LabelsAsMaps")
+	}
+	if o.LogPayloadAsBody {
+		options = append(options, "LogPayloadAsBody")
+	}
+	return strings.Join(options, ",")
 }
 
 func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.AnyValue, error) {
 	switch c.Encoding {
 	case EncodingJSON, EncodingJSONBASE64:
+		// TODO: log that this is being overriden
+		c.TopLevelKeys = false
+
 		data, err := hubbleResp.GetFlow().MarshalJSON()
 		if err != nil {
 			return nil, err
@@ -174,20 +194,28 @@ func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.
 			s = base64.RawStdEncoding.EncodeToString(data)
 		}
 		return newStringValue(s), nil
-	case EncodingFlatStringMap, EncodingTopLevelFlatStringMap,
-		EncodingSemiFlatTypedMap, EncodingTypedMap:
+	case EncodingFlatStringMap, EncodingSemiFlatTypedMap, EncodingTypedMap:
 		var mb mapBuilder
 		switch c.Encoding {
-		case EncodingFlatStringMap, EncodingTopLevelFlatStringMap:
-			mb = &flatStringMap{}
+		case EncodingFlatStringMap:
+			mb = &flatStringMap{
+				labelsAsMaps: c.LabelsAsMaps,
+			}
 		case EncodingSemiFlatTypedMap:
-			mb = &semiFlatTypedMap{}
+			mb = &semiFlatTypedMap{
+				labelsAsMaps: c.LabelsAsMaps,
+			}
 		case EncodingTypedMap:
-			mb = &typedMap{}
+			// TODO: log that this is being overriden
+			c.TopLevelKeys = false
+
+			mb = &typedMap{
+				labelsAsMaps: c.LabelsAsMaps,
+			}
 		}
 
 		topLevel := ""
-		if c.Encoding == EncodingTopLevelFlatStringMap {
+		if c.TopLevelKeys {
 			topLevel = AttributeEventPayloadMapPrefix
 		}
 

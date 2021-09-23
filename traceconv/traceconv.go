@@ -21,7 +21,7 @@ type FlowConverter struct {
 	*common.FlowEncoder
 }
 
-func NewFlowConverter(attributeEncoding, dir string) (*FlowConverter, error) {
+func NewFlowConverter(attributeEncoding, dir string, options common.EncodingOptions) (*FlowConverter, error) {
 	opt := badger.DefaultOptions(dir)
 	opt.Logger = nil // TODO: make this use hubble-otel logger
 	tc, err := NewTraceCache(opt)
@@ -31,7 +31,8 @@ func NewFlowConverter(attributeEncoding, dir string) (*FlowConverter, error) {
 
 	return &FlowConverter{
 		FlowEncoder: &common.FlowEncoder{
-			Encoding: attributeEncoding,
+			Encoding:        attributeEncoding,
+			EncodingOptions: options,
 		},
 		traceCache: tc,
 	}, nil
@@ -65,20 +66,21 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 		EndTimeUnixNano:   ts,
 		// TODO: optionally set Kind for TCP flows via a user-settable peramater
 		Attributes: common.NewStringAttributes(map[string]string{
-			common.AttributeEventKindVersion: common.AttributeEventKindVersionFlowV1alpha1,
-			common.AttributeEventEncoding:    c.Encoding,
+			common.AttributeEventKindVersion:     common.AttributeEventKindVersionFlowV1alpha1,
+			common.AttributeEventEncoding:        c.Encoding,
+			common.AttributeEventEncodingOptions: c.EncodingOptions.String(),
 		}),
 	}
-	switch c.Encoding {
-	case common.EncodingTopLevelFlatStringMap:
+	if c.TopLevelKeys {
 		for _, payloadAttribute := range v.GetKvlistValue().Values {
 			span.Attributes = append(span.Attributes, payloadAttribute)
 		}
-	default:
+	} else {
 		span.Attributes = append(span.Attributes, &commonV1.KeyValue{
 			Key:   common.AttributeEventPayload,
 			Value: v,
 		})
+
 	}
 	resourceSpans := &traceV1.ResourceSpans{
 		Resource: &resourceV1.Resource{

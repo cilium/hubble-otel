@@ -137,22 +137,31 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 	}
 
 	modes := []struct {
-		encoding      string
-		useAttributes bool
+		encoding string
+		options  common.EncodingOptions
 	}{
-		{common.EncodingJSON, false},
-		{common.EncodingJSONBASE64, false},
-		{common.EncodingFlatStringMap, false},
-		{common.EncodingFlatStringMap, true},
-		{common.EncodingSemiFlatTypedMap, false},
-		{common.EncodingSemiFlatTypedMap, true},
-		{common.EncodingTypedMap, false},
-		{common.EncodingTypedMap, true},
+		// test option combinations that relevant to particular encoding
+		{common.EncodingJSON, common.EncodingOptions{false, false, false}},
+		{common.EncodingJSON, common.EncodingOptions{false, false, true}},
+		{common.EncodingJSONBASE64, common.EncodingOptions{false, false, false}},
+		{common.EncodingFlatStringMap, common.EncodingOptions{false, false, false}},
+		{common.EncodingFlatStringMap, common.EncodingOptions{false, false, true}},
+		{common.EncodingFlatStringMap, common.EncodingOptions{true, false, false}},
+		{common.EncodingFlatStringMap, common.EncodingOptions{true, true, false}},
+		{common.EncodingSemiFlatTypedMap, common.EncodingOptions{false, false, false}},
+		{common.EncodingSemiFlatTypedMap, common.EncodingOptions{false, false, true}},
+		{common.EncodingSemiFlatTypedMap, common.EncodingOptions{true, false, false}},
+		{common.EncodingSemiFlatTypedMap, common.EncodingOptions{true, true, false}},
+		{common.EncodingTypedMap, common.EncodingOptions{false, false, false}},
+		{common.EncodingTypedMap, common.EncodingOptions{false, false, true}},
+		{common.EncodingTypedMap, common.EncodingOptions{false, true, false}},
 	}
 
-	for i, mode := range modes {
+	for i := range modes {
+		mode := modes[i]
+
 		t.Run(fmt.Sprintf("mode=%+v", mode), func(t *testing.T) {
-			if err := run(flagsHubble, flagsOTLP, nil, true, true, 10, mode.encoding, mode.useAttributes); err != nil {
+			if err := run(flagsHubble, flagsOTLP, nil, true, true, 10, mode.encoding, mode.options); err != nil {
 				if testutil.IsEOF(err) {
 					checkCollectorMetrics(t, i)
 					return
