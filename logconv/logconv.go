@@ -12,17 +12,17 @@ import (
 
 type FlowConverter struct {
 	*common.FlowEncoder
-	UseAttributes bool
 }
 
-func NewFlowConverter(encoding string, useAttributes bool) *FlowConverter {
+func NewFlowConverter(encoding string, options common.EncodingOptions) *FlowConverter {
 	return &FlowConverter{
 		FlowEncoder: &common.FlowEncoder{
-			Encoding: encoding,
+			Encoding:        encoding,
+			EncodingOptions: options,
 		},
-		UseAttributes: useAttributes,
 	}
 }
+
 func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoreflect.Message, error) {
 	flow := hubbleResp.GetFlow()
 
@@ -34,8 +34,9 @@ func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoref
 	logRecord := &logsV1.LogRecord{
 		TimeUnixNano: uint64(flow.GetTime().AsTime().UnixNano()),
 		Attributes: common.NewStringAttributes(map[string]string{
-			common.AttributeEventKindVersion: common.AttributeEventKindVersionFlowV1alpha1,
-			common.AttributeEventEncoding:    c.Encoding,
+			common.AttributeEventKindVersion:     common.AttributeEventKindVersionFlowV1alpha1,
+			common.AttributeEventEncoding:        c.Encoding,
+			common.AttributeEventEncodingOptions: c.EncodingOptions.String(),
 		}),
 	}
 
@@ -50,13 +51,12 @@ func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoref
 		}},
 	}
 
-	if c.UseAttributes {
-		switch c.Encoding {
-		case common.EncodingTopLevelFlatStringMap:
+	if c.LogPayloadAsBody {
+		if c.TopLevelKeys {
 			for _, payloadAttribute := range v.GetKvlistValue().Values {
 				logRecord.Attributes = append(logRecord.Attributes, payloadAttribute)
 			}
-		default:
+		} else {
 			logRecord.Attributes = append(logRecord.Attributes, &commonV1.KeyValue{
 				Key:   common.AttributeEventPayload,
 				Value: v,
