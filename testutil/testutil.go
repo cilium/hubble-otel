@@ -22,14 +22,8 @@ import (
 	promdto "github.com/prometheus/client_model/go"
 	promexpfmt "github.com/prometheus/common/expfmt"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/cilium/cilium/api/v1/flow"
 	"github.com/cilium/cilium/api/v1/observer"
-	"github.com/cilium/cilium/pkg/crypto/certloader"
-	"github.com/cilium/cilium/pkg/hubble/server"
-	"github.com/cilium/cilium/pkg/hubble/server/serveroption"
-	"github.com/cilium/cilium/pkg/logging/logfields"
 	mockHubbleObeserver "github.com/isovalent/mock-hubble/observer"
 
 	"github.com/isovalent/hubble-otel/common"
@@ -40,64 +34,9 @@ const (
 	waitPeriod     = 250 * time.Millisecond
 )
 
-type TLSPaths struct {
-	Certificate, Key, CertificateAuthority string
-}
+type TLSPaths = mockHubbleObeserver.TLSPaths
 
-func RunMockHubble(ctx context.Context, log *logrus.Logger, dir, address string, rateAdjustment int, withTLSPath *TLSPaths, fatal chan<- error) {
-	mockObeserver, err := mockHubbleObeserver.New(log.WithField(logfields.LogSubsys, "mock-hubble-observer"),
-		mockHubbleObeserver.WithSampleDir(dir),
-		mockHubbleObeserver.WithRateAdjustment(int64(rateAdjustment)),
-	)
-	if err != nil {
-		fatal <- err
-		return
-	}
-
-	tlsOption := serveroption.WithInsecure()
-
-	if withTLSPath != nil {
-		serverConfigBuilder, err := certloader.NewWatchedServerConfig(log,
-			[]string{withTLSPath.CertificateAuthority},
-			withTLSPath.Certificate,
-			withTLSPath.Key,
-		)
-		if err != nil {
-			fatal <- err
-			return
-		}
-		tlsOption = serveroption.WithServerTLS(serverConfigBuilder)
-	}
-
-	mockServer, err := server.NewServer(log.WithField(logfields.LogSubsys, "mock-hubble-server"),
-		serveroption.WithTCPListener(address),
-		tlsOption,
-		serveroption.WithHealthService(),
-		serveroption.WithObserverService(mockObeserver),
-	)
-	if err != nil {
-		fatal <- err
-		return
-	}
-
-	log.WithField("address", address).Info("Starting Hubble server")
-
-	if err := mockServer.Serve(); err != nil {
-		fatal <- err
-		return
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			log.WithField("address", address).Info("Stopping Hubble server")
-			mockServer.Stop()
-			mockObeserver.Stop()
-			return
-		}
-	}
-
-}
+var RunMockHubble = mockHubbleObeserver.Run
 
 func GetFlowSamples(t *testing.T, path string) []*observer.GetFlowsResponse {
 	t.Helper()

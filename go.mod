@@ -12,7 +12,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/protobuf v1.5.2
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/isovalent/mock-hubble v0.0.0-20210811191953-d295cb73bf57
+	github.com/isovalent/mock-hubble v0.0.0-20210928133358-8a1660dd0897
 	github.com/open-telemetry/opentelemetry-collector-builder v0.33.0
 	github.com/prometheus/client_golang v1.11.0 // indirect
 	github.com/prometheus/client_model v0.2.1-0.20200623203004-60555c9708c7
