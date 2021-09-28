@@ -10,7 +10,6 @@ require (
 	github.com/dgraph-io/badger v1.6.2 // indirect
 	github.com/dgraph-io/badger/v3 v3.2103.0
 	github.com/gogo/protobuf v1.3.2
-	github.com/golang/protobuf v1.5.2
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/isovalent/mock-hubble v0.0.0-20210928133358-8a1660dd0897
 	github.com/open-telemetry/opentelemetry-collector-builder v0.33.0
