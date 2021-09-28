@@ -1,0 +1,45 @@
+name: CI
+on:
+  pull_request:
+    types: [opened, reopened]
+  push:
+    branches: ["**"]
+
+jobs:
+  test:
+    name: Run tests and linters
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: docker://docker.io/library/golang:1.17.1@sha256:285cf0cb73ab995caee61b900b2be123cd198f3541ce318c549ea5ff9832bdf0
+        name: Run unit tests
+        with:
+          entrypoint: go
+          args: test -v ./...
+      - uses: docker://docker.io/library/golang:1.17.1@sha256:285cf0cb73ab995caee61b900b2be123cd198f3541ce318c549ea5ff9832bdf0
+        name: Run go vet
+        with:
+          entrypoint: go
+          args: vet ./...
+  build:
+    needs: test
+    name: Build the binary
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        GOOS: [linux, darwin]
+        GOARCH: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v2
+      - uses: docker://docker.io/library/golang:1.17.1@sha256:285cf0cb73ab995caee61b900b2be123cd198f3541ce318c549ea5ff9832bdf0
+        env:
+          GOOS: ${{ matrix.GOOS }}
+          GOARCH: ${{ matrix.GOARCH }}
+        with:
+          entrypoint: go
+          args: build
+      - uses: actions/upload-artifact@v2
+        with:
+          name: hubble-otel-${{ matrix.GOOS }}-${{ matrix.GOARCH }}
+          path: hubble-otel
+
