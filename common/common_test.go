@@ -47,25 +47,25 @@ func BenchmarkAllModes(b *testing.B) {
 
 	defer hubbleConn.Close()
 
-	encodingFormats := common.EncodingFormats()
+	encodingFormats := common.EncodingFormatsForLogs()
 	encodingOptions := []common.EncodingOptions{
 		// LogPayloadAsBody is irrelevant for benchmarking, test all remaining combinations
-		{true, true, false},
-		{true, false, false},
-		{false, true, false},
-		{false, false, false},
+		{TopLevelKeys: true, LabelsAsMaps: true},
+		{TopLevelKeys: true, LabelsAsMaps: false},
+		{TopLevelKeys: false, LabelsAsMaps: true},
+		{TopLevelKeys: false, LabelsAsMaps: false},
 	}
 
 	for e := range encodingFormats {
 		for o := range encodingOptions {
-			encoding := encodingFormats[e]
 			options := encodingOptions[o]
+			options.Encoding = encodingFormats[e]
 
 			process := func() {
 				flows := make(chan protoreflect.Message, logBufferSize)
 				errs := make(chan error)
 
-				go receiver.Run(ctx, hubbleConn, logconv.NewFlowConverter(encoding, options), flows, errs)
+				go receiver.Run(ctx, hubbleConn, logconv.NewFlowConverter(options), flows, errs)
 				for {
 					select {
 					case _ = <-flows: // drop
@@ -80,7 +80,7 @@ func BenchmarkAllModes(b *testing.B) {
 				}
 			}
 
-			b.Run(encoding+":"+options.String(), func(b *testing.B) {
+			b.Run(options.Encoding+":"+options.String(), func(b *testing.B) {
 				for n := 0; n < b.N; n++ {
 					process()
 				}

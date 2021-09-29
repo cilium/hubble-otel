@@ -21,7 +21,7 @@ type FlowConverter struct {
 	*common.FlowEncoder
 }
 
-func NewFlowConverter(attributeEncoding, dir string, options common.EncodingOptions) (*FlowConverter, error) {
+func NewFlowConverter(dir string, options common.EncodingOptions) (*FlowConverter, error) {
 	opt := badger.DefaultOptions(dir)
 	opt.Logger = nil // TODO: make this use hubble-otel logger
 	tc, err := NewTraceCache(opt)
@@ -31,7 +31,6 @@ func NewFlowConverter(attributeEncoding, dir string, options common.EncodingOpti
 
 	return &FlowConverter{
 		FlowEncoder: &common.FlowEncoder{
-			Encoding:        attributeEncoding,
 			EncodingOptions: options,
 		},
 		traceCache: tc,
@@ -77,7 +76,7 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 		}
 	} else {
 		span.Attributes = append(span.Attributes, &commonV1.KeyValue{
-			Key:   common.AttributeEventPayload,
+			Key:   common.AttributeEventObject,
 			Value: v,
 		})
 
