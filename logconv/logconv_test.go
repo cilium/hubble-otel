@@ -12,29 +12,33 @@ import (
 )
 
 func TestAllModes(t *testing.T) {
-	encodingFormats := common.EncodingFormats()
+	encodingFormats := common.EncodingFormatsForLogs()
 	encodingOptions := []common.EncodingOptions{
-		{true, true, true},
-		{true, true, false},
-		{true, false, true},
-		{true, false, false},
-		{false, true, true},
-		{false, true, false},
-		{false, false, true},
-		{false, false, false},
+		{TopLevelKeys: true, LabelsAsMaps: true, LogPayloadAsBody: true},
+		{TopLevelKeys: true, LabelsAsMaps: true, LogPayloadAsBody: false},
+		{TopLevelKeys: true, LabelsAsMaps: false, LogPayloadAsBody: true},
+		{TopLevelKeys: true, LabelsAsMaps: false, LogPayloadAsBody: false},
+		{TopLevelKeys: false, LabelsAsMaps: true, LogPayloadAsBody: true},
+		{TopLevelKeys: false, LabelsAsMaps: true, LogPayloadAsBody: false},
+		{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: true},
+		{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: false},
 	}
 
 	for e := range encodingFormats {
 		for o := range encodingOptions {
-			encoding := encodingFormats[e]
 			options := encodingOptions[o]
+			options.Encoding = encodingFormats[e]
 
-			if options.TopLevelKeys && (strings.HasPrefix(encoding, "JSON") || encoding == common.EncodingTypedMap) {
+			if options.TopLevelKeys && !options.LogPayloadAsBody &&
+				(strings.HasPrefix(options.Encoding, "JSON") || options.Encoding == common.EncodingTypedMap) {
 				continue
 			}
+			if err := options.ValidForLogs(); err != nil {
+				t.Fatal(err)
+			}
 
-			c := logconv.NewFlowConverter(encoding, options)
-			t.Run(encoding+":"+options.String(), func(t *testing.T) {
+			c := logconv.NewFlowConverter(options)
+			t.Run(options.Encoding+":"+options.String(), func(t *testing.T) {
 				for _, flow := range testutil.GetFlowSamples(t, "../testdata/basic-sample-10-flows.json") {
 					logsMsg, err := c.Convert(flow)
 					if err != nil {
@@ -60,7 +64,7 @@ func TestAllModes(t *testing.T) {
 
 					logRecord := logs.InstrumentationLibraryLogs[0].Logs[0]
 
-					payload := testutil.CheckAttributes(t, logRecord.Attributes, c.Encoding, options)
+					payload := testutil.CheckAttributes(t, logRecord.Attributes, options)
 
 					hasPayloadAttr := payload != nil
 

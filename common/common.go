@@ -13,20 +13,25 @@ import (
 )
 
 const (
-	keyPrefix = "io.cilium.otel."
+	keyNamespaceCilium = "cilium."
 
-	AttributeEventKindVersion             = keyPrefix + "event_kind"
-	AttributeEventPayload                 = keyPrefix + "event_payload"
-	AttributeEventPayloadMapPrefix        = AttributeEventPayload + "/"
-	AttributeEventKindVersionFlowV1alpha1 = "flow/v1alpha1"
+	AttributeEventKindVersion     = keyNamespaceCilium + "event_kind"
+	AttributeEventEncoding        = keyNamespaceCilium + "event_encoding"
+	AttributeEventEncodingOptions = keyNamespaceCilium + "event_encoding_options"
 
-	AttributeEventEncoding        = keyPrefix + "event_encoding"
-	AttributeEventEncodingOptions = keyPrefix + "event_encoding_options"
+	AttributeEventKindVersionFlowV1alpha1 = "flow/v1alpha2"
 
-	ResourceCiliumClusterID = keyPrefix + "cluster_id"
-	ResourceCiliumNodeName  = keyPrefix + "node_name"
+	// in order to comply with the spec, cilium.flow_event is used with flat maps,
+	// and cilium.event_object is used to hold JSON-encoded or nested payloads,
+	// so that namespace and standalone key collision is avoided
+	AttributeFlowEventNamespace = keyNamespaceCilium + "flow_event"
+	AttributeEventObject        = keyNamespaceCilium + "event_object"
 
-	DefaultEncoding          = EncodingTypedMap
+	ResourceCiliumClusterID = keyNamespaceCilium + "cluster_id"
+	ResourceCiliumNodeName  = keyNamespaceCilium + "node_name"
+
+	DefaultLogEncoding       = EncodingTypedMap
+	DefaultTraceEncoding     = EncodingSemiFlatTypedMap
 	EncodingJSON             = "JSON"
 	EncodingJSONBASE64       = "JSON+base64"
 	EncodingFlatStringMap    = "FlatStringMap"
@@ -34,7 +39,7 @@ const (
 	EncodingTypedMap         = "TypedMap"
 )
 
-func EncodingFormats() []string {
+func EncodingFormatsForLogs() []string {
 	return []string{
 		EncodingJSON,
 		EncodingJSONBASE64,
@@ -43,6 +48,16 @@ func EncodingFormats() []string {
 		EncodingTypedMap,
 	}
 }
+
+func EncodingFormatsForTraces() []string {
+	return []string{
+		EncodingJSON,
+		EncodingJSONBASE64,
+		EncodingFlatStringMap,
+		EncodingSemiFlatTypedMap,
+	}
+}
+
 func NewStringAttributes(attributes map[string]string) []*commonV1.KeyValue {
 	results := []*commonV1.KeyValue{}
 	for k, v := range attributes {
@@ -151,11 +166,11 @@ func newValue(mayBeAList bool, labelsAsMaps bool, fd protoreflect.FieldDescripto
 }
 
 type FlowEncoder struct {
-	Encoding string
 	EncodingOptions
 }
 
 type EncodingOptions struct {
+	Encoding         string
 	TopLevelKeys     bool
 	LabelsAsMaps     bool
 	LogPayloadAsBody bool
@@ -175,11 +190,37 @@ func (o EncodingOptions) String() string {
 	return strings.Join(options, ",")
 }
 
+func (o EncodingOptions) ValidForLogs() error {
+	switch o.Encoding {
+	case EncodingJSON, EncodingJSONBASE64, EncodingTypedMap:
+		if o.TopLevelKeys && !o.LogPayloadAsBody {
+			return fmt.Errorf("option \"TopLevelKeys\" without \"LogPayloadAsBody\" is not compatible with %q encoding", o.Encoding)
+		}
+	}
+	return nil
+}
+
+func (o EncodingOptions) ValidForTraces() error {
+	switch o.Encoding {
+	case EncodingJSON, EncodingJSONBASE64:
+		if o.TopLevelKeys {
+			return fmt.Errorf("option \"TopLevelKeys\" is not compatible with %q encoding", o.Encoding)
+		}
+	}
+	if o.LogPayloadAsBody {
+		return fmt.Errorf("option \"LogPayloadAsBody\" is not compatible with \"trace\" data type")
+
+	}
+	return nil
+}
+
 func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.AnyValue, error) {
 	switch c.Encoding {
 	case EncodingJSON, EncodingJSONBASE64:
-		// TODO: log that this is being overriden
-		c.TopLevelKeys = false
+		if !c.LogPayloadAsBody {
+			// TODO: log that this is being overriden
+			c.TopLevelKeys = false
+		}
 
 		data, err := hubbleResp.GetFlow().MarshalJSON()
 		if err != nil {
@@ -200,14 +241,18 @@ func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.
 		case EncodingFlatStringMap:
 			mb = &flatStringMap{
 				labelsAsMaps: c.LabelsAsMaps,
+				separator:    '.',
 			}
 		case EncodingSemiFlatTypedMap:
 			mb = &semiFlatTypedMap{
 				labelsAsMaps: c.LabelsAsMaps,
+				separator:    '.',
 			}
 		case EncodingTypedMap:
-			// TODO: log that this is being overriden
-			c.TopLevelKeys = false
+			if !c.LogPayloadAsBody {
+				// TODO: log that this is being overriden
+				c.TopLevelKeys = false
+			}
 
 			mb = &typedMap{
 				labelsAsMaps: c.LabelsAsMaps,
@@ -216,7 +261,7 @@ func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.
 
 		topLevel := ""
 		if c.TopLevelKeys {
-			topLevel = AttributeEventPayloadMapPrefix
+			topLevel = AttributeFlowEventNamespace
 		}
 
 		hubbleResp.GetFlow().ProtoReflect().Range(mb.newLeaf(topLevel))
@@ -242,13 +287,14 @@ type mapBuilder interface {
 type flatStringMap struct {
 	list         []*commonV1.KeyValue
 	labelsAsMaps bool
+	separator    rune
 }
 
 func (l *flatStringMap) items() []*commonV1.KeyValue { return l.list }
 
 func (l *flatStringMap) newLeaf(keyPathPrefix string) func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
 	return func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
-		keyPath := fmtKeyPath(keyPathPrefix, fd.JSONName())
+		keyPath := fmtKeyPath(keyPathPrefix, fd.JSONName(), l.separator)
 		switch {
 		case fd.Kind() == protoreflect.MessageKind:
 			v.Message().Range(l.newLeaf(keyPath))
@@ -262,13 +308,13 @@ func (l *flatStringMap) newLeaf(keyPathPrefix string) func(fd protoreflect.Field
 						panic(err)
 					}
 					l.list = append(l.list, &commonV1.KeyValue{
-						Key:   fmtKeyPath(keyPath, k),
+						Key:   fmtKeyPath(keyPath, k, l.separator),
 						Value: newStringValue(v),
 					})
 
 				} else {
 					l.list = append(l.list, &commonV1.KeyValue{
-						Key:   fmtKeyPath(keyPath, strconv.Itoa(i)),
+						Key:   fmtKeyPath(keyPath, strconv.Itoa(i), l.separator),
 						Value: newStringValue(items.Get(i).String()),
 					})
 				}
@@ -286,13 +332,14 @@ func (l *flatStringMap) newLeaf(keyPathPrefix string) func(fd protoreflect.Field
 type semiFlatTypedMap struct {
 	list         []*commonV1.KeyValue
 	labelsAsMaps bool
+	separator    rune
 }
 
 func (l *semiFlatTypedMap) items() []*commonV1.KeyValue { return l.list }
 
 func (l *semiFlatTypedMap) newLeaf(keyPathPrefix string) func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
 	return func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
-		keyPath := fmtKeyPath(keyPathPrefix, fd.JSONName())
+		keyPath := fmtKeyPath(keyPathPrefix, fd.JSONName(), l.separator)
 		switch {
 		case fd.Kind() == protoreflect.MessageKind:
 			v.Message().Range(l.newLeaf(keyPath))
@@ -343,7 +390,7 @@ func (l *typedMap) newLeaf(_ string) func(fd protoreflect.FieldDescriptor, v pro
 	}
 }
 
-func fmtKeyPath(keyPathPrefix, fieldName string) string {
+func fmtKeyPath(keyPathPrefix, fieldName string, separator rune) string {
 	// NB: this format assumes that field names don't contain dots or other charcters,
 	// which is safe for *flow.Flow, so it's easier to query data as it doesn't
 	// result in `[` and `\"` characters being used in the keys; i.e. it's only "IP.source"
@@ -352,10 +399,10 @@ func fmtKeyPath(keyPathPrefix, fieldName string) string {
 	switch keyPathPrefix {
 	case "":
 		return fieldName
-	case AttributeEventPayloadMapPrefix:
+	case AttributeFlowEventNamespace:
 		return keyPathPrefix + fieldName
 	default:
-		return keyPathPrefix + "." + fieldName
+		return keyPathPrefix + string(separator) + fieldName
 	}
 }
 

@@ -14,10 +14,9 @@ type FlowConverter struct {
 	*common.FlowEncoder
 }
 
-func NewFlowConverter(encoding string, options common.EncodingOptions) *FlowConverter {
+func NewFlowConverter(options common.EncodingOptions) *FlowConverter {
 	return &FlowConverter{
 		FlowEncoder: &common.FlowEncoder{
-			Encoding:        encoding,
 			EncodingOptions: options,
 		},
 	}
@@ -59,7 +58,7 @@ func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoref
 		}
 	} else {
 		logRecord.Attributes = append(logRecord.Attributes, &commonV1.KeyValue{
-			Key:   common.AttributeEventPayload,
+			Key:   common.AttributeEventObject,
 			Value: v,
 		})
 	}

@@ -199,7 +199,7 @@ func CheckResource(t *testing.T, res *resourceV1.Resource, hubbleResp *observer.
 	}
 }
 
-func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encodingFormat string, encodingOptions common.EncodingOptions) *commonV1.AnyValue {
+func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encodingOptions common.EncodingOptions) *commonV1.AnyValue {
 	t.Helper()
 
 	var payload *commonV1.AnyValue
@@ -220,7 +220,7 @@ func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encodingFormat st
 			}
 		case common.AttributeEventEncoding:
 			hasEncodingAttr = true
-			if attr.Value.GetStringValue() != encodingFormat {
+			if attr.Value.GetStringValue() != encodingOptions.Encoding {
 				t.Error("econding is wrong")
 			}
 		case common.AttributeEventEncodingOptions:
@@ -228,10 +228,10 @@ func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encodingFormat st
 			if attr.Value.GetStringValue() != encodingOptions.String() {
 				t.Error("econding options are wrong")
 			}
-		case common.AttributeEventPayload:
+		case common.AttributeEventObject:
 			payload = attr.Value
 		}
-		if strings.HasPrefix(attr.Key, common.AttributeEventPayloadMapPrefix) {
+		if strings.HasPrefix(attr.Key, common.AttributeFlowEventNamespace) {
 			if payload == nil {
 				payload = &commonV1.AnyValue{
 					Value: &commonV1.AnyValue_KvlistValue{
@@ -259,7 +259,7 @@ func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encodingFormat st
 	}
 	if encodingOptions.TopLevelKeys && !encodingOptions.LogPayloadAsBody {
 		if !hasPayloadInTopLevelKeys {
-			t.Error("missing payload keys")
+			t.Fatal("missing payload keys")
 		}
 		expectedLen = 3 + len(payload.GetKvlistValue().Values)
 	}

@@ -15,40 +15,44 @@ import (
 
 func TestAllModes(t *testing.T) {
 
-	newFlowConverter := func(econding string, options common.EncodingOptions) *traceconv.FlowConverter {
+	newFlowConverter := func(options common.EncodingOptions) *traceconv.FlowConverter {
 		t.Helper()
 
 		spanDB, err := os.MkdirTemp("", "hubble-otel-test-trace-cache-")
 		if err != nil {
 			t.Fatal(err)
 		}
-		c, err := traceconv.NewFlowConverter(econding, spanDB, options)
+		c, err := traceconv.NewFlowConverter(spanDB, options)
 		if err != nil {
 			t.Fatal(err)
 		}
 		return c
 	}
 
-	encodingFormats := common.EncodingFormats()
+	encodingFormats := common.EncodingFormatsForTraces()
 	encodingOptions := []common.EncodingOptions{
 		// LogPayloadAsBody is irrelevant for traces
-		{true, true, false},
-		{true, false, false},
-		{false, true, false},
-		{false, false, false},
+		{TopLevelKeys: true, LabelsAsMaps: true},
+		{TopLevelKeys: true, LabelsAsMaps: false},
+		{TopLevelKeys: false, LabelsAsMaps: true},
+		{TopLevelKeys: false, LabelsAsMaps: false},
 	}
 
 	for e := range encodingFormats {
 		for o := range encodingOptions {
-			encoding := encodingFormats[e]
 			options := encodingOptions[o]
+			options.Encoding = encodingFormats[e]
 
-			if options.TopLevelKeys && (strings.HasPrefix(encoding, "JSON") || encoding == common.EncodingTypedMap) {
+			if options.TopLevelKeys &&
+				(strings.HasPrefix(options.Encoding, "JSON") || options.Encoding == common.EncodingTypedMap) {
 				continue
 			}
+			if err := options.ValidForTraces(); err != nil {
+				t.Fatal(err)
+			}
 
-			t.Run(encoding+":"+options.String(), func(t *testing.T) {
-				c := newFlowConverter(encoding, options)
+			t.Run(options.Encoding+":"+options.String(), func(t *testing.T) {
+				c := newFlowConverter(options)
 				for _, flow := range testutil.GetFlowSamples(t, "../testdata/basic-sample-10-flows.json") {
 					spansMsg, err := c.Convert(flow)
 					if err != nil {
@@ -74,7 +78,7 @@ func TestAllModes(t *testing.T) {
 
 					span := spans.InstrumentationLibrarySpans[0].Spans[0]
 
-					payload := testutil.CheckAttributes(t, span.Attributes, c.Encoding, options)
+					payload := testutil.CheckAttributes(t, span.Attributes, options)
 					testutil.CheckPayload(t, payload, c.Encoding)
 
 					f := flow.GetFlow()

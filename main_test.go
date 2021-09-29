@@ -136,38 +136,50 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 		}
 	}
 
-	modes := []struct {
-		encoding string
-		options  common.EncodingOptions
-	}{
+	modes := map[string][]common.EncodingOptions{
 		// test option combinations that relevant to particular encoding
-		{common.EncodingJSON, common.EncodingOptions{false, false, false}},
-		{common.EncodingJSON, common.EncodingOptions{false, false, true}},
-		{common.EncodingJSONBASE64, common.EncodingOptions{false, false, false}},
-		{common.EncodingFlatStringMap, common.EncodingOptions{false, false, false}},
-		{common.EncodingFlatStringMap, common.EncodingOptions{false, false, true}},
-		{common.EncodingFlatStringMap, common.EncodingOptions{true, false, false}},
-		{common.EncodingFlatStringMap, common.EncodingOptions{true, true, false}},
-		{common.EncodingSemiFlatTypedMap, common.EncodingOptions{false, false, false}},
-		{common.EncodingSemiFlatTypedMap, common.EncodingOptions{false, false, true}},
-		{common.EncodingSemiFlatTypedMap, common.EncodingOptions{true, false, false}},
-		{common.EncodingSemiFlatTypedMap, common.EncodingOptions{true, true, false}},
-		{common.EncodingTypedMap, common.EncodingOptions{false, false, false}},
-		{common.EncodingTypedMap, common.EncodingOptions{false, false, true}},
-		{common.EncodingTypedMap, common.EncodingOptions{false, true, false}},
+		common.EncodingJSON: {
+			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: false},
+			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: true},
+		},
+
+		common.EncodingJSONBASE64: {
+			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: false},
+		},
+
+		common.EncodingFlatStringMap: {
+			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: false},
+			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: true},
+			{TopLevelKeys: true, LabelsAsMaps: false, LogPayloadAsBody: false},
+			{TopLevelKeys: true, LabelsAsMaps: true, LogPayloadAsBody: false},
+		},
+		common.EncodingSemiFlatTypedMap: {
+			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: false},
+			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: true},
+			{TopLevelKeys: true, LabelsAsMaps: false, LogPayloadAsBody: false},
+			{TopLevelKeys: true, LabelsAsMaps: true, LogPayloadAsBody: false},
+		},
+		common.EncodingTypedMap: {
+			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: false},
+			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: true},
+			{TopLevelKeys: false, LabelsAsMaps: true, LogPayloadAsBody: false},
+		},
 	}
 
-	for i := range modes {
-		mode := modes[i]
+	for k := range modes {
+		for i := range modes[k] {
+			options := modes[k][i]
+			options.Encoding = k
 
-		t.Run(fmt.Sprintf("mode=%+v", mode), func(t *testing.T) {
-			if err := run(flagsHubble, flagsOTLP, nil, true, true, 10, mode.encoding, mode.options); err != nil {
-				if testutil.IsEOF(err) {
-					checkCollectorMetrics(t, i)
-					return
+			t.Run(options.Encoding+":"+options.String(), func(t *testing.T) {
+				if err := run(flagsHubble, flagsOTLP, nil, true, true, 10, options, options); err != nil {
+					if testutil.IsEOF(err) {
+						checkCollectorMetrics(t, i)
+						return
+					}
+					t.Fatal(err)
 				}
-				t.Fatal(err)
-			}
-		})
+			})
+		}
 	}
 }
