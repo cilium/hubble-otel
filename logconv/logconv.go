@@ -52,18 +52,16 @@ func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoref
 	}
 
 	if c.LogPayloadAsBody {
-		if c.TopLevelKeys {
-			for _, payloadAttribute := range v.GetKvlistValue().Values {
-				logRecord.Attributes = append(logRecord.Attributes, payloadAttribute)
-			}
-		} else {
-			logRecord.Attributes = append(logRecord.Attributes, &commonV1.KeyValue{
-				Key:   common.AttributeEventPayload,
-				Value: v,
-			})
+		logRecord.Body = v
+	} else if c.TopLevelKeys {
+		for _, payloadAttribute := range v.GetKvlistValue().Values {
+			logRecord.Attributes = append(logRecord.Attributes, payloadAttribute)
 		}
 	} else {
-		logRecord.Body = v
+		logRecord.Attributes = append(logRecord.Attributes, &commonV1.KeyValue{
+			Key:   common.AttributeEventPayload,
+			Value: v,
+		})
 	}
 
 	return resourceLogs.ProtoReflect(), nil

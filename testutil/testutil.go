@@ -257,7 +257,7 @@ func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encodingFormat st
 	if payload != nil {
 		expectedLen = 4
 	}
-	if encodingOptions.TopLevelKeys {
+	if encodingOptions.TopLevelKeys && !encodingOptions.LogPayloadAsBody {
 		if !hasPayloadInTopLevelKeys {
 			t.Error("missing payload keys")
 		}
