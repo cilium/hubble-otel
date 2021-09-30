@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/cilium/cilium/api/v1/observer"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -167,6 +168,7 @@ func newValue(mayBeAList bool, labelsAsMaps bool, fd protoreflect.FieldDescripto
 
 type FlowEncoder struct {
 	EncodingOptions
+	Logger *logrus.Logger
 }
 
 type EncodingOptions struct {
@@ -215,12 +217,17 @@ func (o EncodingOptions) ValidForTraces() error {
 }
 
 func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.AnyValue, error) {
-	switch c.Encoding {
-	case EncodingJSON, EncodingJSONBASE64:
-		if !c.LogPayloadAsBody {
-			// TODO: log that this is being overriden
+	overrideOptionsWithWarning := func() {
+		if c.TopLevelKeys && !c.LogPayloadAsBody {
+			c.Logger.Warnf("encoder: disabling \"TopLevelKeys\" option as it's incompatible"+
+				" with %q encoding when \"LogPayloadAsBody\" disabled also", c.Encoding)
 			c.TopLevelKeys = false
 		}
+	}
+
+	switch c.Encoding {
+	case EncodingJSON, EncodingJSONBASE64:
+		overrideOptionsWithWarning()
 
 		data, err := hubbleResp.GetFlow().MarshalJSON()
 		if err != nil {
@@ -249,10 +256,7 @@ func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.
 				separator:    '.',
 			}
 		case EncodingTypedMap:
-			if !c.LogPayloadAsBody {
-				// TODO: log that this is being overriden
-				c.TopLevelKeys = false
-			}
+			overrideOptionsWithWarning()
 
 			mb = &typedMap{
 				labelsAsMaps: c.LabelsAsMaps,

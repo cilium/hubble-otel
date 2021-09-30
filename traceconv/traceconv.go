@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	badger "github.com/dgraph-io/badger/v3"
+	"github.com/sirupsen/logrus"
 	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
 	resourceV1 "go.opentelemetry.io/proto/otlp/resource/v1"
 	traceV1 "go.opentelemetry.io/proto/otlp/trace/v1"
@@ -21,9 +22,9 @@ type FlowConverter struct {
 	*common.FlowEncoder
 }
 
-func NewFlowConverter(dir string, options common.EncodingOptions) (*FlowConverter, error) {
+func NewFlowConverter(log *logrus.Logger, dir string, options common.EncodingOptions) (*FlowConverter, error) {
 	opt := badger.DefaultOptions(dir)
-	opt.Logger = nil // TODO: make this use hubble-otel logger
+	opt.Logger = log
 	tc, err := NewTraceCache(opt)
 	if err != nil {
 		return nil, err
@@ -32,6 +33,7 @@ func NewFlowConverter(dir string, options common.EncodingOptions) (*FlowConverte
 	return &FlowConverter{
 		FlowEncoder: &common.FlowEncoder{
 			EncodingOptions: options,
+			Logger:          log,
 		},
 		traceCache: tc,
 	}, nil

@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -21,18 +22,20 @@ func (s *NullExporter) Export(ctx context.Context, flows <-chan protoreflect.Mes
 	}
 }
 
-func Run(ctx context.Context, s Exporter, flows <-chan protoreflect.Message, errs chan<- error) {
+func Run(ctx context.Context, log *logrus.Logger, s Exporter, flows <-chan protoreflect.Message, errs chan<- error) {
 	for {
 		switch err := s.Export(ctx, flows); err {
 		case io.EOF, context.Canceled:
+			log.Debugf("sender: returning due to EOF or context cancelation")
 			return
 		case nil:
-			// fmt.Printf("wrote %d entries to the OTLP receiver\n", logBufferSize)
 			continue
 		default:
 			if status.Code(err) == codes.Canceled {
+				log.Debugf("sender: gRPC session cancelled")
 				return
 			}
+			log.Debugf("sender: returing with an error - %s", err)
 			errs <- err
 			return
 		}

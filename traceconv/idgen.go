@@ -22,6 +22,7 @@ type TraceCache struct {
 	MaxTraceLength time.Duration
 
 	badgerDB *badger.DB
+	logger   badger.Logger
 }
 
 type IDTuple struct {
@@ -52,10 +53,11 @@ func newEntry() *entryHelper {
 	}
 }
 
-func (e *entryHelper) processFlowData(f *flow.Flow) error {
+func (e *entryHelper) processFlowData(log badger.Logger, f *flow.Flow) error {
 	kt := e.generateKeys(f)
 	if !kt.isValid() {
 		// skip flows where keyTuple cannot be generated
+		log.Debugf("flow has invalid key tuple: %+v", f)
 		return nil
 	}
 	e.keys = kt
@@ -186,13 +188,14 @@ func NewTraceCache(opt badger.Options) (*TraceCache, error) {
 	return &TraceCache{
 		MaxTraceLength: 20 * time.Minute,
 		badgerDB:       db,
+		logger:         opt.Logger,
 	}, nil
 }
 
 func (tc *TraceCache) GetIDs(f *flow.Flow) (*IDTuple, error) {
 	e := newEntry()
 
-	if err := e.processFlowData(f); err != nil {
+	if err := e.processFlowData(tc.logger, f); err != nil {
 		return nil, fmt.Errorf("unable to serialise flow: %w", err)
 	}
 
