@@ -20,6 +20,7 @@ import (
 	"github.com/isovalent/hubble-otel/sender"
 	"github.com/isovalent/hubble-otel/traceconv"
 	"github.com/isovalent/hubble-otel/traceproc"
+	"github.com/sirupsen/logrus"
 )
 
 type flags struct {
@@ -77,32 +78,40 @@ func main() {
 		LabelsAsMaps: *(flag.Bool("logs.labelsAsMaps", false, "convert source/destination labels from arrays to maps")),
 	}
 
+	debug := flag.Bool("debug", false, "enable debug logs")
+
 	flag.Parse()
 
+	log := logrus.New()
+	if *debug {
+		log.SetLevel(logrus.DebugLevel)
+	} else {
+		log.SetLevel(logrus.InfoLevel)
+	}
 	otlpHeadersObj := map[string]string{}
 
 	if err := json.Unmarshal([]byte(*otlpHeaders), &otlpHeadersObj); err != nil {
-		fmt.Printf("cannot parse OTLP headers: %s\n", err)
+		log.Errorf("cannot parse OTLP headers: %s\n", err)
 		os.Exit(2)
 	}
 
 	if err := logsEncodingOptions.ValidForLogs(); err != nil {
-		fmt.Printf("logs encoding options are invalid: %s\n", err)
+		log.Errorf("logs encoding options are invalid: %s\n", err)
 		os.Exit(2)
 	}
 
 	if err := traceEncodingOptions.ValidForLogs(); err != nil {
-		fmt.Printf("trace encoding options are invalid: %s\n", err)
+		log.Errorf("trace encoding options are invalid: %s\n", err)
 		os.Exit(2)
 	}
 
-	if err := run(flagsHubble, flagsOTLP, otlpHeadersObj, *exportLogs, *exportTraces, *bufferSize, logsEncodingOptions, traceEncodingOptions); err != nil {
-		fmt.Println(err)
+	if err := run(log, flagsHubble, flagsOTLP, otlpHeadersObj, *exportLogs, *exportTraces, *bufferSize, logsEncodingOptions, traceEncodingOptions); err != nil {
+		log.Error(err)
 		os.Exit(1)
 	}
 }
 
-func (f *flagsTLS) loadCredentials() (credentials.TransportCredentials, error) {
+func (f *flagsTLS) loadCredentials(log *logrus.Logger) (credentials.TransportCredentials, error) {
 	config := &tls.Config{
 		InsecureSkipVerify: *f.insecureSkipVerify,
 	}
@@ -113,10 +122,9 @@ func (f *flagsTLS) loadCredentials() (credentials.TransportCredentials, error) {
 			return nil, fmt.Errorf("cannot parse client certificate/key pair: %w", err)
 		}
 		config.Certificates = []tls.Certificate{keyPair}
+	} else {
+		log.Warn("TLS authentication is disabled as client certificate/key pair wasn't specified")
 	}
-	// else {
-	// 	return nil, fmt.Errorf("cleint certificate/key pair must be specified when TLS is enabled")
-	// }
 
 	if *f.certificateAuthority != "" {
 		config.RootCAs = x509.NewCertPool()
@@ -134,28 +142,28 @@ func (f *flagsTLS) loadCredentials() (credentials.TransportCredentials, error) {
 	return credentials.NewTLS(config), nil
 }
 
-func dialContext(ctx context.Context, f *flags) (*grpc.ClientConn, error) {
+func dialContext(ctx context.Context, log *logrus.Logger, f *flags) (*grpc.ClientConn, error) {
 	if !*f.tls.enable {
 		return grpc.DialContext(ctx, *f.address, grpc.WithInsecure())
 	}
-	creds, err := f.tls.loadCredentials()
+	creds, err := f.tls.loadCredentials(log)
 	if err != nil {
 		return nil, err
 	}
 	return grpc.DialContext(ctx, *f.address, grpc.WithTransportCredentials(creds))
 }
 
-func run(hubbleFlags, otlpFlags flags, otlpHeaders map[string]string, exportLogs, exportTraces bool, bufferSize int, logsEncodingOptions, traceEncodingOptions common.EncodingOptions) error {
+func run(log *logrus.Logger, hubbleFlags, otlpFlags flags, otlpHeaders map[string]string, exportLogs, exportTraces bool, bufferSize int, logsEncodingOptions, traceEncodingOptions common.EncodingOptions) error {
 	ctx := context.Background()
 
-	hubbleConn, err := dialContext(ctx, &hubbleFlags)
+	hubbleConn, err := dialContext(ctx, log, &hubbleFlags)
 	if err != nil {
 		return fmt.Errorf("failed to connect to Hubble server: %w", err)
 	}
 
 	defer hubbleConn.Close()
 
-	otlpConn, err := dialContext(ctx, &otlpFlags)
+	otlpConn, err := dialContext(ctx, log, &otlpFlags)
 	if err != nil {
 		return fmt.Errorf("failed to connect to OTLP receiver: %w", err)
 	}
@@ -171,7 +179,7 @@ func run(hubbleFlags, otlpFlags flags, otlpHeaders map[string]string, exportLogs
 		go receiver.Run(ctx, hubbleConn, logConverter, flowsToLogs, errs)
 
 		exporter := logproc.NewBufferedLogExporter(otlpConn, bufferSize, otlpHeaders)
-		go sender.Run(ctx, exporter, flowsToLogs, errs)
+		go sender.Run(ctx, log.WithField("role", "logExporter").Logger, exporter, flowsToLogs, errs)
 	}
 
 	if exportTraces {
@@ -182,7 +190,7 @@ func run(hubbleFlags, otlpFlags flags, otlpHeaders map[string]string, exportLogs
 
 		flowsToTraces := make(chan protoreflect.Message, bufferSize)
 
-		traceConverter, err := traceconv.NewFlowConverter(spanDB, traceEncodingOptions)
+		traceConverter, err := traceconv.NewFlowConverter(log.WithField("traceEncodingOptions", traceEncodingOptions.String()).Logger, spanDB, traceEncodingOptions)
 		if err != nil {
 			return fmt.Errorf("failed to create trace converter: %w", err)
 		}
@@ -191,7 +199,7 @@ func run(hubbleFlags, otlpFlags flags, otlpHeaders map[string]string, exportLogs
 		go receiver.Run(ctx, hubbleConn, traceConverter, flowsToTraces, errs)
 
 		exporter := traceproc.NewBufferedTraceExporter(otlpConn, bufferSize, otlpHeaders)
-		go sender.Run(ctx, exporter, flowsToTraces, errs)
+		go sender.Run(ctx, log.WithField("role", "traceExporter").Logger, exporter, flowsToTraces, errs)
 	}
 
 	for {

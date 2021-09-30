@@ -172,7 +172,7 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 			options.Encoding = k
 
 			t.Run(options.Encoding+":"+options.String(), func(t *testing.T) {
-				if err := run(flagsHubble, flagsOTLP, nil, true, true, 10, options, options); err != nil {
+				if err := run(log, flagsHubble, flagsOTLP, nil, true, true, 10, options, options); err != nil {
 					if testutil.IsEOF(err) {
 						checkCollectorMetrics(t, i)
 						return

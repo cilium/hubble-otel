@@ -8,12 +8,16 @@ import (
 
 	traceV1 "go.opentelemetry.io/proto/otlp/trace/v1"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/isovalent/hubble-otel/common"
 	"github.com/isovalent/hubble-otel/testutil"
 	"github.com/isovalent/hubble-otel/traceconv"
 )
 
 func TestAllModes(t *testing.T) {
+	log := logrus.New()
+	// log.SetLevel(logrus.DebugLevel)
 
 	newFlowConverter := func(options common.EncodingOptions) *traceconv.FlowConverter {
 		t.Helper()
@@ -22,7 +26,7 @@ func TestAllModes(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		c, err := traceconv.NewFlowConverter(spanDB, options)
+		c, err := traceconv.NewFlowConverter(log.WithField("encodingOptions", options.String()).Logger, spanDB, options)
 		if err != nil {
 			t.Fatal(err)
 		}
