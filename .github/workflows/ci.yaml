@@ -11,13 +11,17 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
-      - uses: docker://docker.io/library/golang:1.17.1@sha256:285cf0cb73ab995caee61b900b2be123cd198f3541ce318c549ea5ff9832bdf0
-        name: Run unit tests
+      - uses: docker://docker.io/library/golang:1.17.1-alpine@sha256:13919fb9091f6667cb375d5fdf016ecd6d3a5d5995603000d422b04583de4ef9
+        name: Run all tests
+        env:
+          CGO_ENABLED: "0"
         with:
           entrypoint: go
           args: test -v ./...
-      - uses: docker://docker.io/library/golang:1.17.1@sha256:285cf0cb73ab995caee61b900b2be123cd198f3541ce318c549ea5ff9832bdf0
+      - uses: docker://docker.io/library/golang:1.17.1-alpine@sha256:13919fb9091f6667cb375d5fdf016ecd6d3a5d5995603000d422b04583de4ef9
         name: Run go vet
+        env:
+          CGO_ENABLED: "0"
         with:
           entrypoint: go
           args: vet ./...
@@ -31,10 +35,11 @@ jobs:
         GOARCH: [amd64, arm64]
     steps:
       - uses: actions/checkout@v2
-      - uses: docker://docker.io/library/golang:1.17.1@sha256:285cf0cb73ab995caee61b900b2be123cd198f3541ce318c549ea5ff9832bdf0
+      - uses: docker://docker.io/library/golang:1.17.1-alpine@sha256:13919fb9091f6667cb375d5fdf016ecd6d3a5d5995603000d422b04583de4ef9
         env:
           GOOS: ${{ matrix.GOOS }}
           GOARCH: ${{ matrix.GOARCH }}
+          CGO_ENABLED: "0"
         with:
           entrypoint: go
           args: build
@@ -42,4 +47,22 @@ jobs:
         with:
           name: hubble-otel-${{ matrix.GOOS }}-${{ matrix.GOARCH }}
           path: hubble-otel
+
+  images:
+    needs: test
+    name: Build container images
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: docker://docker.io/errordeveloper/image-maker:c45c0b55a44595fc32e4860c5a72b2bf4438de3f
+        env:
+          ANY_REGISTRY_DISABLE: true
+          DOCKER_HUB_PUBLIC_ACCESS_ONLY: true
+          GHCR_USERNAME: $GITHUB_ACTOR
+          GHCR_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          entrypoint: make
+          args: images.hubble-otel images.otelcol PUSH=true
 
