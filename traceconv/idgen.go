@@ -143,17 +143,22 @@ func (e *entryHelper) traceIDKey(i int) string {
 	return e.keys[i] + "/traceID"
 }
 
-func (e *entryHelper) fetchTraceID(txn *badger.Txn) (trace.TraceID, error) {
+func (e *entryHelper) fetchTraceID(txn *badger.Txn, updateTTL time.Duration) (trace.TraceID, error) {
 	traceID := trace.TraceID{}
 	for i := range e.keys {
-		item, err := txn.Get([]byte(e.traceIDKey(i)))
+		key := []byte(e.traceIDKey(i))
+		item, err := txn.Get(key)
 		switch err {
 		case nil:
 			err := item.Value(func(val []byte) error {
-				if len(val) != len(traceID) {
+				if len(val) != len(traceID) && !traceID.IsValid() {
 					return fmt.Errorf("stored trace ID is invlaid")
 				}
 				copy(traceID[:], val)
+				entry := badger.NewEntry(key, val).WithTTL(updateTTL)
+				if err := txn.SetEntry(entry); err != nil {
+					return fmt.Errorf("unable to update TTL for %q: %w", key, err)
+				}
 				return nil
 			})
 			if err != nil {
@@ -202,11 +207,11 @@ func (tc *TraceCache) GetIDs(f *flow.Flow) (*IDTuple, error) {
 	e.generateSpanID() // aways generate new span ID
 
 	err := tc.badgerDB.Update(func(txn *badger.Txn) error {
-
-		fetchedTraceID, err := e.fetchTraceID(txn)
+		fetchedTraceID, err := e.fetchTraceID(txn, tc.MaxTraceLength)
 		if err != nil {
 			return fmt.Errorf("unable to get span/trace ID: %w", err)
 		}
+		// when both keys are missing, an empty (i.e. invalid) value is returned
 		if !fetchedTraceID.IsValid() {
 			return tc.generateAndStoreTraceID(txn, e)
 		}
