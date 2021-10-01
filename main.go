@@ -74,8 +74,8 @@ func main() {
 	exportTraces := flag.Bool("trace.export", true, "export flows as traces")
 	traceEncodingOptions := common.EncodingOptions{
 		Encoding:     *(flag.String("trace.format", common.DefaultTraceEncoding, fmt.Sprintf("encoding format (valid options: %v)", common.EncodingFormatsForTraces()))),
-		TopLevelKeys: *(flag.Bool("logs.useTopLevelKeys", false, "reduce nesting when storing flows as attributes")),
-		LabelsAsMaps: *(flag.Bool("logs.labelsAsMaps", false, "convert source/destination labels from arrays to maps")),
+		TopLevelKeys: *(flag.Bool("trace.useTopLevelKeys", false, "reduce nesting when storing flows as attributes")),
+		LabelsAsMaps: *(flag.Bool("trace.labelsAsMaps", false, "convert source/destination labels from arrays to maps")),
 	}
 
 	debug := flag.Bool("debug", false, "enable debug logs")
