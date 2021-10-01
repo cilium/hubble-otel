@@ -193,6 +193,9 @@ func (o EncodingOptions) String() string {
 }
 
 func (o EncodingOptions) ValidForLogs() error {
+	if err := o.validateFormat("logs", EncodingFormatsForLogs()); err != nil {
+		return err
+	}
 	switch o.Encoding {
 	case EncodingJSON, EncodingJSONBASE64, EncodingTypedMap:
 		if o.TopLevelKeys && !o.LogPayloadAsBody {
@@ -203,6 +206,9 @@ func (o EncodingOptions) ValidForLogs() error {
 }
 
 func (o EncodingOptions) ValidForTraces() error {
+	if err := o.validateFormat("trace", EncodingFormatsForTraces()); err != nil {
+		return err
+	}
 	switch o.Encoding {
 	case EncodingJSON, EncodingJSONBASE64:
 		if o.TopLevelKeys {
@@ -212,6 +218,19 @@ func (o EncodingOptions) ValidForTraces() error {
 	if o.LogPayloadAsBody {
 		return fmt.Errorf("option \"LogPayloadAsBody\" is not compatible with \"trace\" data type")
 
+	}
+	return nil
+}
+
+func (o EncodingOptions) validateFormat(dataType string, formats []string) error {
+	invalidFormat := true
+	for _, format := range formats {
+		if o.Encoding == format {
+			invalidFormat = false
+		}
+	}
+	if invalidFormat {
+		return fmt.Errorf("encoding %q is invalid for %s data", o.Encoding, dataType)
 	}
 	return nil
 }
