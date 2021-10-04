@@ -28,7 +28,7 @@ func BenchmarkAllModes(b *testing.B) {
 	log := logrus.New()
 	log.SetLevel(logrus.ErrorLevel)
 
-	go testutil.RunMockHubble(ctx, log, "../testdata/2021-06-16-sample-flows-istio-gke", hubbleAddress, 100, nil, fatal)
+	go testutil.RunMockHubble(ctx, log, "../testdata/2021-10-04-sample-flows-istio-gke-l7", hubbleAddress, 100, nil, fatal)
 
 	go func() {
 		for err := range fatal {

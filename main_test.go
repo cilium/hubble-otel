@@ -41,7 +41,7 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 		CertificateAuthority: "testdata/certs/ca.pem",
 	}
 
-	go testutil.RunMockHubble(ctx, log, "testdata/2021-06-16-sample-flows-istio-gke", hubbleAddress, 100, tlsPaths, fatal)
+	go testutil.RunMockHubble(ctx, log, "testdata/2021-10-04-sample-flows-istio-gke-l7", hubbleAddress, 100, tlsPaths, fatal)
 
 	go func() {
 		for err := range fatal {
