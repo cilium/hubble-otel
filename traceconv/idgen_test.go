@@ -10,7 +10,7 @@ import (
 	"github.com/isovalent/hubble-otel/traceconv"
 )
 
-func TestBadger(t *testing.T) {
+func TestTraceCache(t *testing.T) {
 	dir, err := ioutil.TempDir("", "badger")
 	if err != nil {
 		t.Fatal(err)
@@ -21,16 +21,19 @@ func TestBadger(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	tc.Strict = true
+
 	defer tc.Delete()
 
 	traces := map[string]struct{}{}
 	spans := map[string]struct{}{}
 
-	for _, flow := range testutil.GetFlowSamples(t, "../testdata/2021-06-16-sample-flows-istio-gke/1.json") {
+	for _, flow := range testutil.GetFlowSamples(t, "../testdata/2021-10-04-sample-flows-istio-gke-l7/1.json") {
 		ids, err := tc.GetIDs(flow.GetFlow())
 		if err != nil {
 			t.Error(err)
 		}
+
 		if ids.TraceID.IsValid() {
 			traces[ids.TraceID.String()] = struct{}{}
 			t.Logf("traceID %v is valid", ids.TraceID)
@@ -47,10 +50,10 @@ func TestBadger(t *testing.T) {
 
 	t.Logf("%d traces, %d spans", len(traces), len(spans))
 
-	if l, e := len(traces), 2147; l != e {
+	if l, e := len(traces), 4083; l != e {
 		t.Errorf("unexpected number of traces generated (have: %d, expected %d)", l, e)
 	}
-	if l, e := len(spans), 20000; l != e {
+	if l, e := len(spans), 40000; l != e {
 		t.Errorf("unexpected number of spans generated (have: %d, expected %d)", l, e)
 	}
 }

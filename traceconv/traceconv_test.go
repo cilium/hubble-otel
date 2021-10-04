@@ -42,61 +42,71 @@ func TestAllModes(t *testing.T) {
 		{TopLevelKeys: false, LabelsAsMaps: false},
 	}
 
-	for e := range encodingFormats {
-		for o := range encodingOptions {
-			options := encodingOptions[o]
-			options.Encoding = encodingFormats[e]
+	samples := []string{
+		"basic-sample-10-flows.json",
+		"basic-sample-330-dns-flows.json",
+		"basic-sample-348-http-flows.json",
+	}
 
-			if options.TopLevelKeys &&
-				(strings.HasPrefix(options.Encoding, "JSON") || options.Encoding == common.EncodingTypedMap) {
-				continue
-			}
-			if err := options.ValidForTraces(); err != nil {
-				t.Fatal(err)
-			}
+	for s := range samples {
+		for e := range encodingFormats {
+			for o := range encodingOptions {
+				sample := samples[s]
+				options := encodingOptions[o]
+				options.Encoding = encodingFormats[e]
 
-			t.Run(options.Encoding+":"+options.String(), func(t *testing.T) {
-				c := newFlowConverter(options)
-				for _, flow := range testutil.GetFlowSamples(t, "../testdata/basic-sample-10-flows.json") {
-					spansMsg, err := c.Convert(flow)
-					if err != nil {
-						t.Error(err)
-					}
-
-					spans, ok := spansMsg.Interface().(*traceV1.ResourceSpans)
-					if !ok {
-						t.Fatal("cannot convert protoreflect.Message to *traceV1.ResourceSpans")
-					}
-					if spans == nil {
-						t.Error("spans shouldn't be nil")
-					}
-
-					testutil.CheckResource(t, spans.Resource, flow)
-
-					if len(spans.InstrumentationLibrarySpans) != 1 {
-						t.Error("exactly one log record is expected")
-					}
-					if len(spans.InstrumentationLibrarySpans[0].Spans) != 1 {
-						t.Error("exactly one log record is expected")
-					}
-
-					span := spans.InstrumentationLibrarySpans[0].Spans[0]
-
-					payload := testutil.CheckAttributes(t, span.Attributes, options)
-					testutil.CheckPayload(t, payload, c.Encoding)
-
-					f := flow.GetFlow()
-
-					if !strings.HasSuffix(span.Name, fmt.Sprintf("(%s)", f.Summary)) {
-						t.Errorf("unexpected name suffix in %q", span.Name)
-					}
-
-					if !strings.HasPrefix(span.Name, fmt.Sprintf("%s:", f.IP.Source)) {
-						t.Errorf("unexpected name prefix in %q", span.Name)
-					}
-
+				if options.TopLevelKeys &&
+					(strings.HasPrefix(options.Encoding, "JSON") || options.Encoding == common.EncodingTypedMap) {
+					continue
 				}
-			})
+				if err := options.ValidForTraces(); err != nil {
+					t.Fatal(err)
+				}
+
+				t.Run("("+sample+")/"+options.Encoding+":"+options.String(), func(t *testing.T) {
+					c := newFlowConverter(options)
+					for _, flow := range testutil.GetFlowSamples(t, "../testdata/"+sample) {
+						spansMsg, err := c.Convert(flow)
+						if err != nil {
+							t.Error(err)
+						}
+
+						spans, ok := spansMsg.Interface().(*traceV1.ResourceSpans)
+						if !ok {
+							t.Fatal("cannot convert protoreflect.Message to *traceV1.ResourceSpans")
+						}
+						if spans == nil {
+							t.Error("spans shouldn't be nil")
+						}
+
+						testutil.CheckResource(t, spans.Resource, flow)
+
+						if len(spans.InstrumentationLibrarySpans) != 1 {
+							t.Error("exactly one log record is expected")
+						}
+						if len(spans.InstrumentationLibrarySpans[0].Spans) != 1 {
+							t.Error("exactly one log record is expected")
+						}
+
+						span := spans.InstrumentationLibrarySpans[0].Spans[0]
+
+						payload := testutil.CheckAttributes(t, span.Attributes, options)
+						testutil.CheckPayload(t, payload, c.Encoding)
+
+						f := flow.GetFlow()
+
+						if e := fmt.Sprintf("(%s)", f.Summary); !strings.HasSuffix(span.Name, e) {
+							t.Errorf("unexpected name suffix in %q, expected %q", span.Name, e)
+						}
+
+						srcPrefix, dstPrefix := fmt.Sprintf("%s:", f.IP.Source), fmt.Sprintf("%s:", f.IP.Destination)
+
+						if !(strings.HasPrefix(span.Name, srcPrefix) || strings.HasPrefix(span.Name, dstPrefix)) {
+							t.Errorf("unexpected name prefix in %q, expected %q or %q", span.Name, srcPrefix, dstPrefix)
+						}
+					}
+				})
+			}
 		}
 	}
 }
