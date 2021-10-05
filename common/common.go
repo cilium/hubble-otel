@@ -6,11 +6,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sirupsen/logrus"
+
 	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	timestamp "google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/cilium/cilium/api/v1/observer"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -78,22 +82,22 @@ func newStringValue(s string) *commonV1.AnyValue {
 	}
 }
 
-func toList(fd protoreflect.FieldDescriptor, v protoreflect.Value) *commonV1.ArrayValue {
+func toList(fd protoreflect.FieldDescriptor, v protoreflect.Value, mb mapBuilder, newLeafKeyPrefix string) *commonV1.ArrayValue {
 	items := v.List()
 	list := &commonV1.ArrayValue{
 		Values: make([]*commonV1.AnyValue, items.Len()),
 	}
 	for i := 0; i < items.Len(); i++ {
-		if item := newValue(false, false, fd, items.Get(i)); item != nil {
+		if item := newValue(false, false, fd, items.Get(i), mb, newLeafKeyPrefix); item != nil {
 			list.Values[i] = item
 		}
 	}
 	return list
 }
 
-func newValue(mayBeAList bool, labelsAsMaps bool, fd protoreflect.FieldDescriptor, v protoreflect.Value) *commonV1.AnyValue {
-	if mayBeAList && fd.IsList() {
-		if labelsAsMaps && fd.JSONName() == "labels" {
+func newValue(mayBeAList bool, labelsAsMaps bool, fd protoreflect.FieldDescriptor, v protoreflect.Value, mb mapBuilder, newLeafKeyPrefix string) *commonV1.AnyValue {
+	if mayBeAList && (fd.Cardinality() == protoreflect.Repeated || fd.Cardinality() == protoreflect.Required) {
+		if labelsAsMaps && fd.Name() == "labels" {
 			items := v.List()
 			labels := &commonV1.KeyValueList{
 				Values: make([]*commonV1.KeyValue, items.Len()),
@@ -116,10 +120,15 @@ func newValue(mayBeAList bool, labelsAsMaps bool, fd protoreflect.FieldDescripto
 		}
 		return &commonV1.AnyValue{
 			Value: &commonV1.AnyValue_ArrayValue{
-				ArrayValue: toList(fd, v),
+				ArrayValue: toList(fd, v, mb, newLeafKeyPrefix),
 			},
 		}
 	}
+
+	if formatter, ok := specialCaseFormatter(fd); ok {
+		return formatter(v)
+	}
+
 	switch fd.Kind() {
 	case protoreflect.BoolKind:
 		return &commonV1.AnyValue{
@@ -149,18 +158,29 @@ func newValue(mayBeAList bool, labelsAsMaps bool, fd protoreflect.FieldDescripto
 				IntValue: int64(v.Uint()),
 			},
 		}
-	case
-		protoreflect.FloatKind,
+	case protoreflect.FloatKind,
 		protoreflect.DoubleKind:
 		return &commonV1.AnyValue{
-			Value: &commonV1.AnyValue_BoolValue{
-				BoolValue: v.Bool(),
+			Value: &commonV1.AnyValue_DoubleValue{
+				DoubleValue: v.Float(),
 			},
 		}
 	case protoreflect.StringKind:
 		return newStringValue(v.String())
 	case protoreflect.BytesKind:
 		return newStringValue(base64.StdEncoding.EncodeToString(v.Bytes()))
+	case protoreflect.MessageKind:
+		if mb == nil {
+			return nil
+		}
+		v.Message().Range(mb.newLeaf(newLeafKeyPrefix))
+		return &commonV1.AnyValue{
+			Value: &commonV1.AnyValue_KvlistValue{
+				KvlistValue: &commonV1.KeyValueList{
+					Values: mb.items(),
+				},
+			},
+		}
 	default:
 		return nil
 	}
@@ -217,7 +237,6 @@ func (o EncodingOptions) ValidForTraces() error {
 	}
 	if o.LogPayloadAsBody {
 		return fmt.Errorf("option \"LogPayloadAsBody\" is not compatible with \"trace\" data type")
-
 	}
 	return nil
 }
@@ -250,7 +269,7 @@ func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.
 	case EncodingJSON, EncodingJSONBASE64:
 		overrideOptionsWithWarning()
 
-		data, err := hubbleResp.GetFlow().MarshalJSON()
+		data, err := MarshalJSON(hubbleResp.GetFlow())
 		if err != nil {
 			return nil, err
 		}
@@ -304,8 +323,10 @@ func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.
 	}
 }
 
+type leafer func(protoreflect.FieldDescriptor, protoreflect.Value) bool
+
 type mapBuilder interface {
-	newLeaf(string) func(protoreflect.FieldDescriptor, protoreflect.Value) bool
+	newLeaf(string) leafer
 	items() []*commonV1.KeyValue
 }
 
@@ -317,15 +338,15 @@ type flatStringMap struct {
 
 func (l *flatStringMap) items() []*commonV1.KeyValue { return l.list }
 
-func (l *flatStringMap) newLeaf(keyPathPrefix string) func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+func (l *flatStringMap) newLeaf(keyPathPrefix string) leafer {
 	return func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
-		keyPath := fmtKeyPath(keyPathPrefix, fd.JSONName(), l.separator)
+		keyPath := fmtKeyPath(keyPathPrefix, string(fd.Name()), l.separator)
 		switch {
-		case fd.IsMap():
+		case isRegularMessage(fd):
 			v.Message().Range(l.newLeaf(keyPath))
-		case fd.IsList():
+		case isMessageList(fd):
 			items := v.List()
-			labelsAsMap := l.labelsAsMaps && fd.JSONName() == "labels"
+			labelsAsMap := l.labelsAsMaps && fd.Name() == "labels"
 			for i := 0; i < items.Len(); i++ {
 				if labelsAsMap {
 					k, v, err := parseLabel(items.Get(i).String())
@@ -336,7 +357,6 @@ func (l *flatStringMap) newLeaf(keyPathPrefix string) func(fd protoreflect.Field
 						Key:   fmtKeyPath(keyPath, k, l.separator),
 						Value: newStringValue(v),
 					})
-
 				} else {
 					l.list = append(l.list, &commonV1.KeyValue{
 						Key:   fmtKeyPath(keyPath, strconv.Itoa(i), l.separator),
@@ -345,10 +365,15 @@ func (l *flatStringMap) newLeaf(keyPathPrefix string) func(fd protoreflect.Field
 				}
 			}
 		default:
-			l.list = append(l.list, &commonV1.KeyValue{
-				Key:   keyPath,
-				Value: newStringValue(v.String()),
-			})
+			newItem := &commonV1.KeyValue{
+				Key: keyPath,
+			}
+			if formatter, ok := specialCaseFormatter(fd); ok {
+				newItem.Value = formatter(v)
+			} else {
+				newItem.Value = newStringValue(v.String())
+			}
+			l.list = append(l.list, newItem)
 		}
 		return true
 	}
@@ -362,14 +387,19 @@ type semiFlatTypedMap struct {
 
 func (l *semiFlatTypedMap) items() []*commonV1.KeyValue { return l.list }
 
-func (l *semiFlatTypedMap) newLeaf(keyPathPrefix string) func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+func (l *semiFlatTypedMap) newLeaf(keyPathPrefix string) leafer {
 	return func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
-		keyPath := fmtKeyPath(keyPathPrefix, fd.JSONName(), l.separator)
+		keyPath := fmtKeyPath(keyPathPrefix, string(fd.Name()), l.separator)
 		switch {
-		case fd.IsMap():
+		case isRegularMessage(fd):
 			v.Message().Range(l.newLeaf(keyPath))
+		case isMessageList(fd):
+			items := v.List()
+			for i := 0; i < items.Len(); i++ {
+				items.Get(i).Message().Range(l.newLeaf(fmtKeyPath(keyPath, strconv.Itoa(i), l.separator)))
+			}
 		default:
-			if item := newValue(true, l.labelsAsMaps, fd, v); item != nil {
+			if item := newValue(true, l.labelsAsMaps, fd, v, nil, ""); item != nil {
 				l.list = append(l.list, &commonV1.KeyValue{
 					Key:   keyPath,
 					Value: item,
@@ -387,26 +417,26 @@ type typedMap struct {
 
 func (l *typedMap) items() []*commonV1.KeyValue { return l.list }
 
-func (l *typedMap) newLeaf(_ string) func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+func (l *typedMap) newLeaf(_ string) leafer {
 	return func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
 		switch {
-		case fd.IsMap():
-			mb := typedMap{}
+		case isRegularMessage(fd):
+			mb := &typedMap{}
+			item := &commonV1.AnyValue{}
 			v.Message().Range(mb.newLeaf(""))
-			l.list = append(l.list, &commonV1.KeyValue{
-				Key: fd.JSONName(),
-				Value: &commonV1.AnyValue{
-					Value: &commonV1.AnyValue_KvlistValue{
-						KvlistValue: &commonV1.KeyValueList{
-							Values: mb.items(),
-						},
-					},
+			item.Value = &commonV1.AnyValue_KvlistValue{
+				KvlistValue: &commonV1.KeyValueList{
+					Values: mb.items(),
 				},
+			}
+			l.list = append(l.list, &commonV1.KeyValue{
+				Key:   string(fd.Name()),
+				Value: item,
 			})
 		default:
-			if item := newValue(true, l.labelsAsMaps, fd, v); item != nil {
+			if item := newValue(true, l.labelsAsMaps, fd, v, &typedMap{}, ""); item != nil {
 				l.list = append(l.list, &commonV1.KeyValue{
-					Key:   fd.JSONName(),
+					Key:   string(fd.Name()),
 					Value: item,
 				})
 			}
@@ -441,4 +471,88 @@ func parseLabel(label string) (string, string, error) {
 	default:
 		return "", "", fmt.Errorf("cannot parse label %q, as it's not in \"k=v\" format", label)
 	}
+}
+
+func isRegularMessage(fd protoreflect.FieldDescriptor) bool {
+	return fd.Kind() == protoreflect.MessageKind &&
+		!isSpecialCase(fd) &&
+		(fd.IsMap() || fd.Cardinality() == protoreflect.Optional)
+}
+
+func isMessageList(fd protoreflect.FieldDescriptor) bool {
+	return fd.Kind() == protoreflect.MessageKind &&
+		(fd.Cardinality() == protoreflect.Repeated || fd.Cardinality() == protoreflect.Required)
+}
+
+type specialFomatter func(protoreflect.Value) *commonV1.AnyValue
+
+var specialCases = map[protoreflect.FullName]specialFomatter{
+	"google.protobuf.Timestamp": formatTimestamp,
+	"google.protobuf.BoolValue": formatBool,
+}
+
+func specialCaseFormatter(fd protoreflect.FieldDescriptor) (specialFomatter, bool) {
+	fdm := fd.Message()
+	if fdm == nil {
+		return nil, false
+	}
+	formatter, ok := specialCases[fdm.FullName()]
+	return formatter, ok
+}
+
+func isSpecialCase(fd protoreflect.FieldDescriptor) bool {
+	_, ok := specialCaseFormatter(fd)
+	return ok
+}
+
+// formatTimestamp handles google.protobuf.Timestamp values, as these are not
+// something protoreflect automatically understands
+func formatTimestamp(v protoreflect.Value) *commonV1.AnyValue {
+	ts := &timestamp.Timestamp{}
+	v.Message().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+		switch fd.JSONName() {
+		case "seconds":
+			ts.Seconds = v.Int()
+		case "nanos":
+			ts.Nanos = int32(v.Int())
+		}
+		return true
+	})
+	data, err := MarshalJSON(ts)
+	if err != nil {
+		return nil
+	}
+	// the result happens to be a quoted JSON string, so trim the quotes...
+	// (it's safe to do here as the timestamp format won't contain extra quotes)
+	return newStringValue(strings.Trim(string(data), "\""))
+}
+
+// formatBool handles google.protobuf.BoolValue values, as these are not
+// something protoreflect automatically understands
+func formatBool(v protoreflect.Value) *commonV1.AnyValue {
+	// in theore the value could be unset, but that doesn't actually need to be handled,
+	// as in the the case when the field is unset, this logic won't be called at all
+	var result bool
+	v.Message().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+		if fd.JSONName() == "value" {
+			result = v.Bool()
+		}
+		return true
+	})
+	return &commonV1.AnyValue{
+		Value: &commonV1.AnyValue_BoolValue{
+			BoolValue: result,
+		},
+	}
+}
+
+var jsonMarshaller = &protojson.MarshalOptions{
+	AllowPartial:    false,
+	UseProtoNames:   true,
+	UseEnumNumbers:  false,
+	EmitUnpopulated: false,
+}
+
+func MarshalJSON(m proto.Message) ([]byte, error) {
+	return jsonMarshaller.Marshal(m)
 }

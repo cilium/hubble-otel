@@ -12,7 +12,7 @@ import (
 	"time"
 
 	badger "github.com/dgraph-io/badger/v3"
-	"github.com/gogo/protobuf/jsonpb"
+	"github.com/isovalent/hubble-otel/common"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/cilium/cilium/api/v1/flow"
@@ -37,7 +37,7 @@ func (kt keyTuple) isValid() bool { return kt != (keyTuple{}) }
 
 type entryHelper struct {
 	keys      keyTuple
-	flowData  []byte
+	flowData  *bytes.Buffer
 	spanHash  hash.Hash64
 	traceHash hash.Hash
 	traceID   trace.TraceID
@@ -66,13 +66,17 @@ func (e *entryHelper) processFlowData(log badger.Logger, f *flow.Flow, strict bo
 	}
 	e.keys = kt
 
-	w := io.MultiWriter(bytes.NewBuffer(e.flowData), e.spanHash, e.traceHash)
+	e.flowData = bytes.NewBuffer([]byte{})
 
-	return (&jsonpb.Marshaler{
-		EnumsAsInts:  false,
-		EmitDefaults: false,
-		OrigName:     true,
-	}).Marshal(w, f)
+	w := io.MultiWriter(e.flowData, e.spanHash, e.traceHash)
+
+	flowData, err := common.MarshalJSON(f)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.Write(flowData)
+	return err
 }
 
 func (e *entryHelper) generateSpanID() {
@@ -181,7 +185,7 @@ func (tc *TraceCache) generateAndStoreTraceID(txn *badger.Txn, e *entryHelper) e
 	e.generateTraceID()
 	data := map[string][]byte{
 		e.traceIDKey(0):  e.traceID[:],
-		e.flowDataKey(0): e.flowData,
+		e.flowDataKey(0): e.flowData.Bytes(),
 	}
 	if err := tc.storeKeys(txn, data); err != nil {
 		return fmt.Errorf("unable to store newly generated trace ID: %w", err)
