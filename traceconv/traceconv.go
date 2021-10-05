@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	badger "github.com/dgraph-io/badger/v3"
+	"go.opentelemetry.io/otel/trace"
 	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
 	resourceV1 "go.opentelemetry.io/proto/otlp/resource/v1"
 	traceV1 "go.opentelemetry.io/proto/otlp/trace/v1"
@@ -49,10 +50,12 @@ func NewFlowConverter(log *logrus.Logger, dir string, options *common.EncodingOp
 func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (protoreflect.Message, error) {
 	flow := hubbleResp.GetFlow()
 
-	ids, err := c.traceCache.GetIDs(flow)
+	ctx, link, err := c.traceCache.GetSpanContext(flow)
 	if err != nil {
 		return nil, err
 	}
+
+	spanID, traceID := getIDs(ctx)
 
 	v, err := c.ToValue(hubbleResp)
 	if err != nil {
@@ -71,8 +74,8 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 		Name: name,
 		// TODO: should ParentSpanId be resolved and set for reply packets?
 		// (perhaps is is_reply and traffic_direction can be used for that)
-		SpanId:            ids.SpanID[:],
-		TraceId:           ids.TraceID[:],
+		SpanId:            spanID,
+		TraceId:           traceID,
 		StartTimeUnixNano: ts,
 		EndTimeUnixNano:   ts,
 		Attributes: common.NewStringAttributes(map[string]string{
@@ -80,6 +83,14 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 			common.AttributeEventEncoding:        c.EncodingFormat(),
 			common.AttributeEventEncodingOptions: c.EncodingOptions.String(),
 		}),
+	}
+
+	if link != nil {
+		linkedSpanID, linkedTraceID := getIDs(link)
+		span.Links = []*traceV1.Span_Link{{
+			SpanId:  linkedSpanID,
+			TraceId: linkedTraceID,
+		}}
 	}
 
 	// TODO: optionally set Kind for TCP flows
@@ -148,4 +159,10 @@ func (c *FlowConverter) getName(hubbleResp *hubbleObserver.GetFlowsResponse) (st
 		"\n",
 	)
 	return s, nil
+}
+
+func getIDs(ctx *trace.SpanContext) ([]byte, []byte) {
+	spanID := ctx.SpanID()
+	traceID := ctx.TraceID()
+	return spanID[:], traceID[:]
 }

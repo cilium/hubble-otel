@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package configsource
+package configsource // import "go.opentelemetry.io/collector/config/experimental/configsource"
 
 import (
 	"context"
 	"errors"
+
+	"go.opentelemetry.io/collector/config"
 )
 
 // ErrSessionClosed is returned by WatchForUpdate functions when its parent Session
@@ -52,7 +54,7 @@ type ConfigSource interface {
 	//
 	// The selector is a string that is required on all invocations, the params are optional. Each
 	// implementation handles the generic params according to their requirements.
-	Retrieve(ctx context.Context, selector string, params interface{}) (Retrieved, error)
+	Retrieve(ctx context.Context, selector string, paramsConfigMap *config.Map) (Retrieved, error)
 
 	// Close signals that the configuration for which it was used to retrieve values is no longer in use
 	// and the object should close and release any watchers that it may have created.

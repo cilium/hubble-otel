@@ -118,13 +118,7 @@ func RunOpenTelemtryCollector(ctx context.Context, t *testing.T, configPath stri
 
 	settings := service.CollectorSettings{BuildInfo: info, Factories: factories}
 
-	svc, err := service.New(settings)
-	if err != nil {
-		fatal <- fmt.Errorf("failed to construct the collector server: %v", err)
-		return
-	}
-
-	cmd := service.NewCommand(svc)
+	cmd := service.NewCommand(settings)
 	cmd.SetArgs([]string{
 		"--config=" + configPath,
 	})
@@ -140,7 +134,6 @@ func RunOpenTelemtryCollector(ctx context.Context, t *testing.T, configPath stri
 	}()
 
 	<-ctx.Done()
-	svc.Shutdown()
 }
 
 func WaitForServer(ctx context.Context, logf func(format string, args ...interface{}), address string) {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package configtelemetry
+package configtelemetry // import "go.opentelemetry.io/collector/config/configtelemetry"
 
 import (
 	"flag"
@@ -37,6 +37,8 @@ const (
 
 	metricsLevelCfg = "metrics-level"
 )
+
+const UseOpenTelemetryForInternalMetrics = false
 
 var metricsLevelPtr = new(Level)
 

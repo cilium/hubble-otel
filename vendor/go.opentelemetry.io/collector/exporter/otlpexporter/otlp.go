@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package otlpexporter
+package otlpexporter // import "go.opentelemetry.io/collector/exporter/otlpexporter"
 
 import (
 	"context"
@@ -171,7 +171,7 @@ func processError(err error) error {
 
 	if !shouldRetry(st.Code()) {
 		// It is not a retryable error, we should not retry.
-		return consumererror.Permanent(err)
+		return consumererror.NewPermanent(err)
 	}
 
 	// Need to retry.

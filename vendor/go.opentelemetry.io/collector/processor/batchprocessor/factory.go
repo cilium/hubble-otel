@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package batchprocessor
+package batchprocessor // import "go.opentelemetry.io/collector/processor/batchprocessor"
 
 import (
 	"context"
@@ -45,7 +45,7 @@ func NewFactory() component.ProcessorFactory {
 
 func createDefaultConfig() config.Processor {
 	return &Config{
-		ProcessorSettings: config.NewProcessorSettings(config.NewID(typeStr)),
+		ProcessorSettings: config.NewProcessorSettings(config.NewComponentID(typeStr)),
 		SendBatchSize:     defaultSendBatchSize,
 		Timeout:           defaultTimeout,
 	}
