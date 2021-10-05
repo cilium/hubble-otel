@@ -319,7 +319,7 @@ func (l *flatStringMap) newLeaf(keyPathPrefix string) func(fd protoreflect.Field
 	return func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
 		keyPath := fmtKeyPath(keyPathPrefix, fd.JSONName(), l.separator)
 		switch {
-		case fd.Kind() == protoreflect.MessageKind:
+		case fd.IsMap():
 			v.Message().Range(l.newLeaf(keyPath))
 		case fd.IsList():
 			items := v.List()
@@ -364,7 +364,7 @@ func (l *semiFlatTypedMap) newLeaf(keyPathPrefix string) func(fd protoreflect.Fi
 	return func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
 		keyPath := fmtKeyPath(keyPathPrefix, fd.JSONName(), l.separator)
 		switch {
-		case fd.Kind() == protoreflect.MessageKind:
+		case fd.IsMap():
 			v.Message().Range(l.newLeaf(keyPath))
 		default:
 			if item := newValue(true, l.labelsAsMaps, fd, v); item != nil {
@@ -388,7 +388,7 @@ func (l *typedMap) items() []*commonV1.KeyValue { return l.list }
 func (l *typedMap) newLeaf(_ string) func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
 	return func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
 		switch {
-		case fd.Kind() == protoreflect.MessageKind:
+		case fd.IsMap():
 			mb := typedMap{}
 			v.Message().Range(mb.newLeaf(""))
 			l.list = append(l.list, &commonV1.KeyValue{
