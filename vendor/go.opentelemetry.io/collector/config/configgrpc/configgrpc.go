@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package configgrpc
+package configgrpc // import "go.opentelemetry.io/collector/config/configgrpc"
 
 import (
 	"crypto/tls"
@@ -223,7 +223,7 @@ func (gcs *GRPCClientSettings) ToDialOptions(host component.Host) ([]grpc.DialOp
 			return nil, fmt.Errorf("no extensions configuration available")
 		}
 
-		componentID, cperr := config.NewIDFromString(gcs.Auth.AuthenticatorName)
+		componentID, cperr := config.NewComponentIDFromString(gcs.Auth.AuthenticatorName)
 		if cperr != nil {
 			return nil, cperr
 		}
@@ -329,7 +329,7 @@ func (gss *GRPCServerSettings) ToServerOption(host component.Host, settings comp
 	sInterceptors := []grpc.StreamServerInterceptor{}
 
 	if gss.Auth != nil {
-		componentID, cperr := config.NewIDFromString(gss.Auth.AuthenticatorName)
+		componentID, cperr := config.NewComponentIDFromString(gss.Auth.AuthenticatorName)
 		if cperr != nil {
 			return nil, cperr
 		}

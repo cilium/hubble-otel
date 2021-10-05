@@ -12,15 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package config
+package config // import "go.opentelemetry.io/collector/config"
 
 import (
 	"errors"
 	"fmt"
 
 	"go.uber.org/zap/zapcore"
-
-	"go.opentelemetry.io/collector/config/configparser"
 )
 
 var (
@@ -203,10 +201,9 @@ type validatable interface {
 // Unmarshallable defines an optional interface for custom configuration unmarshaling.
 // A configuration struct can implement this interface to override the default unmarshaling.
 type Unmarshallable interface {
-	// Unmarshal is a function that un-marshals a Parser into the unmarshable struct in a custom way.
-	// componentSection *Parser
-	//   The config for this specific component. May be nil or empty if no config available.
-	Unmarshal(componentSection *configparser.ConfigMap) error
+	// Unmarshal is a function that unmarshals a config.Map into the unmarshable struct in a custom way.
+	// The config.Map for this specific component may be nil or empty if no config available.
+	Unmarshal(component *Map) error
 }
 
 // DataType is the data type that is supported for collection. We currently support
