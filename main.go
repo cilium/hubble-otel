@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sirupsen/logrus"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -20,7 +22,6 @@ import (
 	"github.com/isovalent/hubble-otel/sender"
 	"github.com/isovalent/hubble-otel/traceconv"
 	"github.com/isovalent/hubble-otel/traceproc"
-	"github.com/sirupsen/logrus"
 )
 
 type flags struct {
@@ -175,7 +176,7 @@ func run(log *logrus.Logger, hubbleFlags, otlpFlags flags, otlpHeaders map[strin
 	if exportLogs {
 		flowsToLogs := make(chan protoreflect.Message, bufferSize)
 
-		logConverter := logconv.NewFlowConverter(logsEncodingOptions)
+		logConverter := logconv.NewFlowConverter(log.WithField("logEncodingOptions", traceEncodingOptions.String()).Logger, logsEncodingOptions)
 		go receiver.Run(ctx, hubbleConn, logConverter, flowsToLogs, errs)
 
 		exporter := logproc.NewBufferedLogExporter(otlpConn, bufferSize, otlpHeaders)

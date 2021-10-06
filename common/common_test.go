@@ -65,7 +65,7 @@ func BenchmarkAllModes(b *testing.B) {
 				flows := make(chan protoreflect.Message, logBufferSize)
 				errs := make(chan error)
 
-				go receiver.Run(ctx, hubbleConn, logconv.NewFlowConverter(options), flows, errs)
+				go receiver.Run(ctx, hubbleConn, logconv.NewFlowConverter(log, options), flows, errs)
 				for {
 					select {
 					case _ = <-flows: // drop

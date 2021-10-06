@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sirupsen/logrus"
+
 	logsV1 "go.opentelemetry.io/proto/otlp/logs/v1"
 
 	"github.com/isovalent/hubble-otel/common"
@@ -12,6 +14,9 @@ import (
 )
 
 func TestAllModes(t *testing.T) {
+	log := logrus.New()
+	// log.SetLevel(logrus.DebugLevel)
+
 	encodingFormats := common.EncodingFormatsForLogs()
 	encodingOptions := []common.EncodingOptions{
 		{TopLevelKeys: true, LabelsAsMaps: true, LogPayloadAsBody: true},
@@ -45,7 +50,7 @@ func TestAllModes(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				c := logconv.NewFlowConverter(options)
+				c := logconv.NewFlowConverter(log, options)
 				t.Run("("+sample+")/"+options.Encoding+":"+options.String(), func(t *testing.T) {
 					for _, flow := range testutil.GetFlowSamples(t, "../testdata/"+sample) {
 						logsMsg, err := c.Convert(flow)
