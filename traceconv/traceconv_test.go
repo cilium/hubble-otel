@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	traceV1 "go.opentelemetry.io/proto/otlp/trace/v1"
-
 	"github.com/sirupsen/logrus"
+
+	traceV1 "go.opentelemetry.io/proto/otlp/trace/v1"
 
 	"github.com/isovalent/hubble-otel/common"
 	"github.com/isovalent/hubble-otel/testutil"

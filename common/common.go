@@ -238,8 +238,10 @@ func (o EncodingOptions) validateFormat(dataType string, formats []string) error
 func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.AnyValue, error) {
 	overrideOptionsWithWarning := func() {
 		if c.TopLevelKeys && !c.LogPayloadAsBody {
-			c.Logger.Warnf("encoder: disabling \"TopLevelKeys\" option as it's incompatible"+
-				" with %q encoding when \"LogPayloadAsBody\" disabled also", c.Encoding)
+			if c.Logger != nil {
+				c.Logger.Warnf("encoder: disabling \"TopLevelKeys\" option as it's incompatible"+
+					" with %q encoding when \"LogPayloadAsBody\" disabled also", c.Encoding)
+			}
 			c.TopLevelKeys = false
 		}
 	}

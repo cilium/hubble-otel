@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"strings"
 
-	badger "github.com/dgraph-io/badger/v3"
 	"github.com/sirupsen/logrus"
+
+	badger "github.com/dgraph-io/badger/v3"
 	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
 	resourceV1 "go.opentelemetry.io/proto/otlp/resource/v1"
 	traceV1 "go.opentelemetry.io/proto/otlp/trace/v1"

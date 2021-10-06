@@ -1,6 +1,8 @@
 package logconv
 
 import (
+	"github.com/sirupsen/logrus"
+
 	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
 	logsV1 "go.opentelemetry.io/proto/otlp/logs/v1"
 	resourceV1 "go.opentelemetry.io/proto/otlp/resource/v1"
@@ -14,10 +16,11 @@ type FlowConverter struct {
 	*common.FlowEncoder
 }
 
-func NewFlowConverter(options common.EncodingOptions) *FlowConverter {
+func NewFlowConverter(log *logrus.Logger, options common.EncodingOptions) *FlowConverter {
 	return &FlowConverter{
 		FlowEncoder: &common.FlowEncoder{
 			EncodingOptions: options,
+			Logger:          log,
 		},
 	}
 }
