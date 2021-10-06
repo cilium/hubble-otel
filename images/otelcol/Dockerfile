@@ -10,7 +10,7 @@ FROM ${GOLANG_IMAGE} as builder
 
 WORKDIR /src
 
-RUN go install github.com/open-telemetry/opentelemetry-collector-builder@v0.33.0
+RUN go install github.com/open-telemetry/opentelemetry-collector-builder@v0.36.0
 
 RUN mkdir -p /out/usr/bin
 

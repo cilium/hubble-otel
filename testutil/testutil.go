@@ -12,9 +12,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusexporter"
+	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver"
+
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/service"
 	"go.opentelemetry.io/collector/service/defaultcomponents"
+
 	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
 	resourceV1 "go.opentelemetry.io/proto/otlp/resource/v1"
 	"google.golang.org/grpc/status"
@@ -85,6 +89,27 @@ func RunOpenTelemtryCollector(ctx context.Context, t *testing.T, configPath, log
 	if err != nil {
 		t.Fatalf("failed to build default components: %v", err)
 	}
+
+	additionalReceivers, err := component.MakeReceiverFactoryMap(
+		prometheusreceiver.NewFactory(),
+	)
+	if err != nil {
+		t.Fatalf("failed to build additional receivers: %v", err)
+	}
+	for k, v := range additionalReceivers {
+		factories.Receivers[k] = v
+	}
+
+	additionalExporters, err := component.MakeExporterFactoryMap(
+		prometheusexporter.NewFactory(),
+	)
+	if err != nil {
+		t.Fatalf("failed to build additional exporters: %v", err)
+	}
+	for k, v := range additionalExporters {
+		factories.Exporters[k] = v
+	}
+
 	info := component.BuildInfo{
 		Command:     "otelcol-test",
 		Description: "test OpenTelemetry Collector",
@@ -99,13 +124,15 @@ func RunOpenTelemtryCollector(ctx context.Context, t *testing.T, configPath, log
 		return
 	}
 
-	go func() {
-		svc.Command().SetArgs([]string{
-			"--config=" + configPath,
-			"--log-level=" + logLevel,
-		})
+	cmd := service.NewCommand(svc)
+	cmd.SetArgs([]string{
+		"--config=" + configPath,
+		"--log-level=" + logLevel,
+	})
 
-		if err = svc.Run(); err != nil {
+	go func() {
+		err := cmd.ExecuteContext(ctx)
+		if err != nil {
 			fatal <- fmt.Errorf("collector server run finished with error: %v", err)
 			return
 		} else {
