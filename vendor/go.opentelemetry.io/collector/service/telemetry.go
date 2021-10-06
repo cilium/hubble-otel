@@ -15,8 +15,10 @@
 package service
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"unicode"
 
 	"contrib.go.opencensus.io/exporter/prometheus"
@@ -25,13 +27,11 @@ import (
 	"go.uber.org/zap"
 
 	"go.opentelemetry.io/collector/config/configtelemetry"
-	"go.opentelemetry.io/collector/exporter/jaegerexporter"
 	"go.opentelemetry.io/collector/internal/collector/telemetry"
 	"go.opentelemetry.io/collector/internal/obsreportconfig"
+	semconv "go.opentelemetry.io/collector/model/semconv/v1.5.0"
 	"go.opentelemetry.io/collector/processor/batchprocessor"
-	"go.opentelemetry.io/collector/receiver/kafkareceiver"
 	telemetry2 "go.opentelemetry.io/collector/service/internal/telemetry"
-	conventions "go.opentelemetry.io/collector/translator/conventions/v1.5.0"
 )
 
 // collectorTelemetry is collector's own telemetry.
@@ -43,11 +43,27 @@ type collectorTelemetryExporter interface {
 }
 
 type colTelemetry struct {
-	views  []*view.View
-	server *http.Server
+	views      []*view.View
+	server     *http.Server
+	doInitOnce sync.Once
 }
 
 func (tel *colTelemetry) init(asyncErrorChannel chan<- error, ballastSizeBytes uint64, logger *zap.Logger) error {
+	var err error
+	tel.doInitOnce.Do(
+		func() {
+			err = tel.initOnce(asyncErrorChannel, ballastSizeBytes, logger)
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to initialize telemetry: %w", err)
+	}
+	return nil
+}
+
+func (tel *colTelemetry) initOnce(asyncErrorChannel chan<- error, ballastSizeBytes uint64, logger *zap.Logger) error {
+	logger.Info("Setting up own telemetry...")
+
 	level := configtelemetry.GetMetricsLevelFlagValue()
 	metricsAddr := telemetry.GetMetricsAddr()
 
@@ -63,8 +79,6 @@ func (tel *colTelemetry) init(asyncErrorChannel chan<- error, ballastSizeBytes u
 	var views []*view.View
 	obsMetrics := obsreportconfig.Configure(level)
 	views = append(views, batchprocessor.MetricViews()...)
-	views = append(views, jaegerexporter.MetricViews()...)
-	views = append(views, kafkareceiver.MetricViews()...)
 	views = append(views, obsMetrics.Views...)
 	views = append(views, processMetricsViews.Views()...)
 
@@ -85,7 +99,7 @@ func (tel *colTelemetry) init(asyncErrorChannel chan<- error, ballastSizeBytes u
 		instanceUUID, _ := uuid.NewRandom()
 		instanceID = instanceUUID.String()
 		opts.ConstLabels = map[string]string{
-			sanitizePrometheusKey(conventions.AttributeServiceInstanceID): instanceID,
+			sanitizePrometheusKey(semconv.AttributeServiceInstanceID): instanceID,
 		}
 	}
 
@@ -100,7 +114,7 @@ func (tel *colTelemetry) init(asyncErrorChannel chan<- error, ballastSizeBytes u
 		"Serving Prometheus metrics",
 		zap.String("address", metricsAddr),
 		zap.Int8("level", int8(level)), // TODO: make it human friendly
-		zap.String(conventions.AttributeServiceInstanceID, instanceID),
+		zap.String(semconv.AttributeServiceInstanceID, instanceID),
 	)
 
 	mux := http.NewServeMux()

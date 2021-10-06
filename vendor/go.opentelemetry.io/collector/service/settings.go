@@ -16,6 +16,7 @@ package service
 
 import (
 	"go.opentelemetry.io/contrib/zpages"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
@@ -42,6 +43,9 @@ type svcSettings struct {
 	// TracerProvider represents the TracerProvider used for all the components.
 	TracerProvider trace.TracerProvider
 
+	// MeterProvider represents the MeterProvider used for all the components.
+	MeterProvider metric.MeterProvider
+
 	// ZPagesSpanProcessor represents the SpanProcessor for tracez page.
 	ZPagesSpanProcessor *zpages.SpanProcessor
 
@@ -67,6 +71,8 @@ type CollectorSettings struct {
 	// If it is not provided a default provider is used. The default provider loads the configuration
 	// from a config file define by the --config command line flag and overrides component's configuration
 	// properties supplied via --set command line flag.
+	// If the provider is parserprovider.Watchable, collector
+	// may reload the configuration upon error.
 	ParserProvider parserprovider.ParserProvider
 
 	// ConfigUnmarshaler unmarshalls the configuration's Parser into the service configuration.

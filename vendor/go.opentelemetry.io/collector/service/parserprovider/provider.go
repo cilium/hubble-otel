@@ -24,17 +24,21 @@ import (
 // Implementations may load the parser from a file, a database or any other source.
 type ParserProvider interface {
 	// Get returns the config.Parser if succeed or error otherwise.
-	Get() (*configparser.Parser, error)
+	Get(ctx context.Context) (*configparser.ConfigMap, error)
+
+	// Close signals that the configuration for which it was used to retrieve values is no longer in use
+	// and the object should close and release any watchers that it may have created.
+	// This method must be called when the service ends, either in case of success or error.
+	Close(ctx context.Context) error
 }
 
 // Watchable is an extension for ParserProvider that is implemented if the given provider
-// supports monitoring for configuration updates.
+// supports monitoring of configuration updates.
 type Watchable interface {
-	// WatchForUpdate is used to monitor for updates on the retrieved value.
+	// WatchForUpdate waits for updates on any of the values retrieved from config sources.
+	// It blocks until configuration updates are received and can
+	// return an error if anything fails. WatchForUpdate is used once during the
+	// first evaluation of the configuration and is not used to watch configuration
+	// changes continuously.
 	WatchForUpdate() error
-}
-
-// Closeable is an extension interface for ParserProvider that should be added if they need to be closed.
-type Closeable interface {
-	Close(ctx context.Context) error
 }

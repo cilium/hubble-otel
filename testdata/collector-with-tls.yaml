@@ -3,13 +3,13 @@ receivers:
     protocols:
       grpc:
         endpoint: localhost:55690
-        tls_settings:
+        tls:
           ca_file: testdata/certs/ca.pem
           cert_file: testdata/certs/test-server.pem
           key_file: testdata/certs/test-server-key.pem
       http:
         endpoint: localhost:55691
-        tls_settings:
+        tls:
           ca_file: testdata/certs/ca.pem
           cert_file: testdata/certs/test-server.pem
           key_file: testdata/certs/test-server-key.pem

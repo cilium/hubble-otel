@@ -52,7 +52,16 @@ type request interface {
 	onError(error) request
 	// Returns the count of spans/metric points or log records.
 	count() int
+	// marshal serializes the current request into a byte stream
+	marshal() ([]byte, error)
+	// onProcessingFinished calls the optional callback function to handle cleanup after all processing is finished
+	onProcessingFinished()
+	// setOnProcessingFinished allows to set an optional callback function to do the cleanup (e.g. remove the item from persistent queue)
+	setOnProcessingFinished(callback func())
 }
+
+// requestUnmarshaler defines a function which takes a byte slice and unmarshals it into a relevant request
+type requestUnmarshaler func([]byte) (request, error)
 
 // requestSender is an abstraction of a sender for a request independent of the type of the data (traces, metrics, logs).
 type requestSender interface {
@@ -61,7 +70,8 @@ type requestSender interface {
 
 // baseRequest is a base implementation for the request.
 type baseRequest struct {
-	ctx context.Context
+	ctx                        context.Context
+	processingFinishedCallback func()
 }
 
 func (req *baseRequest) context() context.Context {
@@ -72,6 +82,16 @@ func (req *baseRequest) setContext(ctx context.Context) {
 	req.ctx = ctx
 }
 
+func (req *baseRequest) setOnProcessingFinished(callback func()) {
+	req.processingFinishedCallback = callback
+}
+
+func (req *baseRequest) onProcessingFinished() {
+	if req.processingFinishedCallback != nil {
+		req.processingFinishedCallback()
+	}
+}
+
 // baseSettings represents all the options that users can configure.
 type baseSettings struct {
 	componentOptions []componenthelper.Option
@@ -79,7 +99,6 @@ type baseSettings struct {
 	TimeoutSettings
 	QueueSettings
 	RetrySettings
-	ResourceToTelemetrySettings
 }
 
 // fromOptions returns the internal options starting from the default and applying all configured options.
@@ -90,8 +109,7 @@ func fromOptions(options ...Option) *baseSettings {
 		// TODO: Enable queuing by default (call DefaultQueueSettings)
 		QueueSettings: QueueSettings{Enabled: false},
 		// TODO: Enable retry by default (call DefaultRetrySettings)
-		RetrySettings:               RetrySettings{Enabled: false},
-		ResourceToTelemetrySettings: defaultResourceToTelemetrySettings(),
+		RetrySettings: RetrySettings{Enabled: false},
 	}
 
 	for _, op := range options {
@@ -153,14 +171,6 @@ func WithCapabilities(capabilities consumer.Capabilities) Option {
 	}
 }
 
-// WithResourceToTelemetryConversion overrides the default ResourceToTelemetrySettings for an exporter.
-// The default ResourceToTelemetrySettings is to disable resource attributes to metric labels conversion.
-func WithResourceToTelemetryConversion(resourceToTelemetrySettings ResourceToTelemetrySettings) Option {
-	return func(o *baseSettings) {
-		o.ResourceToTelemetrySettings = resourceToTelemetrySettings
-	}
-}
-
 // baseExporter contains common fields between different exporter types.
 type baseExporter struct {
 	component.Component
@@ -169,7 +179,7 @@ type baseExporter struct {
 	qrSender *queuedRetrySender
 }
 
-func newBaseExporter(cfg config.Exporter, set component.ExporterCreateSettings, bs *baseSettings) *baseExporter {
+func newBaseExporter(cfg config.Exporter, set component.ExporterCreateSettings, bs *baseSettings, signal config.DataType, reqUnmarshaler requestUnmarshaler) *baseExporter {
 	be := &baseExporter{
 		Component: componenthelper.New(bs.componentOptions...),
 	}
@@ -179,7 +189,7 @@ func newBaseExporter(cfg config.Exporter, set component.ExporterCreateSettings, 
 		ExporterID:             cfg.ID(),
 		ExporterCreateSettings: set,
 	})
-	be.qrSender = newQueuedRetrySender(cfg.ID().String(), bs.QueueSettings, bs.RetrySettings, &timeoutSender{cfg: bs.TimeoutSettings}, set.Logger)
+	be.qrSender = newQueuedRetrySender(cfg.ID(), signal, bs.QueueSettings, bs.RetrySettings, reqUnmarshaler, &timeoutSender{cfg: bs.TimeoutSettings}, set.Logger)
 	be.sender = be.qrSender
 
 	return be
@@ -199,7 +209,7 @@ func (be *baseExporter) Start(ctx context.Context, host component.Host) error {
 	}
 
 	// If no error then start the queuedRetrySender.
-	return be.qrSender.start()
+	return be.qrSender.start(ctx, host)
 }
 
 // Shutdown all senders and exporter and is invoked during service shutdown.

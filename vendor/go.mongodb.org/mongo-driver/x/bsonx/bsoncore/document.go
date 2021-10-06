@@ -200,8 +200,7 @@ func (d Document) LookupErr(key ...string) (Value, error) {
 				}
 				return val, nil
 			case bsontype.Array:
-				// Convert to Document to continue Lookup recursion.
-				val, err := Document(elem.Value().Array()).LookupErr(key[1:]...)
+				val, err := elem.Value().Array().LookupErr(key[1:]...)
 				if err != nil {
 					return Value{}, err
 				}

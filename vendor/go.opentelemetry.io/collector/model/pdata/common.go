@@ -19,6 +19,7 @@ package pdata
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -31,7 +32,7 @@ import (
 type AttributeValueType int32
 
 const (
-	AttributeValueTypeNull AttributeValueType = iota
+	AttributeValueTypeEmpty AttributeValueType = iota
 	AttributeValueTypeString
 	AttributeValueTypeInt
 	AttributeValueTypeDouble
@@ -44,8 +45,8 @@ const (
 // String returns the string representation of the AttributeValueType.
 func (avt AttributeValueType) String() string {
 	switch avt {
-	case AttributeValueTypeNull:
-		return "NULL"
+	case AttributeValueTypeEmpty:
+		return "EMPTY"
 	case AttributeValueTypeString:
 		return "STRING"
 	case AttributeValueTypeBool:
@@ -88,8 +89,8 @@ func newAttributeValue(orig *otlpcommon.AnyValue) AttributeValue {
 	return AttributeValue{orig}
 }
 
-// NewAttributeValueNull creates a new AttributeValue with a null value.
-func NewAttributeValueNull() AttributeValue {
+// NewAttributeValueEmpty creates a new AttributeValue with an empty value.
+func NewAttributeValueEmpty() AttributeValue {
 	return AttributeValue{orig: &otlpcommon.AnyValue{}}
 }
 
@@ -134,7 +135,7 @@ func NewAttributeValueBytes(v []byte) AttributeValue {
 // Calling this function on zero-initialized AttributeValue will cause a panic.
 func (a AttributeValue) Type() AttributeValueType {
 	if a.orig.Value == nil {
-		return AttributeValueTypeNull
+		return AttributeValueTypeEmpty
 	}
 	switch a.orig.Value.(type) {
 	case *otlpcommon.AnyValue_StringValue:
@@ -152,7 +153,7 @@ func (a AttributeValue) Type() AttributeValueType {
 	case *otlpcommon.AnyValue_BytesValue:
 		return AttributeValueTypeBytes
 	}
-	return AttributeValueTypeNull
+	return AttributeValueTypeEmpty
 }
 
 // StringVal returns the string value associated with this AttributeValue.
@@ -252,6 +253,20 @@ func (a AttributeValue) SetBoolVal(v bool) {
 // across multiple attributes is forbidden.
 func (a AttributeValue) SetBytesVal(v []byte) {
 	a.orig.Value = &otlpcommon.AnyValue_BytesValue{BytesValue: v}
+}
+
+// SetMapVal replaces the AttributeMap value associated with this AttributeValue,
+// it also changes the type to be AttributeValueTypeMap.
+// Calling this function on zero-initialized AttributeValue will cause a panic.
+func (a AttributeValue) SetMapVal(v AttributeMap) {
+	a.orig.Value = &otlpcommon.AnyValue_KvlistValue{KvlistValue: &otlpcommon.KeyValueList{Values: *v.orig}}
+}
+
+// SetArrayVal replaces the AnyValueArray value associated with this AttributeValue,
+// it also changes the type to be AttributeValueTypeArray.
+// Calling this function on zero-initialized AttributeValue will cause a panic.
+func (a AttributeValue) SetArrayVal(v AnyValueArray) {
+	a.orig.Value = &otlpcommon.AnyValue_ArrayValue{ArrayValue: &otlpcommon.ArrayValue{Values: *v.orig}}
 }
 
 // copyTo copies the value to AnyValue. Will panic if dest is nil.
@@ -363,6 +378,42 @@ func (a AttributeValue) Equal(av AttributeValue) bool {
 	return false
 }
 
+// AsString converts an OTLP AttributeValue object of any type to its equivalent string
+// representation. This differs from StringVal which only returns a non-empty value
+// if the AttributeValueType is AttributeValueTypeString.
+func (a AttributeValue) AsString() string {
+	switch a.Type() {
+	case AttributeValueTypeEmpty:
+		return ""
+
+	case AttributeValueTypeString:
+		return a.StringVal()
+
+	case AttributeValueTypeBool:
+		return strconv.FormatBool(a.BoolVal())
+
+	case AttributeValueTypeDouble:
+		return strconv.FormatFloat(a.DoubleVal(), 'f', -1, 64)
+
+	case AttributeValueTypeInt:
+		return strconv.FormatInt(a.IntVal(), 10)
+
+	case AttributeValueTypeMap:
+		jsonStr, _ := json.Marshal(a.MapVal().AsRaw())
+		return string(jsonStr)
+
+	case AttributeValueTypeBytes:
+		return base64.StdEncoding.EncodeToString(a.BytesVal())
+
+	case AttributeValueTypeArray:
+		jsonStr, _ := json.Marshal(a.ArrayVal().asRaw())
+		return string(jsonStr)
+
+	default:
+		return fmt.Sprintf("<Unknown OpenTelemetry attribute value type %q>", a.Type())
+	}
+}
+
 func newAttributeKeyValueString(k string, v string) otlpcommon.KeyValue {
 	orig := otlpcommon.KeyValue{Key: k}
 	akv := AttributeValue{&orig.Value}
@@ -420,15 +471,33 @@ func NewAttributeMap() AttributeMap {
 	return AttributeMap{&orig}
 }
 
+// NewAttributeMapFromMap creates a AttributeMap with values
+// from the given map[string]AttributeValue.
+func NewAttributeMapFromMap(attrMap map[string]AttributeValue) AttributeMap {
+	if len(attrMap) == 0 {
+		kv := []otlpcommon.KeyValue(nil)
+		return AttributeMap{&kv}
+	}
+	origs := make([]otlpcommon.KeyValue, len(attrMap))
+	ix := 0
+	for k, v := range attrMap {
+		origs[ix].Key = k
+		v.copyTo(&origs[ix].Value)
+		ix++
+	}
+	return AttributeMap{&origs}
+}
+
 func newAttributeMap(orig *[]otlpcommon.KeyValue) AttributeMap {
 	return AttributeMap{orig}
 }
 
 // InitFromMap overwrites the entire AttributeMap and reconstructs the AttributeMap
-// with values from the given map[string]string.
+// with values from the given map[string]AttributeValue.
 //
 // Returns the same instance to allow nicer code like:
 //   assert.EqualValues(t, NewAttributeMap().InitFromMap(map[string]AttributeValue{...}), actual)
+// Deprecated: use NewAttributeMapFromMap instead.
 func (am AttributeMap) InitFromMap(attrMap map[string]AttributeValue) AttributeMap {
 	if len(attrMap) == 0 {
 		*am.orig = []otlpcommon.KeyValue(nil)
@@ -744,41 +813,10 @@ func (am AttributeMap) CopyTo(dest AttributeMap) {
 	*dest.orig = origs
 }
 
-// AttributeValueToString converts an OTLP AttributeValue object to its equivalent string representation
-func AttributeValueToString(attr AttributeValue) string {
-	switch attr.Type() {
-	case AttributeValueTypeNull:
-		return ""
-
-	case AttributeValueTypeString:
-		return attr.StringVal()
-
-	case AttributeValueTypeBool:
-		return strconv.FormatBool(attr.BoolVal())
-
-	case AttributeValueTypeDouble:
-		return strconv.FormatFloat(attr.DoubleVal(), 'f', -1, 64)
-
-	case AttributeValueTypeInt:
-		return strconv.FormatInt(attr.IntVal(), 10)
-
-	case AttributeValueTypeMap:
-		jsonStr, _ := json.Marshal(AttributeMapToMap(attr.MapVal()))
-		return string(jsonStr)
-
-	case AttributeValueTypeArray:
-		jsonStr, _ := json.Marshal(attributeArrayToSlice(attr.ArrayVal()))
-		return string(jsonStr)
-
-	default:
-		return fmt.Sprintf("<Unknown OpenTelemetry attribute value type %q>", attr.Type())
-	}
-}
-
-// AttributeMapToMap converts an OTLP AttributeMap to a standard go map
-func AttributeMapToMap(attrMap AttributeMap) map[string]interface{} {
+// AsRaw converts an OTLP AttributeMap to a standard go map
+func (am AttributeMap) AsRaw() map[string]interface{} {
 	rawMap := make(map[string]interface{})
-	attrMap.Range(func(k string, v AttributeValue) bool {
+	am.Range(func(k string, v AttributeValue) bool {
 		switch v.Type() {
 		case AttributeValueTypeString:
 			rawMap[k] = v.StringVal()
@@ -788,23 +826,25 @@ func AttributeMapToMap(attrMap AttributeMap) map[string]interface{} {
 			rawMap[k] = v.DoubleVal()
 		case AttributeValueTypeBool:
 			rawMap[k] = v.BoolVal()
-		case AttributeValueTypeNull:
+		case AttributeValueTypeBytes:
+			rawMap[k] = v.BytesVal()
+		case AttributeValueTypeEmpty:
 			rawMap[k] = nil
 		case AttributeValueTypeMap:
-			rawMap[k] = AttributeMapToMap(v.MapVal())
+			rawMap[k] = v.MapVal().AsRaw()
 		case AttributeValueTypeArray:
-			rawMap[k] = attributeArrayToSlice(v.ArrayVal())
+			rawMap[k] = v.ArrayVal().asRaw()
 		}
 		return true
 	})
 	return rawMap
 }
 
-// attributeArrayToSlice creates a slice out of a AnyValueArray.
-func attributeArrayToSlice(attrArray AnyValueArray) []interface{} {
-	rawSlice := make([]interface{}, 0, attrArray.Len())
-	for i := 0; i < attrArray.Len(); i++ {
-		v := attrArray.At(i)
+// asRaw creates a slice out of a AnyValueArray.
+func (es AnyValueArray) asRaw() []interface{} {
+	rawSlice := make([]interface{}, 0, es.Len())
+	for i := 0; i < es.Len(); i++ {
+		v := es.At(i)
 		switch v.Type() {
 		case AttributeValueTypeString:
 			rawSlice = append(rawSlice, v.StringVal())
@@ -814,7 +854,9 @@ func attributeArrayToSlice(attrArray AnyValueArray) []interface{} {
 			rawSlice = append(rawSlice, v.DoubleVal())
 		case AttributeValueTypeBool:
 			rawSlice = append(rawSlice, v.BoolVal())
-		case AttributeValueTypeNull:
+		case AttributeValueTypeBytes:
+			rawSlice = append(rawSlice, v.BytesVal())
+		case AttributeValueTypeEmpty:
 			rawSlice = append(rawSlice, nil)
 		default:
 			rawSlice = append(rawSlice, "<Invalid array value>")
