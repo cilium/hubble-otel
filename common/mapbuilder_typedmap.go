@@ -39,19 +39,3 @@ func (l *typedMap) newLeaf(_ string) leafer {
 		return true
 	}
 }
-
-func fmtKeyPath(keyPathPrefix, fieldName string, separator rune) string {
-	// NB: this format assumes that field names don't contain dots or other charcters,
-	// which is safe for *flow.Flow, so it's easier to query data as it doesn't
-	// result in `[` and `\"` characters being used in the keys; i.e. it's only "IP.source"
-	// and not "[\"IP\"][\"source\"]" (which would be less pressumptions, yet harder to
-	// query for the user)
-	switch keyPathPrefix {
-	case "":
-		return fieldName
-	case AttributeFlowEventNamespace:
-		return keyPathPrefix + fieldName
-	default:
-		return keyPathPrefix + string(separator) + fieldName
-	}
-}
