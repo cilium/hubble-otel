@@ -91,9 +91,11 @@ func main() {
 	}
 	otlpHeadersObj := map[string]string{}
 
-	if err := json.Unmarshal([]byte(*otlpHeaders), &otlpHeadersObj); err != nil {
-		log.Errorf("cannot parse OTLP headers: %s\n", err)
-		os.Exit(2)
+	if *otlpHeaders != "" {
+		if err := json.Unmarshal([]byte(*otlpHeaders), &otlpHeadersObj); err != nil {
+			log.Errorf("cannot parse OTLP headers: %s\n", err)
+			os.Exit(2)
+		}
 	}
 
 	if err := logsEncodingOptions.ValidForLogs(); err != nil {
