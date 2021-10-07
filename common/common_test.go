@@ -3,6 +3,7 @@ package common_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -23,6 +24,16 @@ const (
 	hubbleAddress = "localhost:4245"
 	logBufferSize = 2048
 )
+
+var (
+	_false = new(bool)
+	_true  = new(bool)
+)
+
+func init() {
+	*_false = false
+	*_true = true
+}
 
 func BenchmarkAllModes(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -52,18 +63,17 @@ func BenchmarkAllModes(b *testing.B) {
 
 	defer hubbleConn.Close()
 
-	_false := new(bool)
-	*_false = false
-	_true := new(bool)
-	*_true = true
-
 	encodingFormats := common.EncodingFormatsForLogs()
 	encodingOptions := []*common.EncodingOptions{
 		// LogPayloadAsBody is irrelevant for benchmarking, test all remaining combinations
-		{TopLevelKeys: _true, LabelsAsMaps: _true},
-		{TopLevelKeys: _true, LabelsAsMaps: _false},
-		{TopLevelKeys: _false, LabelsAsMaps: _true},
-		{TopLevelKeys: _false, LabelsAsMaps: _false},
+		{TopLevelKeys: _true, LabelsAsMaps: _true, HeadersAsMaps: _false},
+		{TopLevelKeys: _true, LabelsAsMaps: _false, HeadersAsMaps: _false},
+		{TopLevelKeys: _false, LabelsAsMaps: _true, HeadersAsMaps: _false},
+		{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _false},
+		{TopLevelKeys: _true, LabelsAsMaps: _true, HeadersAsMaps: _true},
+		{TopLevelKeys: _true, LabelsAsMaps: _false, HeadersAsMaps: _true},
+		{TopLevelKeys: _false, LabelsAsMaps: _true, HeadersAsMaps: _true},
+		{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _true},
 	}
 
 	for e := range encodingFormats {
@@ -112,7 +122,7 @@ func TestRoudtripEncoding(t *testing.T) {
 	*_false = false
 
 	encodingOptions := []*common.EncodingOptions{
-		{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _false},
+		{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _false},
 	}
 
 	samples := []string{
@@ -151,24 +161,7 @@ func TestRoudtripEncoding(t *testing.T) {
 						}
 						switch options.EncodingFormat() {
 						case common.EncodingTypedMap:
-							// turn commonV1.AnyValue into interface{},
-							// and ecode as JSON using standard codec
-							data, err := json.Marshal(toRaw(v.GetValue()))
-							if err != nil {
-								t.Error(err)
-							}
-							// decode JSON into a flow.Flow
-							f := &flow.Flow{}
-							if err = json.Unmarshal(data, f); err != nil {
-								t.Error(err)
-							}
-							// re-encode using funky protobuf encoder that
-							// turns int64 & unint64 into strings and has
-							// other peculiar features...
-							result, err = common.MarshalJSON(f)
-							if err != nil {
-								t.Error(err)
-							}
+							result = roundTripJSON(t, v)
 						case common.EncodingJSON:
 							result = []byte(v.GetStringValue())
 						}
@@ -192,6 +185,274 @@ func TestRoudtripEncoding(t *testing.T) {
 	}
 }
 
+func TestNonRoudtripEncoding(t *testing.T) {
+	log := logrus.New()
+	//log.SetLevel(logrus.DebugLevel)
+
+	modes := map[string][]*common.EncodingOptions{
+		// test option combinations that relevant to particular encoding
+		common.EncodingSemiFlatTypedMap: {
+			{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _false},
+			{TopLevelKeys: _true, LabelsAsMaps: _true, HeadersAsMaps: _true, LogPayloadAsBody: _false},
+		},
+
+		common.EncodingFlatStringMap: {
+			{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _false},
+			{TopLevelKeys: _true, LabelsAsMaps: _true, HeadersAsMaps: _true, LogPayloadAsBody: _false},
+		},
+		common.EncodingTypedMap: {
+			// this test only touches on conversion for labels and headers,
+			// general functionality of TypedMap is covered by TestRoudtripEncoding
+			{TopLevelKeys: _false, LabelsAsMaps: _true, HeadersAsMaps: _true, LogPayloadAsBody: _false},
+		},
+	}
+
+	samples := map[string]func(*testing.T, *common.EncodingOptions, map[string]interface{}){
+		"basic-sample-5-http-flows.json": checkFlatEncodingForHTTPFlows,
+		"basic-sample-5-dns-flows.json":  checkFlatEncodingForDNSFlows,
+	}
+
+	for samplePath := range samples {
+		for k := range modes {
+			for i := range modes[k] {
+				options := modes[k][i]
+				options.Encoding = &k
+				sampleCheck := samples[samplePath]
+
+				c := &common.FlowEncoder{
+					EncodingOptions: options,
+					Logger:          log,
+				}
+
+				t.Run("("+samplePath+")/"+options.EncodingFormat()+":"+options.String(), func(t *testing.T) {
+					for _, f := range testutil.GetFlowSamples(t, "../testdata/"+samplePath) {
+						v, err := c.ToValue(f)
+						if err != nil {
+							t.Error(err)
+						}
+						if v == nil {
+							t.Error("value cannot be nil")
+						}
+
+						data, err := json.Marshal(toRaw(v.GetValue()))
+						if err != nil {
+							t.Error(err)
+						}
+
+						result := map[string]interface{}{}
+						if err := json.Unmarshal(data, &result); err != nil {
+							t.Error(err)
+						}
+
+						sampleCheck(t, options, result)
+					}
+				})
+			}
+		}
+	}
+}
+
+func checkLabels(t *testing.T, key string, labels interface{}, asMap bool) {
+	t.Helper()
+
+	if asMap {
+		if labels, ok := labels.(map[string]interface{}); ok {
+			for k, v := range labels {
+				if _, ok := v.(string); !ok {
+					t.Errorf("label value for %q is %T, should be a strings", k, v)
+				}
+			}
+		} else {
+			t.Errorf("value of %q is %T, should be a map", key, labels)
+		}
+	} else {
+		if labels, ok := labels.([]interface{}); ok {
+			for _, v := range labels {
+				if _, ok := v.(string); !ok {
+					t.Errorf("label value is %T, should be a strings", v)
+				}
+			}
+		} else {
+			t.Errorf("value of %q is %T, should be a list", key, labels)
+		}
+	}
+}
+
+func checkFlatEncodingCommon(t *testing.T, encodingOptions *common.EncodingOptions, result map[string]interface{}) {
+	t.Helper()
+
+	format := encodingOptions.EncodingFormat()
+
+	if format == common.EncodingTypedMap {
+		if source, ok := result["source"]; ok {
+			if labels, ok := source.(map[string]interface{})["labels"]; ok {
+				checkLabels(t, "source.labels", labels, true)
+			} else {
+				t.Errorf("missing key %q", "source.labels")
+			}
+		} else {
+			t.Errorf("missing key %q", "source")
+		}
+		if destination, ok := result["destination"]; ok {
+			if labels, ok := destination.(map[string]interface{})["labels"]; ok {
+				checkLabels(t, "destination.labels", labels, true)
+			}
+		}
+
+		return
+	}
+
+	if l, e := len(result), 25; l < e {
+		t.Errorf("resulting object doesn't meat minimum lenght test (have: %d, expected %d)", l, e)
+	}
+
+	keys := []string{
+		"IP.ipVersion",
+		"IP.source",
+		"Type",
+		"Summary",
+		"destination.identity",
+		"source.identity",
+		"source.namespace",
+		"source.pod_name",
+		"time",
+		"traffic_direction",
+		"verdict",
+		"l4.TCP.source_port",
+		"l4.TCP.destination_port",
+		"l7.type",
+	}
+
+	if format == common.EncodingSemiFlatTypedMap {
+		keys = append(keys,
+			"source.labels",
+		)
+	}
+
+	for _, k := range keys {
+		k = resolveKey(k, encodingOptions)
+		if _, ok := result[k]; !ok {
+			t.Errorf("missing required key %q", k)
+		}
+	}
+
+	if format == common.EncodingSemiFlatTypedMap {
+		sk := resolveKey("source.labels", encodingOptions)
+		if labels, ok := result[sk]; ok {
+			checkLabels(t, sk, labels, encodingOptions.WithLabelsAsMaps())
+		} else {
+			t.Errorf("missing required key %q", "source.labels")
+		}
+		dk := resolveKey("destination.labels", encodingOptions)
+		if labels, ok := result[dk]; ok {
+			checkLabels(t, dk, labels, encodingOptions.WithLabelsAsMaps())
+		}
+	}
+}
+
+func resolveKey(k string, encodingOptions *common.EncodingOptions) string {
+	if encodingOptions.WithTopLevelKeys() {
+		return common.AttributeFlowEventNamespace + "." + k
+	}
+	return k
+}
+
+func checkFlatEncodingForHTTPFlows(t *testing.T, encodingOptions *common.EncodingOptions, result map[string]interface{}) {
+	t.Helper()
+
+	checkFlatEncodingCommon(t, encodingOptions, result)
+
+	format := encodingOptions.EncodingFormat()
+
+	if format == common.EncodingTypedMap {
+		// TODO - check headers
+		return
+	}
+
+	keys := []string{
+		"l7.http.protocol",
+		"l7.http.method",
+		"l7.http.url",
+	}
+
+	for _, k := range keys {
+		k = resolveKey(k, encodingOptions)
+		if _, ok := result[k]; !ok {
+			t.Errorf("missing required key %q", k)
+		}
+	}
+
+	isResponse := false
+
+	if code, ok := result[resolveKey("l7.http.code", encodingOptions)]; ok {
+		isResponse = true
+		switch format {
+		case common.EncodingSemiFlatTypedMap:
+			if _, ok := code.(float64); !ok {
+				t.Errorf("HTTP code is a %T, should be a float64", code)
+			}
+		case common.EncodingFlatStringMap:
+			if _, ok := code.(string); !ok {
+				t.Errorf("HTTP code is a %T, should be a string", code)
+			}
+		}
+	}
+
+	if encodingOptions.WithHeadersAsMaps() {
+		if isResponse {
+			if accept, ok := result[resolveKey("l7.http.headers.accept", encodingOptions)]; ok {
+				if _, ok := accept.(string); !ok {
+					t.Errorf("header value is %T, should be a strings", accept)
+				}
+			} else {
+				t.Errorf("accept header missing")
+			}
+		} else {
+			if userAgent, ok := result[resolveKey("l7.http.headers.user-agent", encodingOptions)]; ok {
+				if _, ok := userAgent.(string); !ok {
+					t.Errorf("header value is %T, should be a strings", userAgent)
+				}
+			} else {
+				t.Errorf("user-agent header missing")
+			}
+		}
+	}
+}
+
+func checkFlatEncodingForDNSFlows(t *testing.T, encodingOptions *common.EncodingOptions, result map[string]interface{}) {
+	t.Helper()
+
+	checkFlatEncodingCommon(t, encodingOptions, result)
+
+	format := encodingOptions.EncodingFormat()
+
+	if format == common.EncodingTypedMap {
+		// there nothing specific to this encoding when it comes to DNS flows
+		return
+	}
+
+	t.Logf("result = %#v", result)
+
+	keys := []string{
+		"l7.dns.observation_source",
+		"l7.dns.query",
+	}
+
+	switch format {
+	case common.EncodingSemiFlatTypedMap:
+		keys = append(keys, "l7.dns.qtypes")
+	case common.EncodingFlatStringMap:
+		keys = append(keys, "l7.dns.qtypes.0")
+	}
+
+	for _, k := range keys {
+		k = resolveKey(k, encodingOptions)
+		if _, ok := result[k]; !ok {
+			t.Errorf("missing required key %q", k)
+		}
+	}
+}
+
 func toRaw(v interface{}) interface{} {
 	switch v.(type) {
 	case *commonV1.AnyValue_StringValue:
@@ -209,13 +470,16 @@ func toRaw(v interface{}) interface{} {
 	case *commonV1.AnyValue_ArrayValue:
 		return arrayValueToRaw(v.(*commonV1.AnyValue_ArrayValue).ArrayValue)
 	default:
-		return nil
+		panic("unhandled type")
 	}
 }
 
 func keyValueListToRaw(m *commonV1.KeyValueList) map[string]interface{} {
 	raw := make(map[string]interface{})
 	for _, entry := range m.Values {
+		if entry == nil {
+			panic(fmt.Sprintf("nil entry in %#v", m.Values))
+		}
 		raw[entry.Key] = toRaw(entry.Value.GetValue())
 	}
 	return raw
@@ -224,7 +488,34 @@ func keyValueListToRaw(m *commonV1.KeyValueList) map[string]interface{} {
 func arrayValueToRaw(l *commonV1.ArrayValue) []interface{} {
 	raw := make([]interface{}, len(l.Values))
 	for index, entry := range l.Values {
+		if entry == nil {
+			panic(fmt.Sprintf("nil entry in %#v", l.Values))
+		}
 		raw[index] = toRaw(entry.GetValue())
 	}
 	return raw
+}
+
+func roundTripJSON(t *testing.T, v *commonV1.AnyValue) []byte {
+	t.Helper()
+
+	// turn commonV1.AnyValue into interface{},
+	// and ecode as JSON using standard codec
+	data, err := json.Marshal(toRaw(v.GetValue()))
+	if err != nil {
+		t.Error(err)
+	}
+	// decode JSON into a flow.Flow
+	f := &flow.Flow{}
+	if err = json.Unmarshal(data, f); err != nil {
+		t.Error(err)
+	}
+	// re-encode using funky protobuf encoder that
+	// turns int64 & unint64 into strings and has
+	// other peculiar features...
+	result, err := common.MarshalJSON(f)
+	if err != nil {
+		t.Error(err)
+	}
+	return result
 }

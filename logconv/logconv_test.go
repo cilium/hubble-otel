@@ -24,14 +24,22 @@ func TestAllModes(t *testing.T) {
 
 	encodingFormats := common.EncodingFormatsForLogs()
 	encodingOptions := []*common.EncodingOptions{
-		{TopLevelKeys: _true, LabelsAsMaps: _true, LogPayloadAsBody: _true},
-		{TopLevelKeys: _true, LabelsAsMaps: _true, LogPayloadAsBody: _false},
-		{TopLevelKeys: _true, LabelsAsMaps: _false, LogPayloadAsBody: _true},
-		{TopLevelKeys: _true, LabelsAsMaps: _false, LogPayloadAsBody: _false},
-		{TopLevelKeys: _false, LabelsAsMaps: _true, LogPayloadAsBody: _true},
-		{TopLevelKeys: _false, LabelsAsMaps: _true, LogPayloadAsBody: _false},
-		{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _true},
-		{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _false},
+		{TopLevelKeys: _true, LabelsAsMaps: _true, HeadersAsMaps: _true, LogPayloadAsBody: _true},
+		{TopLevelKeys: _true, LabelsAsMaps: _true, HeadersAsMaps: _true, LogPayloadAsBody: _false},
+		{TopLevelKeys: _true, LabelsAsMaps: _false, HeadersAsMaps: _true, LogPayloadAsBody: _true},
+		{TopLevelKeys: _true, LabelsAsMaps: _false, HeadersAsMaps: _true, LogPayloadAsBody: _false},
+		{TopLevelKeys: _false, LabelsAsMaps: _true, HeadersAsMaps: _true, LogPayloadAsBody: _true},
+		{TopLevelKeys: _false, LabelsAsMaps: _true, HeadersAsMaps: _true, LogPayloadAsBody: _false},
+		{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _true, LogPayloadAsBody: _true},
+		{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _true, LogPayloadAsBody: _false},
+		{TopLevelKeys: _true, LabelsAsMaps: _true, HeadersAsMaps: _false, LogPayloadAsBody: _true},
+		{TopLevelKeys: _true, LabelsAsMaps: _true, HeadersAsMaps: _false, LogPayloadAsBody: _false},
+		{TopLevelKeys: _true, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _true},
+		{TopLevelKeys: _true, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _false},
+		{TopLevelKeys: _false, LabelsAsMaps: _true, HeadersAsMaps: _false, LogPayloadAsBody: _true},
+		{TopLevelKeys: _false, LabelsAsMaps: _true, HeadersAsMaps: _false, LogPayloadAsBody: _false},
+		{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _true},
+		{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _false},
 	}
 
 	samples := []string{

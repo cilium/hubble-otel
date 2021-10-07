@@ -142,30 +142,30 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 	modes := map[string][]*common.EncodingOptions{
 		// test option combinations that relevant to particular encoding
 		common.EncodingJSON: {
-			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _false},
-			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _true},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _false},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _true},
 		},
 
 		common.EncodingJSONBASE64: {
-			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _false},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _false},
 		},
 
 		common.EncodingFlatStringMap: {
-			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _false},
-			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _true},
-			{TopLevelKeys: _true, LabelsAsMaps: _false, LogPayloadAsBody: _false},
-			{TopLevelKeys: _true, LabelsAsMaps: _true, LogPayloadAsBody: _false},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _false},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _true},
+			{TopLevelKeys: _true, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _false},
+			{TopLevelKeys: _true, LabelsAsMaps: _true, HeadersAsMaps: _true, LogPayloadAsBody: _false},
 		},
 		common.EncodingSemiFlatTypedMap: {
-			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _false},
-			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _true},
-			{TopLevelKeys: _true, LabelsAsMaps: _false, LogPayloadAsBody: _false},
-			{TopLevelKeys: _true, LabelsAsMaps: _true, LogPayloadAsBody: _false},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _false},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _true},
+			{TopLevelKeys: _true, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _false},
+			{TopLevelKeys: _true, LabelsAsMaps: _true, HeadersAsMaps: _true, LogPayloadAsBody: _false},
 		},
 		common.EncodingTypedMap: {
-			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _false},
-			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _true},
-			{TopLevelKeys: _false, LabelsAsMaps: _true, LogPayloadAsBody: _false},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _false},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _true},
+			{TopLevelKeys: _false, LabelsAsMaps: _true, HeadersAsMaps: _true, LogPayloadAsBody: _false},
 		},
 	}
 

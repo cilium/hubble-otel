@@ -6,17 +6,22 @@ import (
 )
 
 type typedMap struct {
-	list         []*commonV1.KeyValue
-	labelsAsMaps bool
+	list          []*commonV1.KeyValue
+	labelsAsMaps  bool
+	headersAsMaps bool
 }
 
 func (l *typedMap) items() []*commonV1.KeyValue { return l.list }
 
 func (l *typedMap) newLeaf(_ string) leafer {
 	return func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+		mb := &typedMap{
+			labelsAsMaps:  l.labelsAsMaps,
+			headersAsMaps: l.headersAsMaps,
+		}
+
 		switch {
 		case isRegularMessage(fd):
-			mb := &typedMap{}
 			item := &commonV1.AnyValue{}
 			v.Message().Range(mb.newLeaf(""))
 			item.Value = &commonV1.AnyValue_KvlistValue{
@@ -29,7 +34,7 @@ func (l *typedMap) newLeaf(_ string) leafer {
 				Value: item,
 			})
 		default:
-			if item := newValue(true, l.labelsAsMaps, fd, v, &typedMap{}, ""); item != nil {
+			if item := newValue(true, l.labelsAsMaps, l.headersAsMaps, fd, v, mb, ""); item != nil {
 				l.list = append(l.list, &commonV1.KeyValue{
 					Key:   string(fd.Name()),
 					Value: item,
