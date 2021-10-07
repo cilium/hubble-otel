@@ -26,45 +26,52 @@ func newStringValue(s string) *commonV1.AnyValue {
 	}
 }
 
-func toList(fd protoreflect.FieldDescriptor, v protoreflect.Value, mb mapBuilder, newLeafKeyPrefix string) *commonV1.ArrayValue {
+func toList(labelsAsMaps, headersAsMaps bool, fd protoreflect.FieldDescriptor, v protoreflect.Value, mb mapBuilder, newLeafKeyPrefix string) *commonV1.ArrayValue {
 	items := v.List()
 	list := &commonV1.ArrayValue{
 		Values: make([]*commonV1.AnyValue, items.Len()),
 	}
 	for i := 0; i < items.Len(); i++ {
-		if item := newValue(false, false, fd, items.Get(i), mb, newLeafKeyPrefix); item != nil {
+		if item := newValue(false, labelsAsMaps, headersAsMaps, fd, items.Get(i), mb, newLeafKeyPrefix); item != nil {
 			list.Values[i] = item
 		}
 	}
 	return list
 }
 
-func newValue(mayBeAList bool, labelsAsMaps bool, fd protoreflect.FieldDescriptor, v protoreflect.Value, mb mapBuilder, newLeafKeyPrefix string) *commonV1.AnyValue {
-	if mayBeAList && (fd.Cardinality() == protoreflect.Repeated || fd.Cardinality() == protoreflect.Required) {
-		if labelsAsMaps && fd.Name() == "labels" {
-			items := v.List()
-			labels := &commonV1.KeyValueList{
-				Values: make([]*commonV1.KeyValue, items.Len()),
-			}
-			for i := 0; i < items.Len(); i++ {
-				k, v, err := parseLabel(items.Get(i).String())
-				if err != nil {
-					panic(err)
-				}
-				labels.Values = append(labels.Values, &commonV1.KeyValue{
-					Key:   k,
-					Value: newStringValue(v),
-				})
-			}
-			return &commonV1.AnyValue{
-				Value: &commonV1.AnyValue_KvlistValue{
-					KvlistValue: labels,
-				},
-			}
+func listToMap(v protoreflect.Value, converter func(v protoreflect.Value) (string, string, error)) *commonV1.AnyValue {
+	items := v.List()
+	m := &commonV1.KeyValueList{
+		Values: make([]*commonV1.KeyValue, items.Len()),
+	}
+	for i := 0; i < items.Len(); i++ {
+		k, v, err := converter(items.Get(i))
+		if err != nil {
+			panic(err)
+		}
+		m.Values[i] = &commonV1.KeyValue{
+			Key:   k,
+			Value: newStringValue(v),
+		}
+	}
+	return &commonV1.AnyValue{
+		Value: &commonV1.AnyValue_KvlistValue{
+			KvlistValue: m,
+		},
+	}
+}
+
+func newValue(assumeList, labelsAsMaps, headersAsMaps bool, fd protoreflect.FieldDescriptor, v protoreflect.Value, mb mapBuilder, newLeafKeyPrefix string) *commonV1.AnyValue {
+	if assumeList && isList(fd) {
+		if labelsAsMaps && fd.FullName() == "flow.Endpoint.labels" {
+			return listToMap(v, parseLabel)
+		}
+		if headersAsMaps && fd.FullName() == "flow.HTTP.headers" {
+			return listToMap(v, parseHeader)
 		}
 		return &commonV1.AnyValue{
 			Value: &commonV1.AnyValue_ArrayValue{
-				ArrayValue: toList(fd, v, mb, newLeafKeyPrefix),
+				ArrayValue: toList(labelsAsMaps, headersAsMaps, fd, v, mb, newLeafKeyPrefix),
 			},
 		}
 	}

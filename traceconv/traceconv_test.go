@@ -41,10 +41,14 @@ func TestAllModes(t *testing.T) {
 	encodingFormats := common.EncodingFormatsForTraces()
 	encodingOptions := []*common.EncodingOptions{
 		// LogPayloadAsBody is irrelevant for traces
-		{TopLevelKeys: _true, LabelsAsMaps: _true},
-		{TopLevelKeys: _true, LabelsAsMaps: _false},
-		{TopLevelKeys: _false, LabelsAsMaps: _true},
-		{TopLevelKeys: _false, LabelsAsMaps: _false},
+		{TopLevelKeys: _true, LabelsAsMaps: _true, HeadersAsMaps: _true},
+		{TopLevelKeys: _true, LabelsAsMaps: _false, HeadersAsMaps: _true},
+		{TopLevelKeys: _false, LabelsAsMaps: _true, HeadersAsMaps: _true},
+		{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _true},
+		{TopLevelKeys: _true, LabelsAsMaps: _true, HeadersAsMaps: _false},
+		{TopLevelKeys: _true, LabelsAsMaps: _false, HeadersAsMaps: _false},
+		{TopLevelKeys: _false, LabelsAsMaps: _true, HeadersAsMaps: _false},
+		{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _false},
 	}
 
 	samples := []string{

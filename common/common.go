@@ -78,6 +78,7 @@ type EncodingOptions struct {
 	Encoding         *string
 	TopLevelKeys     *bool
 	LabelsAsMaps     *bool
+	HeadersAsMaps    *bool
 	LogPayloadAsBody *bool
 }
 
@@ -96,6 +97,10 @@ func (o *EncodingOptions) WithLabelsAsMaps() bool {
 	return (o.LabelsAsMaps != nil && *o.LabelsAsMaps)
 }
 
+func (o *EncodingOptions) WithHeadersAsMaps() bool {
+	return (o.HeadersAsMaps != nil && *o.HeadersAsMaps)
+}
+
 func (o *EncodingOptions) WithLogPayloadAsBody() bool {
 	return (o.LogPayloadAsBody != nil && *o.LogPayloadAsBody)
 }
@@ -107,6 +112,9 @@ func (o *EncodingOptions) String() string {
 	}
 	if o.WithLabelsAsMaps() {
 		options = append(options, "LabelsAsMaps")
+	}
+	if o.WithHeadersAsMaps() {
+		options = append(options, "HeadersAsMaps")
 	}
 	if o.WithLogPayloadAsBody() {
 		options = append(options, "LogPayloadAsBody")
@@ -193,19 +201,22 @@ func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.
 		switch format {
 		case EncodingFlatStringMap:
 			mb = &flatStringMap{
-				labelsAsMaps: c.WithLabelsAsMaps(),
-				separator:    '.',
+				labelsAsMaps:  c.WithLabelsAsMaps(),
+				headersAsMaps: c.WithHeadersAsMaps(),
+				separator:     '.',
 			}
 		case EncodingSemiFlatTypedMap:
 			mb = &semiFlatTypedMap{
-				labelsAsMaps: c.WithLabelsAsMaps(),
-				separator:    '.',
+				labelsAsMaps:  c.WithLabelsAsMaps(),
+				headersAsMaps: c.WithHeadersAsMaps(),
+				separator:     '.',
 			}
 		case EncodingTypedMap:
 			overrideOptionsWithWarning()
 
 			mb = &typedMap{
-				labelsAsMaps: c.WithLabelsAsMaps(),
+				labelsAsMaps:  c.WithLabelsAsMaps(),
+				headersAsMaps: c.WithHeadersAsMaps(),
 			}
 		}
 
@@ -235,9 +246,12 @@ func isRegularMessage(fd protoreflect.FieldDescriptor) bool {
 		(fd.IsMap() || fd.Cardinality() == protoreflect.Optional)
 }
 
+func isList(fd protoreflect.FieldDescriptor) bool {
+	return (fd.Cardinality() == protoreflect.Repeated || fd.Cardinality() == protoreflect.Required)
+}
+
 func isMessageList(fd protoreflect.FieldDescriptor) bool {
-	return fd.Kind() == protoreflect.MessageKind &&
-		(fd.Cardinality() == protoreflect.Repeated || fd.Cardinality() == protoreflect.Required)
+	return fd.Kind() == protoreflect.MessageKind && isList(fd)
 }
 
 type specialFomatter func(protoreflect.Value) *commonV1.AnyValue
@@ -313,7 +327,8 @@ func MarshalJSON(m proto.Message) ([]byte, error) {
 	return jsonMarshaller.Marshal(m)
 }
 
-func parseLabel(label string) (string, string, error) {
+func parseLabel(v protoreflect.Value) (string, string, error) {
+	label := v.String()
 	parts := strings.Split(label, "=")
 	switch len(parts) {
 	case 2:
@@ -323,6 +338,24 @@ func parseLabel(label string) (string, string, error) {
 	default:
 		return "", "", fmt.Errorf("cannot parse label %q, as it's not in \"k=v\" format", label)
 	}
+}
+
+func parseHeader(v protoreflect.Value) (string, string, error) {
+	headerKey := ""
+	headerValue := ""
+	v.Message().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+		switch fd.Name() {
+		case "key":
+			headerKey = strings.ToLower(v.String())
+		case "value":
+			headerValue = v.String()
+		}
+		return true
+	})
+	if headerKey == "" {
+		return "", "", fmt.Errorf("cannot use empty header key")
+	}
+	return headerKey, headerValue, nil
 }
 
 func fmtKeyPath(keyPathPrefix, fieldName string, separator rune) string {
