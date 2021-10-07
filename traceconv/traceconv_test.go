@@ -19,27 +19,32 @@ func TestAllModes(t *testing.T) {
 	log := logrus.New()
 	// log.SetLevel(logrus.DebugLevel)
 
-	newFlowConverter := func(options common.EncodingOptions) *traceconv.FlowConverter {
+	newFlowConverter := func(options *common.EncodingOptions) *traceconv.FlowConverter {
 		t.Helper()
 
 		spanDB, err := os.MkdirTemp("", "hubble-otel-test-trace-cache-")
 		if err != nil {
 			t.Fatal(err)
 		}
-		c, err := traceconv.NewFlowConverter(log.WithField("encodingOptions", options.String()).Logger, spanDB, options)
+		c, err := traceconv.NewFlowConverter(log, spanDB, options)
 		if err != nil {
 			t.Fatal(err)
 		}
 		return c
 	}
 
+	_false := new(bool)
+	*_false = false
+	_true := new(bool)
+	*_true = true
+
 	encodingFormats := common.EncodingFormatsForTraces()
-	encodingOptions := []common.EncodingOptions{
+	encodingOptions := []*common.EncodingOptions{
 		// LogPayloadAsBody is irrelevant for traces
-		{TopLevelKeys: true, LabelsAsMaps: true},
-		{TopLevelKeys: true, LabelsAsMaps: false},
-		{TopLevelKeys: false, LabelsAsMaps: true},
-		{TopLevelKeys: false, LabelsAsMaps: false},
+		{TopLevelKeys: _true, LabelsAsMaps: _true},
+		{TopLevelKeys: _true, LabelsAsMaps: _false},
+		{TopLevelKeys: _false, LabelsAsMaps: _true},
+		{TopLevelKeys: _false, LabelsAsMaps: _false},
 	}
 
 	samples := []string{
@@ -53,17 +58,17 @@ func TestAllModes(t *testing.T) {
 			for o := range encodingOptions {
 				sample := samples[s]
 				options := encodingOptions[o]
-				options.Encoding = encodingFormats[e]
+				options.Encoding = &encodingFormats[e]
 
-				if options.TopLevelKeys &&
-					(strings.HasPrefix(options.Encoding, "JSON") || options.Encoding == common.EncodingTypedMap) {
+				if options.WithTopLevelKeys() &&
+					(strings.HasPrefix(options.EncodingFormat(), "JSON") || options.EncodingFormat() == common.EncodingTypedMap) {
 					continue
 				}
 				if err := options.ValidForTraces(); err != nil {
 					t.Fatal(err)
 				}
 
-				t.Run("("+sample+")/"+options.Encoding+":"+options.String(), func(t *testing.T) {
+				t.Run("("+sample+")/"+options.EncodingFormat()+":"+options.String(), func(t *testing.T) {
 					c := newFlowConverter(options)
 					for _, flow := range testutil.GetFlowSamples(t, "../testdata/"+sample) {
 						spansMsg, err := c.Convert(flow)
@@ -90,8 +95,8 @@ func TestAllModes(t *testing.T) {
 
 						span := spans.InstrumentationLibrarySpans[0].Spans[0]
 
-						payload := testutil.CheckAttributes(t, span.Attributes, options)
-						testutil.CheckPayload(t, payload, c.Encoding)
+						payload := testutil.CheckAttributes(t, span.Attributes, *options)
+						testutil.CheckPayload(t, payload, c.EncodingFormat())
 
 						f := flow.GetFlow()
 

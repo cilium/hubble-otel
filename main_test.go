@@ -24,8 +24,11 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	isFalse := false
-	isTrue := true
+	_false := new(bool)
+	*_false = false
+	_true := new(bool)
+	*_true = true
+
 	newString := func(s string) *string { return &s }
 
 	fatal := make(chan error, 1)
@@ -52,8 +55,8 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 	}()
 
 	commonFlagsTLS := &flagsTLS{
-		enable:               &isTrue,
-		insecureSkipVerify:   &isFalse,
+		enable:               _true,
+		insecureSkipVerify:   _false,
 		clientCertificate:    newString("testdata/certs/test-client.pem"),
 		clientKey:            newString("testdata/certs/test-client-key.pem"),
 		certificateAuthority: newString("testdata/certs/ca.pem"),
@@ -136,42 +139,42 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 		}
 	}
 
-	modes := map[string][]common.EncodingOptions{
+	modes := map[string][]*common.EncodingOptions{
 		// test option combinations that relevant to particular encoding
 		common.EncodingJSON: {
-			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: false},
-			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: true},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _false},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _true},
 		},
 
 		common.EncodingJSONBASE64: {
-			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: false},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _false},
 		},
 
 		common.EncodingFlatStringMap: {
-			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: false},
-			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: true},
-			{TopLevelKeys: true, LabelsAsMaps: false, LogPayloadAsBody: false},
-			{TopLevelKeys: true, LabelsAsMaps: true, LogPayloadAsBody: false},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _false},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _true},
+			{TopLevelKeys: _true, LabelsAsMaps: _false, LogPayloadAsBody: _false},
+			{TopLevelKeys: _true, LabelsAsMaps: _true, LogPayloadAsBody: _false},
 		},
 		common.EncodingSemiFlatTypedMap: {
-			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: false},
-			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: true},
-			{TopLevelKeys: true, LabelsAsMaps: false, LogPayloadAsBody: false},
-			{TopLevelKeys: true, LabelsAsMaps: true, LogPayloadAsBody: false},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _false},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _true},
+			{TopLevelKeys: _true, LabelsAsMaps: _false, LogPayloadAsBody: _false},
+			{TopLevelKeys: _true, LabelsAsMaps: _true, LogPayloadAsBody: _false},
 		},
 		common.EncodingTypedMap: {
-			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: false},
-			{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: true},
-			{TopLevelKeys: false, LabelsAsMaps: true, LogPayloadAsBody: false},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _false},
+			{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _true},
+			{TopLevelKeys: _false, LabelsAsMaps: _true, LogPayloadAsBody: _false},
 		},
 	}
 
 	for k := range modes {
 		for i := range modes[k] {
 			options := modes[k][i]
-			options.Encoding = k
+			options.Encoding = &k
 
-			t.Run(options.Encoding+":"+options.String(), func(t *testing.T) {
+			t.Run(options.EncodingFormat()+":"+options.String(), func(t *testing.T) {
 				if err := run(log, flagsHubble, flagsOTLP, nil, true, true, 10, options, options); err != nil {
 					if testutil.IsEOF(err) {
 						checkCollectorMetrics(t, i)

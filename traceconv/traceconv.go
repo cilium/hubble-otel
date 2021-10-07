@@ -23,12 +23,16 @@ type FlowConverter struct {
 	*common.FlowEncoder
 }
 
-func NewFlowConverter(log *logrus.Logger, dir string, options common.EncodingOptions) (*FlowConverter, error) {
+func NewFlowConverter(log *logrus.Logger, dir string, options *common.EncodingOptions) (*FlowConverter, error) {
 	opt := badger.DefaultOptions(dir)
 	opt.Logger = log
 	tc, err := NewTraceCache(opt)
 	if err != nil {
 		return nil, err
+	}
+
+	if log != nil {
+		log.WithField("options", options.String()).Debugf("trace converter created")
 	}
 
 	return &FlowConverter{
@@ -69,11 +73,11 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 		// TODO: optionally set Kind for TCP flows via a user-settable peramater
 		Attributes: common.NewStringAttributes(map[string]string{
 			common.AttributeEventKindVersion:     common.AttributeEventKindVersionFlowV1alpha1,
-			common.AttributeEventEncoding:        c.Encoding,
+			common.AttributeEventEncoding:        c.EncodingFormat(),
 			common.AttributeEventEncodingOptions: c.EncodingOptions.String(),
 		}),
 	}
-	if c.TopLevelKeys {
+	if c.WithTopLevelKeys() {
 		for _, payloadAttribute := range v.GetKvlistValue().Values {
 			span.Attributes = append(span.Attributes, payloadAttribute)
 		}
