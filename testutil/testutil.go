@@ -247,7 +247,7 @@ func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encodingOptions c
 			}
 		case common.AttributeEventEncoding:
 			hasEncodingAttr = true
-			if attr.Value.GetStringValue() != encodingOptions.Encoding {
+			if attr.Value.GetStringValue() != encodingOptions.EncodingFormat() {
 				t.Error("econding is wrong")
 			}
 		case common.AttributeEventEncodingOptions:
@@ -284,7 +284,7 @@ func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encodingOptions c
 	if payload != nil {
 		expectedLen = 4
 	}
-	if encodingOptions.TopLevelKeys && !encodingOptions.LogPayloadAsBody {
+	if encodingOptions.WithTopLevelKeys() && !encodingOptions.WithLogPayloadAsBody() {
 		if !hasPayloadInTopLevelKeys {
 			t.Fatal("missing payload keys")
 		}

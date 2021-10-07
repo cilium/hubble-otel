@@ -17,16 +17,21 @@ func TestAllModes(t *testing.T) {
 	log := logrus.New()
 	// log.SetLevel(logrus.DebugLevel)
 
+	_false := new(bool)
+	*_false = false
+	_true := new(bool)
+	*_true = true
+
 	encodingFormats := common.EncodingFormatsForLogs()
-	encodingOptions := []common.EncodingOptions{
-		{TopLevelKeys: true, LabelsAsMaps: true, LogPayloadAsBody: true},
-		{TopLevelKeys: true, LabelsAsMaps: true, LogPayloadAsBody: false},
-		{TopLevelKeys: true, LabelsAsMaps: false, LogPayloadAsBody: true},
-		{TopLevelKeys: true, LabelsAsMaps: false, LogPayloadAsBody: false},
-		{TopLevelKeys: false, LabelsAsMaps: true, LogPayloadAsBody: true},
-		{TopLevelKeys: false, LabelsAsMaps: true, LogPayloadAsBody: false},
-		{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: true},
-		{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: false},
+	encodingOptions := []*common.EncodingOptions{
+		{TopLevelKeys: _true, LabelsAsMaps: _true, LogPayloadAsBody: _true},
+		{TopLevelKeys: _true, LabelsAsMaps: _true, LogPayloadAsBody: _false},
+		{TopLevelKeys: _true, LabelsAsMaps: _false, LogPayloadAsBody: _true},
+		{TopLevelKeys: _true, LabelsAsMaps: _false, LogPayloadAsBody: _false},
+		{TopLevelKeys: _false, LabelsAsMaps: _true, LogPayloadAsBody: _true},
+		{TopLevelKeys: _false, LabelsAsMaps: _true, LogPayloadAsBody: _false},
+		{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _true},
+		{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _false},
 	}
 
 	samples := []string{
@@ -40,10 +45,10 @@ func TestAllModes(t *testing.T) {
 			for o := range encodingOptions {
 				sample := samples[s]
 				options := encodingOptions[o]
-				options.Encoding = encodingFormats[e]
+				options.Encoding = &encodingFormats[e]
 
-				if options.TopLevelKeys && !options.LogPayloadAsBody &&
-					(strings.HasPrefix(options.Encoding, "JSON") || options.Encoding == common.EncodingTypedMap) {
+				if options.WithTopLevelKeys() && !options.WithLogPayloadAsBody() &&
+					(strings.HasPrefix(options.EncodingFormat(), "JSON") || options.EncodingFormat() == common.EncodingTypedMap) {
 					continue
 				}
 				if err := options.ValidForLogs(); err != nil {
@@ -51,7 +56,7 @@ func TestAllModes(t *testing.T) {
 				}
 
 				c := logconv.NewFlowConverter(log, options)
-				t.Run("("+sample+")/"+options.Encoding+":"+options.String(), func(t *testing.T) {
+				t.Run("("+sample+")/"+options.EncodingFormat()+":"+options.String(), func(t *testing.T) {
 					for _, flow := range testutil.GetFlowSamples(t, "../testdata/"+sample) {
 						logsMsg, err := c.Convert(flow)
 						if err != nil {
@@ -77,11 +82,11 @@ func TestAllModes(t *testing.T) {
 
 						logRecord := logs.InstrumentationLibraryLogs[0].Logs[0]
 
-						payload := testutil.CheckAttributes(t, logRecord.Attributes, options)
+						payload := testutil.CheckAttributes(t, logRecord.Attributes, *options)
 
 						hasPayloadAttr := payload != nil
 
-						if !c.LogPayloadAsBody {
+						if !c.WithLogPayloadAsBody() {
 							if logRecord.Body != nil {
 								t.Error("body should be unset when attributes are set")
 							}
@@ -95,7 +100,7 @@ func TestAllModes(t *testing.T) {
 							payload = logRecord.Body
 						}
 
-						testutil.CheckPayload(t, payload, c.Encoding)
+						testutil.CheckPayload(t, payload, c.EncodingFormat())
 					}
 				})
 			}

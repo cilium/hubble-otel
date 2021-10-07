@@ -52,19 +52,24 @@ func BenchmarkAllModes(b *testing.B) {
 
 	defer hubbleConn.Close()
 
+	_false := new(bool)
+	*_false = false
+	_true := new(bool)
+	*_true = true
+
 	encodingFormats := common.EncodingFormatsForLogs()
-	encodingOptions := []common.EncodingOptions{
+	encodingOptions := []*common.EncodingOptions{
 		// LogPayloadAsBody is irrelevant for benchmarking, test all remaining combinations
-		{TopLevelKeys: true, LabelsAsMaps: true},
-		{TopLevelKeys: true, LabelsAsMaps: false},
-		{TopLevelKeys: false, LabelsAsMaps: true},
-		{TopLevelKeys: false, LabelsAsMaps: false},
+		{TopLevelKeys: _true, LabelsAsMaps: _true},
+		{TopLevelKeys: _true, LabelsAsMaps: _false},
+		{TopLevelKeys: _false, LabelsAsMaps: _true},
+		{TopLevelKeys: _false, LabelsAsMaps: _false},
 	}
 
 	for e := range encodingFormats {
 		for o := range encodingOptions {
 			options := encodingOptions[o]
-			options.Encoding = encodingFormats[e]
+			options.Encoding = &encodingFormats[e]
 
 			process := func() {
 				flows := make(chan protoreflect.Message, logBufferSize)
@@ -85,7 +90,7 @@ func BenchmarkAllModes(b *testing.B) {
 				}
 			}
 
-			b.Run(options.Encoding+":"+options.String(), func(b *testing.B) {
+			b.Run(options.EncodingFormat()+":"+options.String(), func(b *testing.B) {
 				for n := 0; n < b.N; n++ {
 					process()
 				}
@@ -103,8 +108,11 @@ func TestRoudtripEncoding(t *testing.T) {
 		common.EncodingTypedMap,
 	}
 
-	encodingOptions := []common.EncodingOptions{
-		{TopLevelKeys: false, LabelsAsMaps: false, LogPayloadAsBody: false},
+	_false := new(bool)
+	*_false = false
+
+	encodingOptions := []*common.EncodingOptions{
+		{TopLevelKeys: _false, LabelsAsMaps: _false, LogPayloadAsBody: _false},
 	}
 
 	samples := []string{
@@ -118,14 +126,14 @@ func TestRoudtripEncoding(t *testing.T) {
 			for o := range encodingOptions {
 				sample := samples[s]
 				options := encodingOptions[o]
-				options.Encoding = encodingFormats[e]
+				options.Encoding = &encodingFormats[e]
 
 				c := &common.FlowEncoder{
 					EncodingOptions: options,
 					Logger:          log,
 				}
 
-				t.Run("("+sample+")/"+options.Encoding+":"+options.String(), func(t *testing.T) {
+				t.Run("("+sample+")/"+options.EncodingFormat()+":"+options.String(), func(t *testing.T) {
 					for _, f := range testutil.GetFlowSamples(t, "../testdata/"+sample) {
 						v, err := c.ToValue(f)
 						if err != nil {
@@ -141,7 +149,7 @@ func TestRoudtripEncoding(t *testing.T) {
 						if err != nil {
 							t.Error(err)
 						}
-						switch options.Encoding {
+						switch options.EncodingFormat() {
 						case common.EncodingTypedMap:
 							// turn commonV1.AnyValue into interface{},
 							// and ecode as JSON using standard codec

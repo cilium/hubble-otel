@@ -16,7 +16,11 @@ type FlowConverter struct {
 	*common.FlowEncoder
 }
 
-func NewFlowConverter(log *logrus.Logger, options common.EncodingOptions) *FlowConverter {
+func NewFlowConverter(log *logrus.Logger, options *common.EncodingOptions) *FlowConverter {
+	if log != nil {
+		log.WithField("options", options.String()).Debugf("logs converter created")
+	}
+
 	return &FlowConverter{
 		FlowEncoder: &common.FlowEncoder{
 			EncodingOptions: options,
@@ -37,7 +41,7 @@ func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoref
 		TimeUnixNano: uint64(flow.GetTime().AsTime().UnixNano()),
 		Attributes: common.NewStringAttributes(map[string]string{
 			common.AttributeEventKindVersion:     common.AttributeEventKindVersionFlowV1alpha1,
-			common.AttributeEventEncoding:        c.Encoding,
+			common.AttributeEventEncoding:        c.EncodingFormat(),
 			common.AttributeEventEncodingOptions: c.EncodingOptions.String(),
 		}),
 	}
@@ -53,9 +57,9 @@ func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoref
 		}},
 	}
 
-	if c.LogPayloadAsBody {
+	if c.WithLogPayloadAsBody() {
 		logRecord.Body = v
-	} else if c.TopLevelKeys {
+	} else if c.WithTopLevelKeys() {
 		for _, payloadAttribute := range v.GetKvlistValue().Values {
 			logRecord.Attributes = append(logRecord.Attributes, payloadAttribute)
 		}

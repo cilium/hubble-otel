@@ -65,18 +65,18 @@ func main() {
 	bufferSize := flag.Int("bufferSize", 2048, "number of logs/spans to buffer before exporting")
 
 	exportLogs := flag.Bool("logs.export", true, "export flows as logs")
-	logsEncodingOptions := common.EncodingOptions{
-		Encoding:         *(flag.String("logs.format", common.DefaultLogEncoding, fmt.Sprintf("encoding format (valid options: %v)", common.EncodingFormatsForLogs()))),
-		LogPayloadAsBody: *(flag.Bool("logs.payloadAsBody", false, "use log body to store flow data instead of attributes")),
-		TopLevelKeys:     *(flag.Bool("logs.useTopLevelKeys", false, "reduce nesting when storing flows as attributes")),
-		LabelsAsMaps:     *(flag.Bool("logs.labelsAsMaps", false, "convert source/destination labels from arrays to maps")),
+	logsEncodingOptions := &common.EncodingOptions{
+		Encoding:         flag.String("logs.format", common.DefaultLogEncoding, fmt.Sprintf("encoding format (valid options: %v)", common.EncodingFormatsForLogs())),
+		LogPayloadAsBody: flag.Bool("logs.payloadAsBody", false, "use log body to store flow data instead of attributes"),
+		TopLevelKeys:     flag.Bool("logs.useTopLevelKeys", false, "reduce nesting when storing flows as attributes"),
+		LabelsAsMaps:     flag.Bool("logs.labelsAsMaps", false, "convert source/destination labels from arrays to maps"),
 	}
 
 	exportTraces := flag.Bool("trace.export", true, "export flows as traces")
-	traceEncodingOptions := common.EncodingOptions{
-		Encoding:     *(flag.String("trace.format", common.DefaultTraceEncoding, fmt.Sprintf("encoding format (valid options: %v)", common.EncodingFormatsForTraces()))),
-		TopLevelKeys: *(flag.Bool("trace.useTopLevelKeys", false, "reduce nesting when storing flows as attributes")),
-		LabelsAsMaps: *(flag.Bool("trace.labelsAsMaps", false, "convert source/destination labels from arrays to maps")),
+	traceEncodingOptions := &common.EncodingOptions{
+		Encoding:     flag.String("trace.format", common.DefaultTraceEncoding, fmt.Sprintf("encoding format (valid options: %v)", common.EncodingFormatsForTraces())),
+		TopLevelKeys: flag.Bool("trace.useTopLevelKeys", false, "reduce nesting when storing flows as attributes"),
+		LabelsAsMaps: flag.Bool("trace.labelsAsMaps", false, "convert source/destination labels from arrays to maps"),
 	}
 
 	debug := flag.Bool("debug", false, "enable debug logs")
@@ -84,11 +84,13 @@ func main() {
 	flag.Parse()
 
 	log := logrus.New()
+	log.Formatter = &logrus.JSONFormatter{}
 	if *debug {
 		log.SetLevel(logrus.DebugLevel)
 	} else {
 		log.SetLevel(logrus.InfoLevel)
 	}
+
 	otlpHeadersObj := map[string]string{}
 
 	if *otlpHeaders != "" {
@@ -103,7 +105,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	if err := traceEncodingOptions.ValidForLogs(); err != nil {
+	if err := traceEncodingOptions.ValidForTraces(); err != nil {
 		log.Errorf("trace encoding options are invalid: %s\n", err)
 		os.Exit(2)
 	}
@@ -156,7 +158,7 @@ func dialContext(ctx context.Context, log *logrus.Logger, f *flags) (*grpc.Clien
 	return grpc.DialContext(ctx, *f.address, grpc.WithTransportCredentials(creds))
 }
 
-func run(log *logrus.Logger, hubbleFlags, otlpFlags flags, otlpHeaders map[string]string, exportLogs, exportTraces bool, bufferSize int, logsEncodingOptions, traceEncodingOptions common.EncodingOptions) error {
+func run(log *logrus.Logger, hubbleFlags, otlpFlags flags, otlpHeaders map[string]string, exportLogs, exportTraces bool, bufferSize int, logsEncodingOptions, traceEncodingOptions *common.EncodingOptions) error {
 	ctx := context.Background()
 
 	hubbleConn, err := dialContext(ctx, log, &hubbleFlags)
@@ -178,11 +180,11 @@ func run(log *logrus.Logger, hubbleFlags, otlpFlags flags, otlpHeaders map[strin
 	if exportLogs {
 		flowsToLogs := make(chan protoreflect.Message, bufferSize)
 
-		logConverter := logconv.NewFlowConverter(log.WithField("logEncodingOptions", traceEncodingOptions.String()).Logger, logsEncodingOptions)
+		logConverter := logconv.NewFlowConverter(log, logsEncodingOptions)
 		go receiver.Run(ctx, hubbleConn, logConverter, flowsToLogs, errs)
 
 		exporter := logproc.NewBufferedLogExporter(otlpConn, bufferSize, otlpHeaders)
-		go sender.Run(ctx, log.WithField("role", "logExporter").Logger, exporter, flowsToLogs, errs)
+		go sender.Run(ctx, log, exporter, flowsToLogs, errs)
 	}
 
 	if exportTraces {
@@ -193,7 +195,7 @@ func run(log *logrus.Logger, hubbleFlags, otlpFlags flags, otlpHeaders map[strin
 
 		flowsToTraces := make(chan protoreflect.Message, bufferSize)
 
-		traceConverter, err := traceconv.NewFlowConverter(log.WithField("traceEncodingOptions", traceEncodingOptions.String()).Logger, spanDB, traceEncodingOptions)
+		traceConverter, err := traceconv.NewFlowConverter(log, spanDB, traceEncodingOptions)
 		if err != nil {
 			return fmt.Errorf("failed to create trace converter: %w", err)
 		}
@@ -202,7 +204,7 @@ func run(log *logrus.Logger, hubbleFlags, otlpFlags flags, otlpHeaders map[strin
 		go receiver.Run(ctx, hubbleConn, traceConverter, flowsToTraces, errs)
 
 		exporter := traceproc.NewBufferedTraceExporter(otlpConn, bufferSize, otlpHeaders)
-		go sender.Run(ctx, log.WithField("role", "traceExporter").Logger, exporter, flowsToTraces, errs)
+		go sender.Run(ctx, log, exporter, flowsToTraces, errs)
 	}
 
 	for {

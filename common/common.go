@@ -70,85 +70,108 @@ func EncodingFormatsForTraces() []string {
 }
 
 type FlowEncoder struct {
-	EncodingOptions
+	*EncodingOptions
 	Logger *logrus.Logger
 }
 
 type EncodingOptions struct {
-	Encoding         string
-	TopLevelKeys     bool
-	LabelsAsMaps     bool
-	LogPayloadAsBody bool
+	Encoding         *string
+	TopLevelKeys     *bool
+	LabelsAsMaps     *bool
+	LogPayloadAsBody *bool
 }
 
-func (o EncodingOptions) String() string {
+func (o *EncodingOptions) EncodingFormat() string {
+	if o.Encoding == nil {
+		return ""
+	}
+	return *o.Encoding
+}
+
+func (o *EncodingOptions) WithTopLevelKeys() bool {
+	return (o.TopLevelKeys != nil && *o.TopLevelKeys)
+}
+
+func (o *EncodingOptions) WithLabelsAsMaps() bool {
+	return (o.LabelsAsMaps != nil && *o.LabelsAsMaps)
+}
+
+func (o *EncodingOptions) WithLogPayloadAsBody() bool {
+	return (o.LogPayloadAsBody != nil && *o.LogPayloadAsBody)
+}
+
+func (o *EncodingOptions) String() string {
 	options := []string{}
-	if o.TopLevelKeys {
+	if o.WithTopLevelKeys() {
 		options = append(options, "TopLevelKeys")
 	}
-	if o.LabelsAsMaps {
+	if o.WithLabelsAsMaps() {
 		options = append(options, "LabelsAsMaps")
 	}
-	if o.LogPayloadAsBody {
+	if o.WithLogPayloadAsBody() {
 		options = append(options, "LogPayloadAsBody")
 	}
 	return strings.Join(options, ",")
 }
 
-func (o EncodingOptions) ValidForLogs() error {
+func (o *EncodingOptions) ValidForLogs() error {
 	if err := o.validateFormat("logs", EncodingFormatsForLogs()); err != nil {
 		return err
 	}
-	switch o.Encoding {
+	switch o.EncodingFormat() {
 	case EncodingJSON, EncodingJSONBASE64, EncodingTypedMap:
-		if o.TopLevelKeys && !o.LogPayloadAsBody {
-			return fmt.Errorf("option \"TopLevelKeys\" without \"LogPayloadAsBody\" is not compatible with %q encoding", o.Encoding)
+		if o.WithTopLevelKeys() && !o.WithLogPayloadAsBody() {
+			return fmt.Errorf("option \"TopLevelKeys\" without \"LogPayloadAsBody\" is not compatible with %q encoding", o.EncodingFormat())
 		}
 	}
 	return nil
 }
 
-func (o EncodingOptions) ValidForTraces() error {
+func (o *EncodingOptions) ValidForTraces() error {
 	if err := o.validateFormat("trace", EncodingFormatsForTraces()); err != nil {
 		return err
 	}
-	switch o.Encoding {
+	switch o.EncodingFormat() {
 	case EncodingJSON, EncodingJSONBASE64:
-		if o.TopLevelKeys {
-			return fmt.Errorf("option \"TopLevelKeys\" is not compatible with %q encoding", o.Encoding)
+		if o.WithTopLevelKeys() {
+			return fmt.Errorf("option \"TopLevelKeys\" is not compatible with %q encoding", o.EncodingFormat())
 		}
 	}
-	if o.LogPayloadAsBody {
+	if o.WithLogPayloadAsBody() {
 		return fmt.Errorf("option \"LogPayloadAsBody\" is not compatible with \"trace\" data type")
 	}
 	return nil
 }
 
-func (o EncodingOptions) validateFormat(dataType string, formats []string) error {
+func (o *EncodingOptions) validateFormat(dataType string, formats []string) error {
+	if o.Encoding == nil {
+		return fmt.Errorf("encoding format must be set")
+	}
+
 	invalidFormat := true
 	for _, format := range formats {
-		if o.Encoding == format {
+		if *o.Encoding == format {
 			invalidFormat = false
 		}
 	}
 	if invalidFormat {
-		return fmt.Errorf("encoding %q is invalid for %s data", o.Encoding, dataType)
+		return fmt.Errorf("encoding %q is invalid for %s data", *o.Encoding, dataType)
 	}
 	return nil
 }
 
 func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.AnyValue, error) {
 	overrideOptionsWithWarning := func() {
-		if c.TopLevelKeys && !c.LogPayloadAsBody {
+		if c.WithTopLevelKeys() && !c.WithLogPayloadAsBody() {
 			if c.Logger != nil {
 				c.Logger.Warnf("encoder: disabling \"TopLevelKeys\" option as it's incompatible"+
-					" with %q encoding when \"LogPayloadAsBody\" disabled also", c.Encoding)
+					" with %q encoding when \"LogPayloadAsBody\" disabled also", c.EncodingFormat())
 			}
-			c.TopLevelKeys = false
+			*c.TopLevelKeys = false
 		}
 	}
 
-	switch c.Encoding {
+	switch format := c.EncodingFormat(); format {
 	case EncodingJSON, EncodingJSONBASE64:
 		overrideOptionsWithWarning()
 
@@ -158,7 +181,7 @@ func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.
 		}
 
 		var s string
-		switch c.Encoding {
+		switch format {
 		case EncodingJSON:
 			s = string(data)
 		case EncodingJSONBASE64:
@@ -167,27 +190,27 @@ func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.
 		return newStringValue(s), nil
 	case EncodingFlatStringMap, EncodingSemiFlatTypedMap, EncodingTypedMap:
 		var mb mapBuilder
-		switch c.Encoding {
+		switch format {
 		case EncodingFlatStringMap:
 			mb = &flatStringMap{
-				labelsAsMaps: c.LabelsAsMaps,
+				labelsAsMaps: c.WithLabelsAsMaps(),
 				separator:    '.',
 			}
 		case EncodingSemiFlatTypedMap:
 			mb = &semiFlatTypedMap{
-				labelsAsMaps: c.LabelsAsMaps,
+				labelsAsMaps: c.WithLabelsAsMaps(),
 				separator:    '.',
 			}
 		case EncodingTypedMap:
 			overrideOptionsWithWarning()
 
 			mb = &typedMap{
-				labelsAsMaps: c.LabelsAsMaps,
+				labelsAsMaps: c.WithLabelsAsMaps(),
 			}
 		}
 
 		topLevel := ""
-		if c.TopLevelKeys {
+		if c.WithTopLevelKeys() {
 			topLevel = AttributeFlowEventNamespace
 		}
 
@@ -202,7 +225,7 @@ func (c *FlowEncoder) ToValue(hubbleResp *observer.GetFlowsResponse) (*commonV1.
 		}
 		return v, nil
 	default:
-		return nil, fmt.Errorf("unsuported encoding format: %s", c.Encoding)
+		return nil, fmt.Errorf("unsuported encoding format: %s", format)
 	}
 }
 
