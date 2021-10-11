@@ -33,7 +33,7 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 
 	fatal := make(chan error, 1)
 
-	go testutil.RunOpenTelemtryCollector(ctx, t, "testdata/collector-with-tls.yaml", "info", fatal)
+	go testutil.RunOpenTelemtryCollector(ctx, t, "testdata/collector-with-tls.yaml", fatal)
 
 	log := logrus.New()
 	//log.SetLevel(logrus.DebugLevel)
