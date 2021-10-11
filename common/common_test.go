@@ -419,12 +419,12 @@ func checkFlatEncodingForHTTPFlows(t *testing.T, encodingOptions *common.Encodin
 				t.Errorf("accept header missing")
 			}
 		} else {
-			if userAgent, ok := result[resolveKey("l7.http.headers.user-agent", encodingOptions)]; ok {
+			if userAgent, ok := result[resolveKey("l7.http.headers.user_agent", encodingOptions)]; ok {
 				if _, ok := userAgent.(string); !ok {
 					t.Errorf("header value is %T, should be a strings", userAgent)
 				}
 			} else {
-				t.Errorf("user-agent header missing")
+				t.Errorf("user_agent header missing")
 			}
 		}
 	}
