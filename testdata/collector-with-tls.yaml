@@ -1,3 +1,8 @@
+service:
+  telemetry:
+    logs: 
+      level: normal
+
 receivers:
   otlp:
     protocols:

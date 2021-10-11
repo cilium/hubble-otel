@@ -82,7 +82,7 @@ func GetFlowSamples(t *testing.T, path string) []*observer.GetFlowsResponse {
 	return samples
 }
 
-func RunOpenTelemtryCollector(ctx context.Context, t *testing.T, configPath, logLevel string, fatal chan<- error) {
+func RunOpenTelemtryCollector(ctx context.Context, t *testing.T, configPath string, fatal chan<- error) {
 	t.Helper()
 
 	factories, err := defaultcomponents.Components()
@@ -127,7 +127,6 @@ func RunOpenTelemtryCollector(ctx context.Context, t *testing.T, configPath, log
 	cmd := service.NewCommand(svc)
 	cmd.SetArgs([]string{
 		"--config=" + configPath,
-		"--log-level=" + logLevel,
 	})
 
 	go func() {
