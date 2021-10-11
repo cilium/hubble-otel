@@ -46,6 +46,10 @@ func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoref
 		}),
 	}
 
+	if l7 := flow.GetL7(); l7 != nil {
+		logRecord.Attributes = append(logRecord.Attributes, common.GetHTTPAttributes(l7)...)
+	}
+
 	resourceLogs := &logsV1.ResourceLogs{
 		Resource: &resourceV1.Resource{
 			Attributes: common.NewStringAttributes(map[string]string{

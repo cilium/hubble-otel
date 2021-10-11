@@ -3,6 +3,7 @@ package traceconv
 import (
 	"bytes"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -12,6 +13,7 @@ import (
 	traceV1 "go.opentelemetry.io/proto/otlp/trace/v1"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	flowV1 "github.com/cilium/cilium/api/v1/flow"
 	hubbleObserver "github.com/cilium/cilium/api/v1/observer"
 	hubblePrinter "github.com/cilium/hubble/pkg/printer"
 
@@ -62,21 +64,40 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 		return nil, err
 	}
 
-	ts := uint64(flow.GetTime().AsTime().UnixNano())
+	tsAsTime := flow.GetTime().AsTime()
+
+	ts := uint64(tsAsTime.UnixNano())
 	span := &traceV1.Span{
 		Name: name,
 		// TODO: should ParentSpanId be resolved and set for reply packets?
+		// (perhaps is is_reply and traffic_direction can be used for that)
 		SpanId:            ids.SpanID[:],
 		TraceId:           ids.TraceID[:],
 		StartTimeUnixNano: ts,
 		EndTimeUnixNano:   ts,
-		// TODO: optionally set Kind for TCP flows via a user-settable peramater
 		Attributes: common.NewStringAttributes(map[string]string{
 			common.AttributeEventKindVersion:     common.AttributeEventKindVersionFlowV1alpha1,
 			common.AttributeEventEncoding:        c.EncodingFormat(),
 			common.AttributeEventEncodingOptions: c.EncodingOptions.String(),
 		}),
 	}
+
+	// TODO: optionally set Kind for TCP flows
+	// via a user-settable peramater as it's
+	// never clear-cut
+	if l7 := flow.GetL7(); l7 != nil {
+		switch l7.Type {
+		case flowV1.L7FlowType_REQUEST:
+			span.Kind = traceV1.Span_SPAN_KIND_CLIENT
+		case flowV1.L7FlowType_RESPONSE:
+			span.Kind = traceV1.Span_SPAN_KIND_SERVER
+		}
+
+		span.EndTimeUnixNano = uint64(tsAsTime.Add(time.Duration(int64(l7.LatencyNs))).UnixNano())
+
+		span.Attributes = append(span.Attributes, common.GetHTTPAttributes(l7)...)
+	}
+
 	if c.WithTopLevelKeys() {
 		for _, payloadAttribute := range v.GetKvlistValue().Values {
 			span.Attributes = append(span.Attributes, payloadAttribute)

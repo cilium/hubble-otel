@@ -346,7 +346,7 @@ func parseHeader(v protoreflect.Value) (string, string, error) {
 	v.Message().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
 		switch fd.Name() {
 		case "key":
-			headerKey = strings.ToLower(v.String())
+			headerKey = NormaliseHeaderKey(v.String())
 		case "value":
 			headerValue = v.String()
 		}

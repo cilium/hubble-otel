@@ -26,7 +26,7 @@ import (
 	promdto "github.com/prometheus/client_model/go"
 	promexpfmt "github.com/prometheus/common/expfmt"
 
-	"github.com/cilium/cilium/api/v1/flow"
+	flowV1 "github.com/cilium/cilium/api/v1/flow"
 	"github.com/cilium/cilium/api/v1/observer"
 	mockHubbleObeserver "github.com/isovalent/mock-hubble/observer"
 
@@ -55,9 +55,9 @@ func GetFlowSamples(t *testing.T, path string) []*observer.GetFlowsResponse {
 	scanner := bufio.NewScanner(file)
 
 	for scanner.Scan() {
-		f := &flow.Flow{}
+		f := &flowV1.Flow{}
 		var obj struct {
-			Flow *flow.Flow `json:"flow"`
+			Flow *flowV1.Flow `json:"flow"`
 		}
 		obj.Flow = f
 		if err := json.Unmarshal(scanner.Bytes(), &obj); err == nil {
@@ -289,8 +289,14 @@ func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encodingOptions c
 		}
 		expectedLen = 3 + len(payload.GetKvlistValue().Values)
 	}
-	if l := len(attrs); expectedLen != l {
-		t.Errorf("should have %d attributes, not %d", expectedLen, l)
+	ciliumAttrs := 0
+	for _, attr := range attrs {
+		if strings.HasPrefix(attr.Key, "cilium.") {
+			ciliumAttrs++
+		}
+	}
+	if ciliumAttrs != expectedLen {
+		t.Errorf("should have %d attributes in \"cilium.\" namespace, but found %d", expectedLen, ciliumAttrs)
 	}
 
 	return payload
