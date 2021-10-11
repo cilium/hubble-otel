@@ -13,7 +13,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	"github.com/cilium/cilium/api/v1/flow"
+	flowV1 "github.com/cilium/cilium/api/v1/flow"
+
 	"github.com/isovalent/hubble-otel/common"
 	"github.com/isovalent/hubble-otel/logconv"
 	"github.com/isovalent/hubble-otel/receiver"
@@ -117,9 +118,6 @@ func TestRoudtripEncoding(t *testing.T) {
 		common.EncodingJSON,
 		common.EncodingTypedMap,
 	}
-
-	_false := new(bool)
-	*_false = false
 
 	encodingOptions := []*common.EncodingOptions{
 		{TopLevelKeys: _false, LabelsAsMaps: _false, HeadersAsMaps: _false, LogPayloadAsBody: _false},
@@ -234,15 +232,7 @@ func TestNonRoudtripEncoding(t *testing.T) {
 							t.Error("value cannot be nil")
 						}
 
-						data, err := json.Marshal(toRaw(v.GetValue()))
-						if err != nil {
-							t.Error(err)
-						}
-
-						result := map[string]interface{}{}
-						if err := json.Unmarshal(data, &result); err != nil {
-							t.Error(err)
-						}
+						result := toRaw(v.GetValue()).(map[string]interface{})
 
 						sampleCheck(t, options, result)
 					}
@@ -388,8 +378,8 @@ func checkFlatEncodingForHTTPFlows(t *testing.T, encodingOptions *common.Encodin
 		isResponse = true
 		switch format {
 		case common.EncodingSemiFlatTypedMap:
-			if _, ok := code.(float64); !ok {
-				t.Errorf("HTTP code is a %T, should be a float64", code)
+			if _, ok := code.(int64); !ok {
+				t.Errorf("HTTP code is a %T, should be a int64", code)
 			}
 		case common.EncodingFlatStringMap:
 			if _, ok := code.(string); !ok {
@@ -506,7 +496,7 @@ func roundTripJSON(t *testing.T, v *commonV1.AnyValue) []byte {
 		t.Error(err)
 	}
 	// decode JSON into a flow.Flow
-	f := &flow.Flow{}
+	f := &flowV1.Flow{}
 	if err = json.Unmarshal(data, f); err != nil {
 		t.Error(err)
 	}
