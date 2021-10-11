@@ -25,6 +25,13 @@ jobs:
         with:
           entrypoint: go
           args: vet ./...
+      - uses: docker://docker.io/library/golang:1.17.1-alpine@sha256:13919fb9091f6667cb375d5fdf016ecd6d3a5d5995603000d422b04583de4ef9
+        name: Ensure main package is functional
+        env:
+          CGO_ENABLED: "0"
+        with:
+          entrypoint: go
+          args: run ./ -help
   build:
     needs: test
     name: Build the binary
@@ -43,7 +50,6 @@ jobs:
         with:
           entrypoint: go
           args: build
-      - run: ./hubble-otel -help
       - uses: actions/upload-artifact@v2
         with:
           name: hubble-otel-${{ matrix.GOOS }}-${{ matrix.GOARCH }}
