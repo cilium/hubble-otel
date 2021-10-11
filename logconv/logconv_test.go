@@ -13,7 +13,7 @@ import (
 	"github.com/isovalent/hubble-otel/testutil"
 )
 
-func TestAllModes(t *testing.T) {
+func TestAllLogConvModes(t *testing.T) {
 	log := logrus.New()
 	// log.SetLevel(logrus.DebugLevel)
 

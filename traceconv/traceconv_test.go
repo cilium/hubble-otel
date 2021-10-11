@@ -15,7 +15,7 @@ import (
 	"github.com/isovalent/hubble-otel/traceconv"
 )
 
-func TestAllModes(t *testing.T) {
+func TestAllTraceConvModes(t *testing.T) {
 	log := logrus.New()
 	// log.SetLevel(logrus.DebugLevel)
 
