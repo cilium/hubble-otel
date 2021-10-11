@@ -43,6 +43,7 @@ jobs:
         with:
           entrypoint: go
           args: build
+      - run: ./hubble-otel -help
       - uses: actions/upload-artifact@v2
         with:
           name: hubble-otel-${{ matrix.GOOS }}-${{ matrix.GOARCH }}
