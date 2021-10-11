@@ -36,13 +36,13 @@ func TestTraceCache(t *testing.T) {
 
 		if ids.TraceID.IsValid() {
 			traces[ids.TraceID.String()] = struct{}{}
-			t.Logf("traceID %v is valid", ids.TraceID)
+			//t.Logf("traceID %v is valid", ids.TraceID)
 		} else {
 			t.Errorf("traceID %v is invalid", ids.TraceID)
 		}
 		if ids.SpanID.IsValid() {
 			spans[ids.SpanID.String()] = struct{}{}
-			t.Logf("spanID %v is valid", ids.SpanID)
+			//t.Logf("spanID %v is valid", ids.SpanID)
 		} else {
 			t.Errorf("spanID %v is invalid", ids.SpanID)
 		}
