@@ -355,7 +355,28 @@ func checkFlatEncodingForHTTPFlows(t *testing.T, encodingOptions *common.Encodin
 	format := encodingOptions.EncodingFormat()
 
 	if format == common.EncodingTypedMap {
-		// TODO - check headers
+		if l7, ok := result["l7"]; ok {
+			if http, ok := l7.(map[string]interface{})["http"]; ok {
+				if headers, ok := http.(map[string]interface{})["headers"]; ok {
+					if encodingOptions.WithHeadersAsMaps() {
+						if _, ok := headers.(map[string]interface{}); !ok {
+							t.Errorf("headers should be a map, not a %T", headers)
+						}
+					} else {
+						if _, ok := headers.([]interface{}); !ok {
+							t.Errorf("headers should be a list, not a %T", headers)
+						}
+					}
+				} else {
+					t.Errorf("missing key %q", "l7.http.headers")
+				}
+			} else {
+				t.Errorf("missing key %q", "l7.http")
+			}
+		} else {
+			t.Errorf("missing key %q", "l7")
+		}
+
 		return
 	}
 
