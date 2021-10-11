@@ -78,7 +78,7 @@ func main() {
 		Encoding:      flag.String("trace.format", common.DefaultTraceEncoding, fmt.Sprintf("encoding format (valid options: %v)", common.EncodingFormatsForTraces())),
 		TopLevelKeys:  flag.Bool("trace.useTopLevelKeys", false, "reduce nesting when storing flows as attributes"),
 		LabelsAsMaps:  flag.Bool("trace.labelsAsMaps", false, "convert source/destination labels from arrays to maps"),
-		HeadersAsMaps: flag.Bool("logs.headersAsMaps", false, "convert HTTP headers from arrays to maps"),
+		HeadersAsMaps: flag.Bool("trace.headersAsMaps", false, "convert HTTP headers from arrays to maps"),
 	}
 
 	debug := flag.Bool("debug", false, "enable debug logs")
