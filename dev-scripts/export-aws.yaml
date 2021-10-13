@@ -1,0 +1,52 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: localhost:55690
+      http:
+        endpoint: localhost:55691
+  #prometheus:
+  #  config:
+  #    scrape_configs:
+  #    - job_name: "otel-collector"
+  #      scrape_interval: 300ms
+  #      static_configs:
+  #      - targets: ["localhost:8888"]
+
+
+processors:
+  batch:
+    timeout: 30s
+    send_batch_size: 10000
+
+exporters:
+  #logging:
+  #  loglevel: debug
+  #prometheus:
+  #  endpoint: "localhost:8889"
+  awsxray:
+    region: "eu-west-1"
+    index_all_attributes: true
+  awscloudwatchlogs:
+    log_group_name: "hubble-otel-test-1"
+    log_stream_name: "hubble-otel"
+    region: eu-west-1
+    #sending_queue:
+    #  queue_size: 100
+    retry_on_failure:
+      enabled: false
+    #  initial_interval: 10ms
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [awsxray]
+    logs:
+      receivers: [otlp]
+      #processors: [batch]
+      exporters: [awscloudwatchlogs]
+    #metrics:
+    #  receivers: [prometheus]
+    #  exporters: [prometheus]

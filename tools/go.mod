@@ -7,7 +7,7 @@ require (
 	github.com/containerd/containerd v1.5.6 // indirect
 	github.com/errordeveloper/imagine v0.0.0-20201215192748-b3494e82bc78
 	github.com/isovalent/mock-hubble v0.0.0-20210928133358-8a1660dd0897
-	github.com/open-telemetry/opentelemetry-collector-builder v0.33.0
+	github.com/open-telemetry/opentelemetry-collector-builder v0.36.0
 )
 
 // based on https://github.com/docker/buildx/blob/v0.5.1/go.mod#L61-L68
