@@ -24,7 +24,9 @@ exporters:
   - gomod: "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/signalfxexporter v0.36.0"
   - gomod: "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/loadbalancingexporter v0.36.0"
 replaces:
+  # a fork of any of the modules can be used this way:
   #- "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/awscloudwatchlogsexporter => github.com/errordeveloper/opentelemetry-collector-contrib/exporter/awscloudwatchlogsexporter d8d1ca897"
+  # some of the modules need these directives to enable internal packages that are outside of the module directory
   # awsxrayexporter
   - github.com/open-telemetry/opentelemetry-collector-contrib/internal/aws/awsutil => github.com/open-telemetry/opentelemetry-collector-contrib/internal/aws/awsutil v0.36.0
   - github.com/open-telemetry/opentelemetry-collector-contrib/internal/aws/xray => github.com/open-telemetry/opentelemetry-collector-contrib/internal/aws/xray v0.36.0
