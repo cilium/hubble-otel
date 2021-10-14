@@ -23,6 +23,16 @@ func (l *flatStringMap) append(k string, v *commonV1.AnyValue) {
 	})
 }
 
+func (l *flatStringMap) appendWithDuplicateKeys(k string, v *commonV1.AnyValue) {
+	for i := range l.list {
+		if l.list[i].Key == k {
+			l.list[i].Value = newStringValue(l.list[i].Value.GetStringValue() + ", " + v.GetStringValue())
+			return
+		}
+	}
+	l.append(k, v)
+}
+
 func (l *flatStringMap) newLeaf(keyPathPrefix string) leafer {
 	return func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
 		keyPath := fmtKeyPath(keyPathPrefix, string(fd.Name()), l.separator)
@@ -42,7 +52,7 @@ func (l *flatStringMap) newLeaf(keyPathPrefix string) leafer {
 					if err != nil {
 						panic(err)
 					}
-					l.append(fmtKeyPath(keyPath, k, l.separator), newStringValue(v))
+					l.append(fmtKeyPath(keyPath, k, l.separator), v)
 				case messageList && !headersAsMaps:
 					item.Message().Range(l.newLeaf(fmtKeyPath(keyPath, strconv.Itoa(i), l.separator)))
 				case messageList && headersAsMaps:
@@ -50,7 +60,7 @@ func (l *flatStringMap) newLeaf(keyPathPrefix string) leafer {
 					if err != nil {
 						panic(err)
 					}
-					l.append(fmtKeyPath(keyPath, k, l.separator), newStringValue(v))
+					l.appendWithDuplicateKeys(fmtKeyPath(keyPath, k, l.separator), v)
 				default:
 					l.append(fmtKeyPath(keyPath, strconv.Itoa(i), l.separator), newStringValue(item.String()))
 				}

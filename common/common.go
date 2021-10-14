@@ -327,20 +327,20 @@ func MarshalJSON(m proto.Message) ([]byte, error) {
 	return jsonMarshaller.Marshal(m)
 }
 
-func parseLabel(v protoreflect.Value) (string, string, error) {
+func parseLabel(v protoreflect.Value) (string, *commonV1.AnyValue, error) {
 	label := v.String()
 	parts := strings.Split(label, "=")
 	switch len(parts) {
 	case 2:
-		return parts[0], parts[1], nil
+		return parts[0], newStringValue(parts[1]), nil
 	case 1:
-		return parts[0], "", nil
+		return parts[0], newStringValue(""), nil
 	default:
-		return "", "", fmt.Errorf("cannot parse label %q, as it's not in \"k=v\" format", label)
+		return "", nil, fmt.Errorf("cannot parse label %q, as it's not in \"k=v\" format", label)
 	}
 }
 
-func parseHeader(v protoreflect.Value) (string, string, error) {
+func parseHeader(v protoreflect.Value) (string, *commonV1.AnyValue, error) {
 	headerKey := ""
 	headerValue := ""
 	v.Message().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
@@ -353,11 +353,10 @@ func parseHeader(v protoreflect.Value) (string, string, error) {
 		return true
 	})
 	if headerKey == "" {
-		return "", "", fmt.Errorf("cannot use empty header key")
+		return "", nil, fmt.Errorf("cannot use empty header key")
 	}
-	return headerKey, headerValue, nil
+	return headerKey, newStringArrayValue(headerValue), nil
 }
-
 func fmtKeyPath(keyPathPrefix, fieldName string, separator rune) string {
 	// NB: this format assumes that field names don't contain dots or other charcters,
 	// which is safe for *flow.Flow, so it's easier to query data as it doesn't
