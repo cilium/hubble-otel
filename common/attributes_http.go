@@ -32,6 +32,16 @@ func GetHTTPAttributes(l7 *flowV1.Layer7) []*commonV1.KeyValue {
 		base["http.flavor"] = "QUIC"
 	}
 
+	headers := map[string][]string{}
+
+	appendHeader := func(k, v string) {
+		if _, ok := headers[k]; ok {
+			headers[k] = append(headers[k], v)
+		} else {
+			headers[k] = []string{v}
+		}
+	}
+
 	for _, header := range http.Headers {
 		k := NormaliseHeaderKey(header.Key)
 		// this is duplicate of cilium.flow_event.l7.http.headers,
@@ -49,9 +59,9 @@ func GetHTTPAttributes(l7 *flowV1.Layer7) []*commonV1.KeyValue {
 
 		switch l7.Type {
 		case flowV1.L7FlowType_REQUEST:
-			base["http.request.header."+k] = header.Value
+			appendHeader("http.request.header."+k, header.Value)
 		case flowV1.L7FlowType_RESPONSE:
-			base["http.response.header."+k] = header.Value
+			appendHeader("http.response.header."+k, header.Value)
 		}
 	}
 
@@ -65,6 +75,13 @@ func GetHTTPAttributes(l7 *flowV1.Layer7) []*commonV1.KeyValue {
 					IntValue: int64(http.Code),
 				},
 			},
+		})
+	}
+
+	for k, v := range headers {
+		attributes = append(attributes, &commonV1.KeyValue{
+			Key:   k,
+			Value: newStringArrayValue(v...),
 		})
 	}
 

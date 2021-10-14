@@ -76,17 +76,9 @@ func TestHTTPAttributes(t *testing.T) {
 					} else {
 						switch l7.Type {
 						case flowV1.L7FlowType_REQUEST:
-							if v, ok := result["http.request.header."+k]; !ok {
-								t.Errorf("request header %q is missing", header.Key)
-							} else if v.(string) != header.Value {
-								t.Errorf("value of request header %q doesn't match value of corresponding attribute (expected: %q, have: %v)", header.Key, header.Value, v)
-							}
+							checkHeader(t, "http.request.header."+k, header.Value, result)
 						case flowV1.L7FlowType_RESPONSE:
-							if v, ok := result["http.response.header."+k]; !ok {
-								t.Errorf("response header %q is missing", header.Key)
-							} else if v.(string) != header.Value {
-								t.Errorf("value of response header %q doesn't match value of corresponding attribute (expected: %q, have: %v)", header.Key, header.Value, v)
-							}
+							checkHeader(t, "http.response.header."+k, header.Value, result)
 						default:
 							t.Error("unexpected L7 type")
 						}
@@ -105,5 +97,23 @@ func TestHTTPAttributes(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func checkHeader(t *testing.T, k, v string, result map[string]interface{}) {
+	if values, ok := result[k]; !ok {
+		t.Errorf("%q is missing", k)
+	} else if values, ok := values.([]interface{}); ok {
+		found := false
+		for i := range values {
+			if values[i].(string) == v {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("value of %q doesn't contain expected value (expected: %q, have: %v)", k, v, values)
+		}
+	} else {
+		t.Errorf("value of %q is not a list", k)
 	}
 }

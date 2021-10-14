@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"strconv"
 
 	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
@@ -23,6 +24,19 @@ func (l *semiFlatTypedMap) append(k string, v *commonV1.AnyValue) {
 	})
 }
 
+func (l *semiFlatTypedMap) appendWithDuplicateKeys(k string, v *commonV1.AnyValue) {
+	for i := range l.list {
+		if l.list[i].Key == k {
+			list := l.list[i].Value.GetArrayValue()
+			if list == nil {
+				panic(fmt.Sprintf("value of existing key %q is not an array", k))
+			}
+			list.Values = append(list.Values, v)
+			return
+		}
+	}
+	l.append(k, v)
+}
 func (l *semiFlatTypedMap) newLeaf(keyPathPrefix string) leafer {
 	return func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
 		keyPath := fmtKeyPath(keyPathPrefix, string(fd.Name()), l.separator)
@@ -40,7 +54,7 @@ func (l *semiFlatTypedMap) newLeaf(keyPathPrefix string) leafer {
 					if err != nil {
 						panic(err)
 					}
-					l.append(fmtKeyPath(keyPath, k, l.separator), newStringValue(v))
+					l.appendWithDuplicateKeys(fmtKeyPath(keyPath, k, l.separator), v)
 				default:
 					items.Get(i).Message().Range(l.newLeaf(fmtKeyPath(keyPath, strconv.Itoa(i), l.separator)))
 				}

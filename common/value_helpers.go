@@ -26,6 +26,20 @@ func newStringValue(s string) *commonV1.AnyValue {
 	}
 }
 
+func newStringArrayValue(s ...string) *commonV1.AnyValue {
+	array := []*commonV1.AnyValue{}
+	for _, v := range s {
+		array = append(array, newStringValue(v))
+	}
+	return &commonV1.AnyValue{
+		Value: &commonV1.AnyValue_ArrayValue{
+			ArrayValue: &commonV1.ArrayValue{
+				Values: array,
+			},
+		},
+	}
+}
+
 func toList(labelsAsMaps, headersAsMaps bool, fd protoreflect.FieldDescriptor, v protoreflect.Value, mb mapBuilder, newLeafKeyPrefix string) *commonV1.ArrayValue {
 	items := v.List()
 	list := &commonV1.ArrayValue{
@@ -39,7 +53,7 @@ func toList(labelsAsMaps, headersAsMaps bool, fd protoreflect.FieldDescriptor, v
 	return list
 }
 
-func listToMap(v protoreflect.Value, converter func(v protoreflect.Value) (string, string, error)) *commonV1.AnyValue {
+func listToMap(v protoreflect.Value, converter func(v protoreflect.Value) (string, *commonV1.AnyValue, error)) *commonV1.AnyValue {
 	items := v.List()
 	m := &commonV1.KeyValueList{
 		Values: make([]*commonV1.KeyValue, items.Len()),
@@ -51,7 +65,7 @@ func listToMap(v protoreflect.Value, converter func(v protoreflect.Value) (strin
 		}
 		m.Values[i] = &commonV1.KeyValue{
 			Key:   k,
-			Value: newStringValue(v),
+			Value: v,
 		}
 	}
 	return &commonV1.AnyValue{
