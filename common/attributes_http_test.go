@@ -35,13 +35,13 @@ func TestHTTPAttributes(t *testing.T) {
 				// t.Logf("result = %#v", result)
 
 				keys := []string{
-					"http.method",
-					"http.url",
+					common.OTelAttrHTTPMethod,
+					common.OTelAttrHTTPURL,
 				}
 
 				isResponse := l7.Type == flowV1.L7FlowType_RESPONSE
 				if isResponse {
-					keys = append(keys, "http.status_code")
+					keys = append(keys, common.OTelAttrHTTPStatusCode)
 				}
 
 				for _, k := range keys {
@@ -51,19 +51,19 @@ func TestHTTPAttributes(t *testing.T) {
 				}
 
 				if isResponse {
-					code := result["http.status_code"]
+					code := result[common.OTelAttrHTTPStatusCode]
 					if v, ok := code.(int64); !ok {
-						t.Errorf("top-level attribute %q is %T, but should be int64", "http.status_code", code)
+						t.Errorf("top-level attribute %q is %T, but should be int64", common.OTelAttrHTTPStatusCode, code)
 					} else {
 						if v != int64(http.Code) {
-							t.Errorf("value of top-level attribute %q is %d, should be %d", "http.status_code", v, int64(http.Code))
+							t.Errorf("value of top-level attribute %q is %d, should be %d", common.OTelAttrHTTPStatusCode, v, int64(http.Code))
 						}
 					}
 				}
 
 				topLevelHeaderMappings := map[string]struct{}{
-					"http.host":       {},
-					"http.user_agent": {},
+					common.OTelAttrHTTPHost:      {},
+					common.OTelAttrHTTPUserAgent: {},
 				}
 				for _, header := range http.Headers {
 					k := common.NormaliseHeaderKey(header.Key)
@@ -76,9 +76,9 @@ func TestHTTPAttributes(t *testing.T) {
 					} else {
 						switch l7.Type {
 						case flowV1.L7FlowType_REQUEST:
-							checkHeader(t, "http.request.header."+k, header.Value, result)
+							checkHeader(t, common.OTelAttrHTTPRequestHeader+k, header.Value, result)
 						case flowV1.L7FlowType_RESPONSE:
-							checkHeader(t, "http.response.header."+k, header.Value, result)
+							checkHeader(t, common.OTelAttrHTTPResponseHeader+k, header.Value, result)
 						default:
 							t.Error("unexpected L7 type")
 						}
@@ -87,10 +87,10 @@ func TestHTTPAttributes(t *testing.T) {
 
 				switch http.Protocol {
 				case "HTTP/1.1":
-					if v, ok := result["http.flavor"]; !ok {
-						t.Errorf("missing required attribute %q", "http.flavor")
+					if v, ok := result[common.OTelAttrHTTPFlavor]; !ok {
+						t.Errorf("missing required attribute %q", common.OTelAttrHTTPFlavor)
 					} else if v != "1.1" {
-						t.Errorf("unexpected value of attribute %q: %s", "http.flavor", v)
+						t.Errorf("unexpected value of attribute %q: %s", common.OTelAttrHTTPFlavor, v)
 					}
 				default:
 					t.Errorf("untetested HTTP protocol: %s", http.Protocol)
