@@ -33,10 +33,7 @@ func TestAllTraceConvModes(t *testing.T) {
 		return c
 	}
 
-	_false := new(bool)
-	*_false = false
-	_true := new(bool)
-	*_true = true
+	_false, _true := testutil.BoolValueRefs()
 
 	encodingFormats := common.EncodingFormatsForTraces()
 	encodingOptions := []*common.EncodingOptions{

@@ -17,10 +17,7 @@ func TestAllLogConvModes(t *testing.T) {
 	log := logrus.New()
 	// log.SetLevel(logrus.DebugLevel)
 
-	_false := new(bool)
-	*_false = false
-	_true := new(bool)
-	*_true = true
+	_false, _true := testutil.BoolValueRefs()
 
 	encodingFormats := common.EncodingFormatsForLogs()
 	encodingOptions := []*common.EncodingOptions{

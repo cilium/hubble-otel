@@ -26,15 +26,7 @@ const (
 	logBufferSize = 2048
 )
 
-var (
-	_false = new(bool)
-	_true  = new(bool)
-)
-
-func init() {
-	*_false = false
-	*_true = true
-}
+var _false, _true = testutil.BoolValueRefs()
 
 func BenchmarkAllModes(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.Background())
