@@ -63,7 +63,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - uses: docker://docker.io/errordeveloper/image-maker:c45c0b55a44595fc32e4860c5a72b2bf4438de3f
+      - uses: docker://quay.io/cilium/image-maker:68cf0628c7a77124319cb8c33434b8cdb42a3865
         env:
           ANY_REGISTRY_DISABLE: true
           DOCKER_HUB_PUBLIC_ACCESS_ONLY: true
