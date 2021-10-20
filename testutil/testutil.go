@@ -204,17 +204,38 @@ func CheckResource(t *testing.T, res *resourceV1.Resource, hubbleResp *observer.
 	if len(res.Attributes) == 0 {
 		t.Error("resource attributes shouldn't be empty")
 	}
-	hasNodeName := false
+
+	var (
+		hasNodeName,
+		shouldHaveNamespaceName, hasNamespaceName,
+		shouldHavePodName, hasPodName,
+		_ bool
+	)
+	if src := hubbleResp.GetFlow().Source; src != nil {
+		shouldHaveNamespaceName = src.Namespace != ""
+		shouldHavePodName = src.PodName != ""
+	}
 	for _, attr := range res.Attributes {
-		if attr.Key == common.ResourceCiliumNodeName {
+		switch attr.Key {
+		case common.OTelAttrK8sNodeName:
 			hasNodeName = true
 			if attr.Value.GetStringValue() != hubbleResp.GetNodeName() {
 				t.Error("node name is wrong")
 			}
+		case common.OTelAttrK8sNamespaceName:
+			hasNamespaceName = true
+		case common.OTelAttrK8sPodName:
+			hasPodName = true
 		}
 	}
 	if !hasNodeName {
 		t.Error("node name is not set")
+	}
+	if shouldHaveNamespaceName && !hasNamespaceName {
+		t.Error("namespace name is not set")
+	}
+	if shouldHavePodName && !hasPodName {
+		t.Error("pod name is not set")
 	}
 }
 

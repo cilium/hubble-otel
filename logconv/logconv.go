@@ -52,9 +52,7 @@ func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoref
 
 	resourceLogs := &logsV1.ResourceLogs{
 		Resource: &resourceV1.Resource{
-			Attributes: common.NewStringAttributes(map[string]string{
-				common.ResourceCiliumNodeName: flow.GetNodeName(),
-			}),
+			Attributes: common.GetKubernetesAttributes(flow),
 		},
 		InstrumentationLibraryLogs: []*logsV1.InstrumentationLibraryLogs{{
 			Logs: []*logsV1.LogRecord{logRecord},

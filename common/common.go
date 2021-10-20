@@ -31,9 +31,6 @@ const (
 	AttributeFlowEventNamespace = keyNamespaceCilium + "flow_event"
 	AttributeEventObject        = keyNamespaceCilium + "event_object"
 
-	ResourceCiliumClusterID = keyNamespaceCilium + "cluster_id"
-	ResourceCiliumNodeName  = keyNamespaceCilium + "node_name"
-
 	DefaultLogEncoding       = EncodingTypedMap
 	DefaultTraceEncoding     = EncodingSemiFlatTypedMap
 	EncodingJSON             = "JSON"
