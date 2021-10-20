@@ -24,10 +24,7 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	_false := new(bool)
-	*_false = false
-	_true := new(bool)
-	*_true = true
+	_false, _true := testutil.BoolValueRefs()
 
 	newString := func(s string) *string { return &s }
 

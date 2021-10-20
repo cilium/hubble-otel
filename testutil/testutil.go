@@ -340,3 +340,8 @@ func CheckPayload(t *testing.T, payload *commonV1.AnyValue, encoding string) {
 		t.Errorf("untested ecoding: %s", encoding)
 	}
 }
+
+func BoolValueRefs() (*bool, *bool) {
+	_false, _true := false, true
+	return &_false, &_true
+}
