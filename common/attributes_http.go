@@ -8,6 +8,18 @@ import (
 	flowV1 "github.com/cilium/cilium/api/v1/flow"
 )
 
+const (
+	OTelAttrHTTPMethod     = "http.method"
+	OTelAttrHTTPURL        = "http.url"
+	OTelAttrHTTPFlavor     = "http.flavor"
+	OTelAttrHTTPHost       = "http.host"
+	OTelAttrHTTPUserAgent  = "http.user_agent"
+	OTelAttrHTTPStatusCode = "http.status_code"
+
+	OTelAttrHTTPRequestHeader  = "http.request.header."
+	OTelAttrHTTPResponseHeader = "http.response.header."
+)
+
 func GetHTTPAttributes(l7 *flowV1.Layer7) []*commonV1.KeyValue {
 	http := l7.GetHttp()
 	if http == nil {
@@ -15,21 +27,21 @@ func GetHTTPAttributes(l7 *flowV1.Layer7) []*commonV1.KeyValue {
 	}
 
 	base := map[string]string{
-		"http.method": http.Method,
-		"http.url":    http.Url,
+		OTelAttrHTTPMethod: http.Method,
+		OTelAttrHTTPURL:    http.Url,
 	}
 
 	switch http.Protocol {
 	case "HTTP/1.0":
-		base["http.flavor"] = "1.0"
+		base[OTelAttrHTTPFlavor] = "1.0"
 	case "HTTP/1.1":
-		base["http.flavor"] = "1.1"
+		base[OTelAttrHTTPFlavor] = "1.1"
 	case "HTTP/2.0":
-		base["http.flavor"] = "2.0"
+		base[OTelAttrHTTPFlavor] = "2.0"
 	case "SPDY":
-		base["http.flavor"] = "SPDY"
+		base[OTelAttrHTTPFlavor] = "SPDY"
 	case "QUIC":
-		base["http.flavor"] = "QUIC"
+		base[OTelAttrHTTPFlavor] = "QUIC"
 	}
 
 	headers := map[string][]string{}
@@ -50,18 +62,18 @@ func GetHTTPAttributes(l7 *flowV1.Layer7) []*commonV1.KeyValue {
 
 		switch k {
 		case "host":
-			base["http.host"] = header.Value
+			base[OTelAttrHTTPHost] = header.Value
 			continue
 		case "user_agent":
-			base["http.user_agent"] = header.Value
+			base[OTelAttrHTTPUserAgent] = header.Value
 			continue
 		}
 
 		switch l7.Type {
 		case flowV1.L7FlowType_REQUEST:
-			appendHeader("http.request.header."+k, header.Value)
+			appendHeader(OTelAttrHTTPRequestHeader+k, header.Value)
 		case flowV1.L7FlowType_RESPONSE:
-			appendHeader("http.response.header."+k, header.Value)
+			appendHeader(OTelAttrHTTPResponseHeader+k, header.Value)
 		}
 	}
 
@@ -69,7 +81,7 @@ func GetHTTPAttributes(l7 *flowV1.Layer7) []*commonV1.KeyValue {
 
 	if http.Code != 0 {
 		attributes = append(attributes, &commonV1.KeyValue{
-			Key: "http.status_code",
+			Key: OTelAttrHTTPStatusCode,
 			Value: &commonV1.AnyValue{
 				Value: &commonV1.AnyValue_IntValue{
 					IntValue: int64(http.Code),
