@@ -118,13 +118,11 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 			Key:   common.AttributeEventObject,
 			Value: v,
 		})
-
 	}
+
 	resourceSpans := &traceV1.ResourceSpans{
 		Resource: &resourceV1.Resource{
-			Attributes: common.NewStringAttributes(map[string]string{
-				common.ResourceCiliumNodeName: flow.GetNodeName(),
-			}),
+			Attributes: common.GetKubernetesAttributes(flow),
 		},
 		InstrumentationLibrarySpans: []*traceV1.InstrumentationLibrarySpans{{
 			Spans: []*traceV1.Span{span},
