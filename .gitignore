@@ -1,8 +1,8 @@
-.buildx
-.buildx_builder
-buildx-*.json
-image-*.tag
+/.buildx
+/.buildx_builder
+/buildx-*.json
+/image-*.tag
 
-dev-scripts/otelcol-custom
+/dev-scripts/otelcol-custom
 
-hubble-otel
+/hubble-otel
