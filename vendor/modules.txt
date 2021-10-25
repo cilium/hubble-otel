@@ -613,8 +613,6 @@ go.opentelemetry.io/collector/model/otlp
 go.opentelemetry.io/collector/model/otlpgrpc
 go.opentelemetry.io/collector/model/pdata
 go.opentelemetry.io/collector/model/semconv/v1.5.0
-# go.opentelemetry.io/contrib v1.0.0
-## explicit
 # go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.25.0
 go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc
 go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/internal
@@ -629,9 +627,6 @@ go.opentelemetry.io/contrib/propagators/b3
 # go.opentelemetry.io/contrib/propagators/jaeger v1.0.0
 ## explicit
 go.opentelemetry.io/contrib/propagators/jaeger
-# go.opentelemetry.io/contrib/propagators/opencensus v1.0.0 => go.opentelemetry.io/contrib/propagators/opencensus v0.25.0
-## explicit
-go.opentelemetry.io/contrib/propagators/opencensus
 # go.opentelemetry.io/contrib/propagators/ot v1.0.0
 ## explicit
 go.opentelemetry.io/contrib/propagators/ot
@@ -649,11 +644,6 @@ go.opentelemetry.io/otel/internal/baggage
 go.opentelemetry.io/otel/internal/global
 go.opentelemetry.io/otel/propagation
 go.opentelemetry.io/otel/semconv/v1.4.0
-# go.opentelemetry.io/otel/bridge/opencensus v0.24.0
-go.opentelemetry.io/otel/bridge/opencensus
-go.opentelemetry.io/otel/bridge/opencensus/internal
-go.opentelemetry.io/otel/bridge/opencensus/internal/oc2otel
-go.opentelemetry.io/otel/bridge/opencensus/internal/otel2oc
 # go.opentelemetry.io/otel/exporters/prometheus v0.24.0
 go.opentelemetry.io/otel/exporters/prometheus
 # go.opentelemetry.io/otel/internal/metric v0.24.0
@@ -667,7 +657,6 @@ go.opentelemetry.io/otel/metric/number
 go.opentelemetry.io/otel/metric/sdkapi
 go.opentelemetry.io/otel/metric/unit
 # go.opentelemetry.io/otel/sdk v1.0.1
-## explicit
 go.opentelemetry.io/otel/sdk/instrumentation
 go.opentelemetry.io/otel/sdk/internal
 go.opentelemetry.io/otel/sdk/resource
@@ -1095,4 +1084,3 @@ sigs.k8s.io/structured-merge-diff/v4/typed
 sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.2.0
 sigs.k8s.io/yaml
-# go.opentelemetry.io/contrib/propagators/opencensus => go.opentelemetry.io/contrib/propagators/opencensus v0.25.0
