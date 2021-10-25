@@ -1,0 +1,27 @@
+receivers:
+  hubble:
+    endpoint: unix:///var/run/cilium/hubble.sock
+  hubble/customname:
+    tls:
+    endpoint: unix:///var/run/cilium/hubble.sock
+    flow_encoding_options:
+      traces:
+      logs:
+
+processors:
+  nop:
+
+exporters:
+  nop:
+
+service:
+  pipelines:
+    traces:
+      receivers: [hubble]
+      processors: [nop]
+      exporters: [nop]
+    logs:
+      receivers: [hubble]
+      processors: [nop]
+      exporters: [nop]
+
