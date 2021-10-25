@@ -949,6 +949,9 @@ github.com/influxdata/tdigest v0.0.0-20181121200506-bf2b5ad3c0a9/go.mod h1:Js0mq
 github.com/influxdata/tdigest v0.0.2-0.20210216194612-fc98d27c9e8b/go.mod h1:Z0kXnxzbTC2qrx4NaIzYkE1k66+6oEDQTvL95hQFh5Y=
 github.com/influxdata/usage-client v0.0.0-20160829180054-6d3895376368/go.mod h1:Wbbw6tYNvwa5dlB6304Sd+82Z3f7PmVZHVKU637d4po=
 github.com/ishidawataru/sctp v0.0.0-20180213033435-07191f837fed/go.mod h1:DM4VvS+hD/kDi1U1QsX2fnZowwBhqD0Dk3bRPKF/Oc8=
+github.com/isovalent/hubble-otel v0.0.0-20211022103203-4cf51ffb3ff5/go.mod h1:wgPgnWM/8ahmW+zWl6j5W0/yLqmWihQY7aObb+9cqsA=
+github.com/isovalent/hubble-otel/receiver/plugin v0.0.0-20211025113238-2fa50cc2395d h1:ocNnb4yqcWJp7WRrkgZOSLNl/v/NC+xTHC7atQcvfUA=
+github.com/isovalent/hubble-otel/receiver/plugin v0.0.0-20211025113238-2fa50cc2395d/go.mod h1:Eppp4Mz4SOWpZjtGR/lKt6r+IqOKti2BLr0NA8oLAMk=
 github.com/isovalent/mock-hubble v0.0.0-20210928133358-8a1660dd0897 h1:KSMnyZhFjeJwCsPNwIhUOcVpC6zymIQ+778kc8+/lZg=
 github.com/isovalent/mock-hubble v0.0.0-20210928133358-8a1660dd0897/go.mod h1:OZiBIeX6Ml99GKe4Mk0XXg5Acs1aufFwKdKrgmsIna4=
 github.com/j-keck/arping v0.0.0-20160618110441-2cf9dc699c56/go.mod h1:ymszkNOg6tORTn+6F6j+Jc8TOr5osrynvN6ivFWZ2GA=

@@ -6,7 +6,6 @@ require (
 	github.com/cilium/cilium v1.10.4
 	github.com/cilium/hubble v0.8.2
 	github.com/dgraph-io/badger/v3 v3.2103.0
-	github.com/isovalent/hubble-otel/receiver/plugin v0.0.0-20211025113238-2fa50cc2395d // indirect
 	github.com/isovalent/mock-hubble v0.0.0-20210928133358-8a1660dd0897
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusexporter v0.37.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver v0.37.0
@@ -25,8 +24,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.0.1 // indirect
 	go.opentelemetry.io/otel/trace v1.0.1
 	go.opentelemetry.io/proto/otlp v0.9.0
+	go.uber.org/zap v1.19.1
 	google.golang.org/grpc v1.41.0
 	google.golang.org/protobuf v1.27.1
 )
-
-replace github.com/isovalent/hubble-otel/receiver/plugin ./receiver/plugin
