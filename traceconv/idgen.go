@@ -18,7 +18,6 @@ import (
 	"go.opentelemetry.io/contrib/propagators/aws/xray"
 	"go.opentelemetry.io/contrib/propagators/b3"
 	"go.opentelemetry.io/contrib/propagators/jaeger"
-	"go.opentelemetry.io/contrib/propagators/opencensus"
 	"go.opentelemetry.io/contrib/propagators/ot"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
@@ -97,7 +96,6 @@ var propagators = propagation.NewCompositeTextMapPropagator(
 	&jaeger.Jaeger{},
 	&ot.OT{},
 	&xray.Propagator{},
-	&opencensus.Binary{},
 )
 
 func (e *entryHelper) processFlowData(log badger.Logger, f *flow.Flow, strict bool) error {

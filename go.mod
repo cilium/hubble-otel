@@ -6,21 +6,20 @@ require (
 	github.com/cilium/cilium v1.10.4
 	github.com/cilium/hubble v0.8.2
 	github.com/dgraph-io/badger/v3 v3.2103.0
+	github.com/isovalent/hubble-otel/receiver/plugin v0.0.0-20211025113238-2fa50cc2395d // indirect
 	github.com/isovalent/mock-hubble v0.0.0-20210928133358-8a1660dd0897
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusexporter v0.37.0
-	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/opencensus v0.37.1 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver v0.37.0
 	github.com/prometheus/client_model v0.2.1-0.20200623203004-60555c9708c7
 	github.com/prometheus/common v0.31.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
 	go.opentelemetry.io/collector v0.37.0
-	go.opentelemetry.io/collector/model v0.37.0 // indirect
+	go.opentelemetry.io/collector/model v0.37.0
 	go.opentelemetry.io/contrib v1.0.0 // indirect
 	go.opentelemetry.io/contrib/propagators/aws v1.0.0
 	go.opentelemetry.io/contrib/propagators/b3 v1.0.0
 	go.opentelemetry.io/contrib/propagators/jaeger v1.0.0
-	go.opentelemetry.io/contrib/propagators/opencensus v1.0.0
 	go.opentelemetry.io/contrib/propagators/ot v1.0.0
 	go.opentelemetry.io/otel v1.0.1
 	go.opentelemetry.io/otel/sdk v1.0.1 // indirect
@@ -30,5 +29,4 @@ require (
 	google.golang.org/protobuf v1.27.1
 )
 
-// see https://github.com/open-telemetry/opentelemetry-go-contrib/issues/1357
-replace go.opentelemetry.io/contrib/propagators/opencensus => go.opentelemetry.io/contrib/propagators/opencensus v0.25.0
+replace github.com/isovalent/hubble-otel/receiver/plugin ./receiver/plugin
