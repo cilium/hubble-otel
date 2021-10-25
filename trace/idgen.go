@@ -1,4 +1,4 @@
-package traceconv
+package trace
 
 import (
 	"bytes"

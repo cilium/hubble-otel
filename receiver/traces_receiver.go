@@ -1,14 +1,12 @@
-package hubblereceiver
+package receiver
 
 import (
 	"context"
 	"fmt"
 	"os"
 
-	"github.com/isovalent/hubble-otel/receiver"
-	"github.com/isovalent/hubble-otel/sender"
-	"github.com/isovalent/hubble-otel/traceconv"
-	"github.com/isovalent/hubble-otel/traceproc"
+	"github.com/isovalent/hubble-otel/common"
+	"github.com/isovalent/hubble-otel/trace"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -75,15 +73,15 @@ func (r *hubbleTracesReceiver) Start(_ context.Context, _ component.Host) error 
 
 	log := logrus.New() // TODO: ensure this actually logs via zap
 
-	traceConverter, err := traceconv.NewFlowConverter(log, spanDB, &r.cfg.FlowEncodingOptions.Traces)
+	converter, err := trace.NewFlowConverter(log, spanDB, &r.cfg.FlowEncodingOptions.Traces)
 	if err != nil {
 		return fmt.Errorf("failed to create trace converter: %w", err)
 	}
 
-	go receiver.Run(r.ctx, r.hubbleConn, traceConverter, flowsToTraces, errs)
+	go common.RunConverter(r.ctx, r.hubbleConn, converter, flowsToTraces, errs)
 
-	exporter := traceproc.NewBufferedDirectTraceExporter(r.consumer, r.cfg.BufferSize)
-	go sender.Run(r.ctx, log, exporter, flowsToTraces, errs)
+	exporter := trace.NewBufferedDirectTraceExporter(r.consumer, r.cfg.BufferSize)
+	go common.RunExporter(r.ctx, log, exporter, flowsToTraces, errs)
 
 	for {
 		select {

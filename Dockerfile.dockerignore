@@ -7,13 +7,10 @@
 !main_test.go
 
 !common/
-!logconv/
-!logproc/
+!logs/
 !receiver/
-!sender/
 !testdata/
 !testutil/
-!traceconv/
-!traceproc/
+!trace/
 
 !vendor/

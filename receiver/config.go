@@ -1,4 +1,4 @@
-package hubblereceiver
+package receiver
 
 import (
 	"errors"

@@ -1,4 +1,4 @@
-package logconv
+package logs
 
 import (
 	"github.com/sirupsen/logrus"
