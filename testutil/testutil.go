@@ -82,7 +82,7 @@ func GetFlowSamples(t *testing.T, path string) []*observer.GetFlowsResponse {
 	return samples
 }
 
-func RunOpenTelemtryCollector(ctx context.Context, t *testing.T, configPath string, fatal chan<- error) {
+func RunOpenTelemtryCollector(ctx context.Context, t *testing.T, configPath string, fatal chan<- error, extraReceiverFactories ...component.ReceiverFactory) {
 	t.Helper()
 
 	factories, err := defaultcomponents.Components()
@@ -90,8 +90,13 @@ func RunOpenTelemtryCollector(ctx context.Context, t *testing.T, configPath stri
 		t.Fatalf("failed to build default components: %v", err)
 	}
 
-	additionalReceivers, err := component.MakeReceiverFactoryMap(
+	additionalReceiverFactories := []component.ReceiverFactory{
 		prometheusreceiver.NewFactory(),
+	}
+	additionalReceiverFactories = append(additionalReceiverFactories, extraReceiverFactories...)
+
+	additionalReceivers, err := component.MakeReceiverFactoryMap(
+		additionalReceiverFactories...,
 	)
 	if err != nil {
 		t.Fatalf("failed to build additional receivers: %v", err)
