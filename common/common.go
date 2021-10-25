@@ -72,11 +72,11 @@ type FlowEncoder struct {
 }
 
 type EncodingOptions struct {
-	Encoding         *string
-	TopLevelKeys     *bool
-	LabelsAsMaps     *bool
-	HeadersAsMaps    *bool
-	LogPayloadAsBody *bool
+	Encoding         *string `mapstructure:"encoding"`
+	TopLevelKeys     *bool   `mapstructure:"top_level_keys"`
+	LabelsAsMaps     *bool   `mapstructure:"labels_as_maps"`
+	HeadersAsMaps    *bool   `mapstructure:"headers_as_maps"`
+	LogPayloadAsBody *bool   `mapstructure:"log_payload_as_body"`
 }
 
 func (o *EncodingOptions) EncodingFormat() string {
