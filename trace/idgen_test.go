@@ -1,4 +1,4 @@
-package traceconv_test
+package trace_test
 
 import (
 	"io/ioutil"
@@ -7,7 +7,7 @@ import (
 	badger "github.com/dgraph-io/badger/v3"
 
 	"github.com/isovalent/hubble-otel/testutil"
-	"github.com/isovalent/hubble-otel/traceconv"
+	"github.com/isovalent/hubble-otel/trace"
 )
 
 func TestTraceCache(t *testing.T) {
@@ -16,7 +16,7 @@ func TestTraceCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tc, err := traceconv.NewTraceCache(badger.DefaultOptions(dir))
+	tc, err := trace.NewTraceCache(badger.DefaultOptions(dir))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,4 +1,4 @@
-package receiver
+package common
 
 import (
 	"context"
@@ -17,7 +17,7 @@ type Converter interface {
 	Convert(*observer.GetFlowsResponse) (protoreflect.Message, error)
 }
 
-func Run(ctx context.Context, hubbleConn *grpc.ClientConn, c Converter, flows chan<- protoreflect.Message, errs chan<- error) {
+func RunConverter(ctx context.Context, hubbleConn *grpc.ClientConn, c Converter, flows chan<- protoreflect.Message, errs chan<- error) {
 	flowObsever, err := observer.NewObserverClient(hubbleConn).
 		GetFlows(ctx, &observer.GetFlowsRequest{Follow: true})
 	if err != nil {

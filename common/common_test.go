@@ -16,8 +16,7 @@ import (
 	flowV1 "github.com/cilium/cilium/api/v1/flow"
 
 	"github.com/isovalent/hubble-otel/common"
-	"github.com/isovalent/hubble-otel/logconv"
-	"github.com/isovalent/hubble-otel/receiver"
+	"github.com/isovalent/hubble-otel/logs"
 	"github.com/isovalent/hubble-otel/testutil"
 )
 
@@ -78,7 +77,7 @@ func BenchmarkAllModes(b *testing.B) {
 				flows := make(chan protoreflect.Message, logBufferSize)
 				errs := make(chan error)
 
-				go receiver.Run(ctx, hubbleConn, logconv.NewFlowConverter(log, options), flows, errs)
+				go common.RunConverter(ctx, hubbleConn, logs.NewFlowConverter(log, options), flows, errs)
 				for {
 					select {
 					case _ = <-flows: // drop

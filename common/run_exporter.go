@@ -1,4 +1,4 @@
-package sender
+package common
 
 import (
 	"context"
@@ -22,7 +22,7 @@ func (s *NullExporter) Export(ctx context.Context, flows <-chan protoreflect.Mes
 	}
 }
 
-func Run(ctx context.Context, log *logrus.Logger, s Exporter, flows <-chan protoreflect.Message, errs chan<- error) {
+func RunExporter(ctx context.Context, log *logrus.Logger, s Exporter, flows <-chan protoreflect.Message, errs chan<- error) {
 	for {
 		switch err := s.Export(ctx, flows); err {
 		case io.EOF, context.Canceled:

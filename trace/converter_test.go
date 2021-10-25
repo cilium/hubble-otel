@@ -1,4 +1,4 @@
-package traceconv_test
+package trace_test
 
 import (
 	"fmt"
@@ -12,21 +12,21 @@ import (
 
 	"github.com/isovalent/hubble-otel/common"
 	"github.com/isovalent/hubble-otel/testutil"
-	"github.com/isovalent/hubble-otel/traceconv"
+	"github.com/isovalent/hubble-otel/trace"
 )
 
 func TestAllTraceConvModes(t *testing.T) {
 	log := logrus.New()
 	// log.SetLevel(logrus.DebugLevel)
 
-	newFlowConverter := func(options *common.EncodingOptions) *traceconv.FlowConverter {
+	newFlowConverter := func(options *common.EncodingOptions) *trace.FlowConverter {
 		t.Helper()
 
 		spanDB, err := os.MkdirTemp("", "hubble-otel-test-trace-cache-")
 		if err != nil {
 			t.Fatal(err)
 		}
-		c, err := traceconv.NewFlowConverter(log, spanDB, options)
+		c, err := trace.NewFlowConverter(log, spanDB, options)
 		if err != nil {
 			t.Fatal(err)
 		}

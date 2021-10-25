@@ -16,12 +16,8 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/isovalent/hubble-otel/common"
-	"github.com/isovalent/hubble-otel/logconv"
-	"github.com/isovalent/hubble-otel/logproc"
-	"github.com/isovalent/hubble-otel/receiver"
-	"github.com/isovalent/hubble-otel/sender"
-	"github.com/isovalent/hubble-otel/traceconv"
-	"github.com/isovalent/hubble-otel/traceproc"
+	"github.com/isovalent/hubble-otel/logs"
+	"github.com/isovalent/hubble-otel/trace"
 )
 
 type flags struct {
@@ -182,11 +178,11 @@ func run(log *logrus.Logger, hubbleFlags, otlpFlags flags, otlpHeaders map[strin
 	if exportLogs {
 		flowsToLogs := make(chan protoreflect.Message, bufferSize)
 
-		logConverter := logconv.NewFlowConverter(log, logsEncodingOptions)
-		go receiver.Run(ctx, hubbleConn, logConverter, flowsToLogs, errs)
+		converter := logs.NewFlowConverter(log, logsEncodingOptions)
+		go common.RunConverter(ctx, hubbleConn, converter, flowsToLogs, errs)
 
-		exporter := logproc.NewBufferedLogExporter(otlpConn, bufferSize, otlpHeaders)
-		go sender.Run(ctx, log, exporter, flowsToLogs, errs)
+		exporter := logs.NewBufferedLogExporter(otlpConn, bufferSize, otlpHeaders)
+		go common.RunExporter(ctx, log, exporter, flowsToLogs, errs)
 	}
 
 	if exportTraces {
@@ -197,16 +193,16 @@ func run(log *logrus.Logger, hubbleFlags, otlpFlags flags, otlpHeaders map[strin
 
 		flowsToTraces := make(chan protoreflect.Message, bufferSize)
 
-		traceConverter, err := traceconv.NewFlowConverter(log, spanDB, traceEncodingOptions)
+		converter, err := trace.NewFlowConverter(log, spanDB, traceEncodingOptions)
 		if err != nil {
 			return fmt.Errorf("failed to create trace converter: %w", err)
 		}
-		// defer traceConverter.DeleteCache() // TODO: make this optional when persistence is enabled
+		// defer converter.DeleteCache() // TODO: make this optional when persistence is enabled
 
-		go receiver.Run(ctx, hubbleConn, traceConverter, flowsToTraces, errs)
+		go common.RunConverter(ctx, hubbleConn, converter, flowsToTraces, errs)
 
-		exporter := traceproc.NewBufferedTraceExporter(otlpConn, bufferSize, otlpHeaders)
-		go sender.Run(ctx, log, exporter, flowsToTraces, errs)
+		exporter := trace.NewBufferedTraceExporter(otlpConn, bufferSize, otlpHeaders)
+		go common.RunExporter(ctx, log, exporter, flowsToTraces, errs)
 	}
 
 	for {

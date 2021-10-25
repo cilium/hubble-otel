@@ -1,4 +1,4 @@
-package logconv_test
+package logs_test
 
 import (
 	"strings"
@@ -9,7 +9,7 @@ import (
 	logsV1 "go.opentelemetry.io/proto/otlp/logs/v1"
 
 	"github.com/isovalent/hubble-otel/common"
-	"github.com/isovalent/hubble-otel/logconv"
+	"github.com/isovalent/hubble-otel/logs"
 	"github.com/isovalent/hubble-otel/testutil"
 )
 
@@ -60,7 +60,7 @@ func TestAllLogConvModes(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				c := logconv.NewFlowConverter(log, options)
+				c := logs.NewFlowConverter(log, options)
 				t.Run("("+sample+")/"+options.EncodingFormat()+":"+options.String(), func(t *testing.T) {
 					for _, flow := range testutil.GetFlowSamples(t, "../testdata/"+sample) {
 						logsMsg, err := c.Convert(flow)
