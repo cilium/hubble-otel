@@ -3,7 +3,7 @@ module github.com/isovalent/hubble-otel/receiver/plugin
 go 1.17
 
 require (
-	github.com/isovalent/hubble-otel v0.0.0-20211022103203-4cf51ffb3ff5
+	github.com/isovalent/hubble-otel v0.0.0-00010101000000-000000000000
 	github.com/stretchr/testify v1.7.0
 	go.opentelemetry.io/collector v0.37.0
 	go.uber.org/zap v1.19.1
@@ -42,7 +42,6 @@ require (
 	go.opentelemetry.io/contrib/propagators/aws v1.0.0 // indirect
 	go.opentelemetry.io/contrib/propagators/b3 v1.0.0 // indirect
 	go.opentelemetry.io/contrib/propagators/jaeger v1.0.0 // indirect
-	go.opentelemetry.io/contrib/propagators/opencensus v1.0.0 // indirect
 	go.opentelemetry.io/contrib/propagators/ot v1.0.0 // indirect
 	go.opentelemetry.io/otel v1.0.1 // indirect
 	go.opentelemetry.io/otel/bridge/opencensus v0.24.0 // indirect
@@ -64,6 +63,3 @@ require (
 )
 
 replace github.com/isovalent/hubble-otel => ../../
-
-// see https://github.com/open-telemetry/opentelemetry-go-contrib/issues/1357
-replace go.opentelemetry.io/contrib/propagators/opencensus => go.opentelemetry.io/contrib/propagators/opencensus v0.25.0
