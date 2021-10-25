@@ -13,7 +13,7 @@ import (
 )
 
 type BufferedTraceExporter struct {
-	otlpLogs          traceCollectorV1.TraceServiceClient
+	otlpTrace         traceCollectorV1.TraceServiceClient
 	bufferSize        int
 	headers           map[string]string
 	exportCallOptions []grpc.CallOption
@@ -21,7 +21,7 @@ type BufferedTraceExporter struct {
 
 func NewBufferedTraceExporter(otlpConn *grpc.ClientConn, bufferSize int, headers map[string]string, callOptions ...grpc.CallOption) *BufferedTraceExporter {
 	return &BufferedTraceExporter{
-		otlpLogs:          traceCollectorV1.NewTraceServiceClient(otlpConn),
+		otlpTrace:         traceCollectorV1.NewTraceServiceClient(otlpConn),
 		bufferSize:        bufferSize,
 		headers:           headers,
 		exportCallOptions: callOptions,
@@ -42,6 +42,6 @@ func (s *BufferedTraceExporter) Export(ctx context.Context, flows <-chan protore
 	if s.headers != nil {
 		ctx = metadata.NewOutgoingContext(ctx, metadata.New(s.headers))
 	}
-	_, err := s.otlpLogs.Export(ctx, &traceCollectorV1.ExportTraceServiceRequest{ResourceSpans: spans}, s.exportCallOptions...)
+	_, err := s.otlpTrace.Export(ctx, &traceCollectorV1.ExportTraceServiceRequest{ResourceSpans: spans}, s.exportCallOptions...)
 	return err
 }
