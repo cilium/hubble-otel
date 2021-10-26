@@ -22,14 +22,15 @@ endif
 images.otelcol: .buildx_builder
 	$(IMAGINE) build \
 		--builder=$$(cat .buildx_builder) \
-		--base=./images/otelcol \
+		--base=./ \
+		--dockerfile=./images/otelcol/Dockerfile \
 		--upstream-branch=origin/main \
 		--name=otelcol \
 		--registry=$(REGISTRY) \
 		--without-tag-suffix=$(WITHOUT_TAG_SUFFIX) \
 		--push=$(PUSH)
 	$(IMAGINE) image \
-		--base=./images/otelcol \
+		--base=./ \
 		--upstream-branch=origin/main \
 		--name=otelcol \
 		--registry=$(REGISTRY) \

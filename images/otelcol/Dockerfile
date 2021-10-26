@@ -9,10 +9,11 @@ ARG CA_CERTIFICATES_IMAGE=docker.io/cilium/ca-certificates:69a9f5d66ff96bf97e8b9
 FROM ${GOLANG_IMAGE} as builder
 
 ADD . /src
-WORKDIR /src
 
-RUN go install github.com/open-telemetry/opentelemetry-collector-builder@v0.37.0
+WORKDIR /src/tools
+RUN go install github.com/open-telemetry/opentelemetry-collector-builder
 
+WORKDIR /src/images/otelcol
 RUN mkdir -p /out/usr/bin
 
 RUN CGO_ENABLED=0 /go/bin/opentelemetry-collector-builder --output-path /out/usr/bin --config builder.yaml
