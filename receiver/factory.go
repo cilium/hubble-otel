@@ -2,12 +2,17 @@ package receiver
 
 import (
 	"context"
+	"io/ioutil"
 
-	"github.com/isovalent/hubble-otel/common"
+	zaphook "github.com/Sytten/logrus-zap-hook"
+	"github.com/sirupsen/logrus"
+
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/receiver/receiverhelper"
+
+	"github.com/isovalent/hubble-otel/common"
 )
 
 const (
@@ -56,12 +61,14 @@ func createTracesReceiver(
 	cfg config.Receiver,
 	nextConsumer consumer.Traces,
 ) (component.TracesReceiver, error) {
+	r, err := createHubbleReceiver(set, cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	return &hubbleTracesReceiver{
-		hubbleReceiver: hubbleReceiver{
-			logger:   set.Logger,
-			cfg:      cfg.(*Config),
-			consumer: nextConsumer,
-		},
+		hubbleReceiver: r,
+		consumer:       nextConsumer,
 	}, nil
 }
 
@@ -71,5 +78,33 @@ func createLogsReceiver(
 	cfg config.Receiver,
 	nextConsumer consumer.Logs,
 ) (component.LogsReceiver, error) {
-	return nil, nil
+	r, err := createHubbleReceiver(set, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return &hubbleLogsReceiver{
+		hubbleReceiver: r,
+		consumer:       nextConsumer,
+	}, nil
+}
+
+func createHubbleReceiver(set component.ReceiverCreateSettings, cfg config.Receiver) (*hubbleReceiver, error) {
+	logrusLogger := logrus.New()
+	logrusLogger.ReportCaller = true
+	logrusLogger.SetOutput(ioutil.Discard)
+	hook, err := zaphook.NewZapHook(set.Logger)
+	if err != nil {
+		return nil, err
+	}
+
+	logrusLogger.Hooks.Add(hook)
+
+	r := &hubbleReceiver{
+		zapLogger:    set.Logger,
+		logrusLogger: logrusLogger,
+		cfg:          cfg.(*Config),
+	}
+
+	return r, nil
 }
