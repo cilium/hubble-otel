@@ -8,6 +8,7 @@ import (
 
 	"go.opentelemetry.io/collector/component/componenttest"
 	"go.opentelemetry.io/collector/config/configtest"
+	"go.opentelemetry.io/collector/consumer/consumertest"
 )
 
 func TestCreateDefaultConfig(t *testing.T) {
@@ -19,9 +20,13 @@ func TestCreateDefaultConfig(t *testing.T) {
 func TestCreateReceiver(t *testing.T) {
 	cfg := createDefaultConfig()
 
-	creationSet := componenttest.NewNopReceiverCreateSettings()
-	tracesReceiver, _ := createTracesReceiver(context.Background(), creationSet, cfg, nil)
+	settings := componenttest.NewNopReceiverCreateSettings()
+
+	tracesReceiver, err := createTracesReceiver(context.Background(), settings, cfg, consumertest.NewNop())
+	assert.NoError(t, err)
 	assert.NotNil(t, tracesReceiver)
-	logsReceiver, _ := createLogsReceiver(context.Background(), creationSet, cfg, nil)
+
+	logsReceiver, err := createLogsReceiver(context.Background(), settings, cfg, consumertest.NewNop())
+	assert.NoError(t, err)
 	assert.NotNil(t, logsReceiver)
 }
