@@ -29,7 +29,7 @@ import (
 
 	flowV1 "github.com/cilium/cilium/api/v1/flow"
 	"github.com/cilium/cilium/api/v1/observer"
-	mockHubbleObeserver "github.com/isovalent/mock-hubble/observer"
+	mockHubbleObeserver "github.com/cilium/mock-hubble/observer"
 
 	"github.com/isovalent/hubble-otel/common"
 )
@@ -196,8 +196,7 @@ func GetMetricFamilies(ctx context.Context, t *testing.T, url string) map[string
 	}
 }
 
-
-func CheckCounterMetricIsZero(t *testing.T, families map[string]*promdto.MetricFamily, metrics ...string)  {
+func CheckCounterMetricIsZero(t *testing.T, families map[string]*promdto.MetricFamily, metrics ...string) {
 	t.Helper()
 
 	for _, k := range metrics {
@@ -212,7 +211,7 @@ func CheckCounterMetricIsZero(t *testing.T, families map[string]*promdto.MetricF
 	}
 }
 
-func CheckCounterMetricIsGreaterThen(t *testing.T, value float64, families map[string]*promdto.MetricFamily, metrics ...string)  {
+func CheckCounterMetricIsGreaterThen(t *testing.T, value float64, families map[string]*promdto.MetricFamily, metrics ...string) {
 	t.Helper()
 
 	for _, k := range metrics {
@@ -226,7 +225,6 @@ func CheckCounterMetricIsGreaterThen(t *testing.T, value float64, families map[s
 		}
 	}
 }
-
 
 func IsEOF(err error) bool {
 	s, ok := status.FromError(errors.Unwrap(err))

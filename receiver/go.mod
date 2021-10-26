@@ -41,6 +41,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/cilium/cilium v1.10.4 // indirect
 	github.com/cilium/hubble v0.8.2 // indirect
+	github.com/cilium/mock-hubble v0.0.0-20211026154315-9c72b77d6839 // indirect
 	github.com/containerd/containerd v1.5.7 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgraph-io/badger/v3 v3.2103.0 // indirect
@@ -97,7 +98,6 @@ require (
 	github.com/hetznercloud/hcloud-go v1.26.2 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/isovalent/mock-hubble v0.0.0-20210928133358-8a1660dd0897 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect

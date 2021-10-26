@@ -5,8 +5,8 @@ go 1.16
 require (
 	github.com/cilium/cilium v1.10.4
 	github.com/cilium/hubble v0.8.2
+	github.com/cilium/mock-hubble v0.0.0-20211026154315-9c72b77d6839
 	github.com/dgraph-io/badger/v3 v3.2103.0
-	github.com/isovalent/mock-hubble v0.0.0-20210928133358-8a1660dd0897
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusexporter v0.37.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/opencensus v0.37.1 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver v0.37.0

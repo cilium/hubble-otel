@@ -11,7 +11,7 @@ First, one should install some of the key tools for development. Be sure you hav
 of Go installed and know your `GOPATH`.
 
 ```
-(cd tools ; go install github.com/isovalent/mock-hubble github.com/open-telemetry/opentelemetry-collector-builder)
+(cd tools ; go install github.com/cilium/mock-hubble github.com/open-telemetry/opentelemetry-collector-builder)
 ```
 
 ## Building Custom OpenTelemetry Collector
@@ -48,7 +48,7 @@ can just invoke the collector this way:
 
 ## Running Mock Hubble
 
-For development, it's easier to run [a mock version of Hubble API](https://github.com/isovalent/mock-hubble)
+For development, it's easier to run [a mock version of Hubble API](https://github.com/cilium/mock-hubble)
 instead that produces a predictable stream of flows.
 
 ```

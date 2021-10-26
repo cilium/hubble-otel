@@ -282,6 +282,10 @@ github.com/cilium/ebpf v0.6.2/go.mod h1:4tRaxcgiL706VnOzHOdBlY8IEAIdxINsQBcU4xJJ
 github.com/cilium/hubble v0.8.2 h1:c/l4Lpa/hN/AaeoZ7eqp3rKSDw68hOhw+RyDoDcx9cQ=
 github.com/cilium/hubble v0.8.2/go.mod h1:xRoGUlew20UYf+Fwn8U5shMskvZeP63WKc1Pgy49sDU=
 github.com/cilium/ipam v0.0.0-20201106170308-4184bc4bf9d6/go.mod h1:Ascfar4FtgB+K+mwqbZpSb3WVZ5sPFIarg+iAOXNZqI=
+github.com/cilium/mock-hubble v0.0.0-20210928133358-8a1660dd0897 h1:12nUyVS0H56gSpGshs9uhTbBCsuJ1PaQsZ35CKxZruQ=
+github.com/cilium/mock-hubble v0.0.0-20210928133358-8a1660dd0897/go.mod h1:OZiBIeX6Ml99GKe4Mk0XXg5Acs1aufFwKdKrgmsIna4=
+github.com/cilium/mock-hubble v0.0.0-20211026154315-9c72b77d6839 h1:nCDM54KdL4S4W1K/hqtAbyHYMIM22yodDz1cRFHlWWc=
+github.com/cilium/mock-hubble v0.0.0-20211026154315-9c72b77d6839/go.mod h1:cxfP8S2Iq+cV9S6PE++q7bKyMiS50oSH8crM69cjmOg=
 github.com/cilium/proxy v0.0.0-20210511221533-82a70d56bf32/go.mod h1:mvauc94lqkyJunRsU9Ef5FIsixi8vBeDoxuMYoGBemk=
 github.com/circonus-labs/circonus-gometrics v2.3.1+incompatible/go.mod h1:nmEj6Dob7S7YxXgwXpfOuvO54S+tGdZdw9fuRZt25Ag=
 github.com/circonus-labs/circonusllhist v0.1.3/go.mod h1:kMXHVDlOchFAehlya5ePtbp5jckzBHf4XRpQvBOLI+I=
