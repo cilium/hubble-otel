@@ -1,6 +1,4 @@
 bazil.org/fuse v0.0.0-20160811212531-371fbbdaa898/go.mod h1:Xbm+BRKSBEpa4q4hTSxohYNQpsxXPbPry4JJWOB3LB8=
-clevergo.tech/log v0.3.0 h1:9ryDHGeOD3BUSUuJEW3be8QtdnjjavoBkknoRCA7dp8=
-clevergo.tech/log v0.3.0/go.mod h1:61sruy0OB79q5JJlxlyi+6eZzVf/bxbUbXnL0KIzsVw=
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.38.0/go.mod h1:990N+gfupTy94rShfmMCWGDn0LpTmnzTp2qbd1dvSRU=

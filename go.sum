@@ -1197,13 +1197,11 @@ github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusexp
 github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusexporter v0.37.0/go.mod h1:NwtV8MYUmi1GAuOH7GhLDQ4z7Ld/fsftjeuCE+67i0M=
 github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusremotewriteexporter v0.36.0 h1:lbIjBp20h59LaK/Q9BmlWlG5xphB1fw9POcV6rl4EH4=
 github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusremotewriteexporter v0.36.0/go.mod h1:0sF639xpWoYL5WZIs0H2S/jeCii/peW7AZOclxlgEwM=
-github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.36.0 h1:rZjI+lSHLKOEkjLQ91MHPecREAXF9FeoxVvRml7gyFQ=
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.36.0/go.mod h1:Igqttmhj9FePkB257ec1OvlhgEvOU/PLDBbQg38AY8Q=
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.37.1 h1:F053qzEtPfEV5/pXCIV8NbT+yxOoW3Tpp9GiWdvbRZY=
 github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.37.1/go.mod h1:I1z+rJBqG/5UTcCFES0EC3fpqDM9oFGLN5+qEr1EpOo=
 github.com/open-telemetry/opentelemetry-collector-contrib/pkg/resourcetotelemetry v0.36.0 h1:br0pmCqgp1nx/e809LLYGrf1xEeQDvokMYU6CA8v4UU=
 github.com/open-telemetry/opentelemetry-collector-contrib/pkg/resourcetotelemetry v0.36.0/go.mod h1:Ef1KwpEoRGBVJ4GsvVhqkeon+Q59iH57k7OJHqsRPIk=
-github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/opencensus v0.36.0 h1:s/NynixZllp0ACF/8nvh42S9oMoHidxYlZnjndFXG2E=
 github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/opencensus v0.36.0/go.mod h1:LDrMMszWIDctEMmytTYodJMRl3BSQDnnQCBf95U35tw=
 github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/opencensus v0.37.1 h1:OMEonNLOamKzy/+LdYe8fBPX/42OqKpzOLbR/EddeX0=
 github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/opencensus v0.37.1/go.mod h1:vmqGE8Qe7P4lfpbeqHDGG3+aCK6u5ltS8FBDfrWCrMg=
