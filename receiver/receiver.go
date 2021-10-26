@@ -2,6 +2,7 @@ package receiver
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"google.golang.org/grpc"
@@ -20,7 +21,7 @@ func Run(ctx context.Context, hubbleConn *grpc.ClientConn, c Converter, flows ch
 	flowObsever, err := observer.NewObserverClient(hubbleConn).
 		GetFlows(ctx, &observer.GetFlowsRequest{Follow: true})
 	if err != nil {
-		errs <- err
+		errs <- fmt.Errorf("GetFlows failed: %w", err)
 		return
 	}
 
@@ -34,13 +35,13 @@ func Run(ctx context.Context, hubbleConn *grpc.ClientConn, c Converter, flows ch
 			if status.Code(err) == codes.Canceled {
 				return
 			}
-			errs <- err
+			errs <- fmt.Errorf("unexpected response from Hubble: %w", err)
 			return
 		}
 
 		flow, err := c.Convert(hubbleResp)
 		if err != nil {
-			errs <- err
+			errs <- fmt.Errorf("converter failed: %w", err)
 			return
 		}
 		flows <- flow
