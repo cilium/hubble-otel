@@ -3,6 +3,7 @@ module github.com/isovalent/hubble-otel/receiver
 go 1.17
 
 require (
+	github.com/Sytten/logrus-zap-hook v0.1.0
 	github.com/isovalent/hubble-otel v0.0.0-00010101000000-000000000000
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
@@ -13,7 +14,6 @@ require (
 )
 
 require (
-	clevergo.tech/log v0.3.0 // indirect
 	cloud.google.com/go v0.83.0 // indirect
 	contrib.go.opencensus.io/exporter/prometheus v0.4.0 // indirect
 	github.com/Azure/azure-sdk-for-go v55.2.0+incompatible // indirect
@@ -30,7 +30,6 @@ require (
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
-	github.com/Sytten/logrus-zap-hook v0.1.0 // indirect
 	github.com/alecthomas/units v0.0.0-20210208195552-ff826a37aa15 // indirect
 	github.com/armon/go-metrics v0.3.9 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20200907205600-7a23bdc65eef // indirect
