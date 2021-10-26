@@ -7,6 +7,17 @@ receivers:
     flow_encoding_options:
       traces:
       logs:
+  hubble/env:
+    endpoint: "${HUBBLE_ENDPOINT}"
+  hubble/nondefaultopts:
+    endpoint: "${HUBBLE_ENDPOINT}"
+    flow_encoding_options:
+      traces:
+        encoding: "JSON"
+        top_level_keys: false
+      logs:
+        log_payload_as_body: true
+
 
 processors:
   nop:

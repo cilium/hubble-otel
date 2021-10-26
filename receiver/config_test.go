@@ -1,6 +1,7 @@
 package receiver
 
 import (
+	"os"
 	"path"
 	"testing"
 
@@ -13,6 +14,8 @@ import (
 )
 
 func TestLoadConfig(t *testing.T) {
+	_ = os.Setenv("HUBBLE_ENDPOINT", "localhost:4245")
+
 	factories, err := componenttest.NopFactories()
 	assert.NoError(t, err)
 
@@ -22,7 +25,7 @@ func TestLoadConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	assert.Equal(t, len(cfg.Receivers), 2)
+	assert.Equal(t, len(cfg.Receivers), 4)
 
 	r0 := cfg.Receivers[config.NewComponentID(typeStr)]
 	r0.(*Config).Endpoint = ""
@@ -31,4 +34,11 @@ func TestLoadConfig(t *testing.T) {
 	r1 := cfg.Receivers[config.NewComponentIDWithName(typeStr, "customname")].(*Config)
 	assert.Equal(t, r1.ReceiverSettings, config.NewReceiverSettings(config.NewComponentIDWithName(typeStr, "customname")))
 
+	r2 := cfg.Receivers[config.NewComponentIDWithName(typeStr, "env")].(*Config)
+	assert.Equal(t, r2.Endpoint, "localhost:4245")
+
+	r3 := cfg.Receivers[config.NewComponentIDWithName(typeStr, "nondefaultopts")].(*Config)
+	assert.Equal(t, *r3.FlowEncodingOptions.Traces.Encoding, "JSON")
+	assert.Equal(t, *r3.FlowEncodingOptions.Traces.TopLevelKeys, false)
+	assert.Equal(t, *r3.FlowEncodingOptions.Logs.LogPayloadAsBody, true)
 }

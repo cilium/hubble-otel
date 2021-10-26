@@ -6,7 +6,12 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+
+	"go.opentelemetry.io/collector/consumer"
+	"go.opentelemetry.io/collector/model/otlp"
+	"go.opentelemetry.io/collector/model/pdata"
 
 	logsCollectorV1 "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	logsV1 "go.opentelemetry.io/proto/otlp/logs/v1"
@@ -43,4 +48,45 @@ func (s *BufferedLogExporter) Export(ctx context.Context, flows <-chan protorefl
 	}
 	_, err := s.otlpLogs.Export(ctx, &logsCollectorV1.ExportLogsServiceRequest{ResourceLogs: logs}, s.exportCallOptions...)
 	return err
+}
+
+
+type BufferedDirectLogsExporter struct {
+	consumer    consumer.Logs
+	bufferSize  int
+	unmarshaler pdata.LogsUnmarshaler
+}
+
+func NewBufferedDirectLogsExporter(consumer consumer.Logs, bufferSize int) *BufferedDirectLogsExporter {
+	return &BufferedDirectLogsExporter{
+		consumer:    consumer,
+		bufferSize:  bufferSize,
+		unmarshaler: otlp.NewProtobufLogsUnmarshaler(),
+	}
+}
+
+func (s *BufferedDirectLogsExporter) Export(ctx context.Context, flows <-chan protoreflect.Message) error {
+	logs := make([]*logsV1.ResourceLogs, s.bufferSize)
+
+	for i := range logs {
+		flow, ok := (<-flows).Interface().(*logsV1.ResourceLogs)
+		if !ok {
+			return fmt.Errorf("cannot convert protoreflect.Message to logsV1.ResourceLogs")
+		}
+		logs[i] = flow
+	}
+
+	// there is no clear way of converting public Go types (go.opentelemetry.io/proto/otlp)
+	// and internal collector types (go.opentelemetry.io/collector/model);
+	// see https://github.com/open-telemetry/opentelemetry-collector/issues/4254
+	data, err := proto.Marshal(&logsCollectorV1.ExportLogsServiceRequest{ResourceLogs: logs})
+	if err != nil {
+		return fmt.Errorf("cannot marshal lgs: %w", err)
+	}
+	unmarshalledLogs, err := s.unmarshaler.UnmarshalLogs(data)
+	if err != nil {
+		return fmt.Errorf("cannot unmarshal logs: %w", err)
+	}
+
+	return s.consumer.ConsumeLogs(ctx, unmarshalledLogs)
 }

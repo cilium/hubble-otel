@@ -52,17 +52,16 @@ func (s *BufferedTraceExporter) Export(ctx context.Context, flows <-chan protore
 }
 
 type BufferedDirectTraceExporter struct {
-	consumer          consumer.Traces
-	bufferSize        int
-	tracesMarshaler   pdata.TracesMarshaler
-	tracesUnmarshaler pdata.TracesUnmarshaler
+	consumer    consumer.Traces
+	bufferSize  int
+	unmarshaler pdata.TracesUnmarshaler
 }
 
 func NewBufferedDirectTraceExporter(consumer consumer.Traces, bufferSize int) *BufferedDirectTraceExporter {
 	return &BufferedDirectTraceExporter{
-		consumer:          consumer,
-		bufferSize:        bufferSize,
-		tracesUnmarshaler: otlp.NewProtobufTracesUnmarshaler(),
+		consumer:    consumer,
+		bufferSize:  bufferSize,
+		unmarshaler: otlp.NewProtobufTracesUnmarshaler(),
 	}
 }
 
@@ -84,10 +83,10 @@ func (s *BufferedDirectTraceExporter) Export(ctx context.Context, flows <-chan p
 	if err != nil {
 		return fmt.Errorf("cannot marshal traces: %w", err)
 	}
-	traces, err := s.tracesUnmarshaler.UnmarshalTraces(data)
+	unmarshalledSpans, err := s.unmarshaler.UnmarshalTraces(data)
 	if err != nil {
 		return fmt.Errorf("cannot unmarshal traces: %w", err)
 	}
 
-	return s.consumer.ConsumeTraces(ctx, traces)
+	return s.consumer.ConsumeTraces(ctx, unmarshalledSpans)
 }

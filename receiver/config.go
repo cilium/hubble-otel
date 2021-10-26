@@ -3,9 +3,10 @@ package receiver
 import (
 	"errors"
 
-	"github.com/isovalent/hubble-otel/common"
 	"go.opentelemetry.io/collector/config"
 	"go.opentelemetry.io/collector/config/configtls"
+
+	"github.com/isovalent/hubble-otel/common"
 )
 
 type Config struct {
