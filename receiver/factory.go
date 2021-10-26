@@ -2,10 +2,6 @@ package receiver
 
 import (
 	"context"
-	"io/ioutil"
-
-	zaphook "github.com/Sytten/logrus-zap-hook"
-	"github.com/sirupsen/logrus"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config"
@@ -19,7 +15,16 @@ const (
 	typeStr = "hubble"
 )
 
-// NewFactory creates a new Prometheus receiver factory.
+var receivers = make(map[config.Receiver]*hubbleReceiver)
+
+func getReceiver(cfg config.Receiver, settings component.ReceiverCreateSettings) *hubbleReceiver {
+	if r, ok := receivers[cfg]; ok {
+		return r
+	}
+	r := newHubbleReceiver(cfg.(*Config), settings)
+	receivers[cfg] = r
+	return r
+}
 func NewFactory() component.ReceiverFactory {
 	return receiverhelper.NewFactory(
 		typeStr,
@@ -57,54 +62,26 @@ func createDefaultConfig() config.Receiver {
 
 func createTracesReceiver(
 	_ context.Context,
-	set component.ReceiverCreateSettings,
+	settings component.ReceiverCreateSettings,
 	cfg config.Receiver,
 	nextConsumer consumer.Traces,
 ) (component.TracesReceiver, error) {
-	r, err := createHubbleReceiver(set, cfg)
-	if err != nil {
+	r := getReceiver(cfg, settings)
+	if err := r.registerTraceConsumer(nextConsumer); err != nil {
 		return nil, err
 	}
-
-	return &hubbleTracesReceiver{
-		hubbleReceiver: r,
-		consumer:       nextConsumer,
-	}, nil
+	return r, nil
 }
 
 func createLogsReceiver(
 	_ context.Context,
-	set component.ReceiverCreateSettings,
+	settings component.ReceiverCreateSettings,
 	cfg config.Receiver,
 	nextConsumer consumer.Logs,
 ) (component.LogsReceiver, error) {
-	r, err := createHubbleReceiver(set, cfg)
-	if err != nil {
+	r := getReceiver(cfg, settings)
+	if err := r.registerLogsConsumer(nextConsumer); err != nil {
 		return nil, err
 	}
-
-	return &hubbleLogsReceiver{
-		hubbleReceiver: r,
-		consumer:       nextConsumer,
-	}, nil
-}
-
-func createHubbleReceiver(set component.ReceiverCreateSettings, cfg config.Receiver) (*hubbleReceiver, error) {
-	logrusLogger := logrus.New()
-	logrusLogger.ReportCaller = true
-	logrusLogger.SetOutput(ioutil.Discard)
-	hook, err := zaphook.NewZapHook(set.Logger)
-	if err != nil {
-		return nil, err
-	}
-
-	logrusLogger.Hooks.Add(hook)
-
-	r := &hubbleReceiver{
-		zapLogger:    set.Logger,
-		logrusLogger: logrusLogger,
-		cfg:          cfg.(*Config),
-	}
-
 	return r, nil
 }
