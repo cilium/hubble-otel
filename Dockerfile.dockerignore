@@ -8,7 +8,6 @@
 
 !common/
 !logs/
-!receiver/
 !testdata/
 !testutil/
 !trace/
