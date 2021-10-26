@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -195,8 +196,40 @@ func GetMetricFamilies(ctx context.Context, t *testing.T, url string) map[string
 	}
 }
 
+
+func CheckCounterMetricIsZero(t *testing.T, families map[string]*promdto.MetricFamily, metrics ...string)  {
+	t.Helper()
+
+	for _, k := range metrics {
+		m, ok := families[k]
+		if !ok || len(m.GetMetric()) == 0 {
+			t.Errorf("metric %q should be present", k)
+			continue
+		}
+		if v := m.GetMetric()[0].Counter.Value; *v != 0.0 {
+			t.Errorf("metric %q should be zero", k)
+		}
+	}
+}
+
+func CheckCounterMetricIsGreaterThen(t *testing.T, value float64, families map[string]*promdto.MetricFamily, metrics ...string)  {
+	t.Helper()
+
+	for _, k := range metrics {
+		m, ok := families[k]
+		if !ok || len(m.GetMetric()) == 0 {
+			t.Errorf("metric %q should be present", k)
+			continue
+		}
+		if v := m.GetMetric()[0].Counter.Value; *v < value {
+			t.Errorf("metric %q should be at least %f, not %f", k, value, *v)
+		}
+	}
+}
+
+
 func IsEOF(err error) bool {
-	s, ok := status.FromError(err)
+	s, ok := status.FromError(errors.Unwrap(err))
 	return ok && s.Proto().GetMessage() == "EOF"
 }
 
