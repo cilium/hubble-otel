@@ -3,11 +3,12 @@ module github.com/isovalent/hubble-otel
 go 1.16
 
 require (
+	github.com/cilium/mock-hubble v0.0.0-20211026154315-9c72b77d6839
 	github.com/cloudflare/cfssl v1.6.0
 	github.com/containerd/containerd v1.5.6 // indirect
 	github.com/errordeveloper/imagine v0.0.0-20201215192748-b3494e82bc78
-	github.com/isovalent/mock-hubble v0.0.0-20210928133358-8a1660dd0897
 	github.com/open-telemetry/opentelemetry-collector-builder v0.37.0
+	go.opentelemetry.io/collector v0.37.0
 )
 
 // based on https://github.com/docker/buildx/blob/v0.5.1/go.mod#L61-L68
