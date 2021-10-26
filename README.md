@@ -1,9 +1,16 @@
-# Developer Documentation
+# Hubble adaptor for OpenTelemetry - Developer Documentation
 
-This directory contains some script that are useful for testing `hubble-otel` in development.
+## About the Project
 
-Please note that general integrations tests for Hubble and OpenTelemetry collector are defined
-in `main_test.go`, but scripts here are for manual testing with various exporters.
+This project aims to enable exporting Hubble flow data using OpenTelemetry collector. It currently
+supports log and trace data formats. It maps every flow to a log or a span. Trace IDs are generated
+automatically for related flows, based on source/destination address, port and Cilium identity.
+When an L7 flow contains common trace ID headers, those will be respected.
+
+The functionality is package as a standalone program (see [`main.go`](main.go)) that can speak Hubble
+API as well as OTLP, as well as an reciever for OpenTelemetry collector (see [`receiver/`](receiver)).
+Eventually it might prove that custom OpenTelemetry collector is the most suitable way of running the
+Hubble adaptor, but at the time of writing prior to the initial realese it wasn't abundantly clear.
 
 ## Getting Started
 
@@ -46,6 +53,11 @@ can just invoke the collector this way:
 ./dev-scripts/otelcol-custom/otelcol-custom  --config ./dev-scripts/export-aws.yaml
 ```
 
+To run the collector with a config that reads flows from Hubble directly and writes to AWS:
+```
+./dev-scripts/run-otelcol.sh --config dev-scripts/hubble-export-aws.yaml
+```
+
 ## Running Mock Hubble
 
 For development, it's easier to run [a mock version of Hubble API](https://github.com/cilium/mock-hubble)
@@ -59,9 +71,9 @@ This script will run `mock-hubble` with a set of sample flows from `testdata` di
 as 10x the rate stored in the sample file. The sample file simply contains output of `hubble observe -o json -f`
 and can be updated easily.
 
-## Running `hubble-otel`
+## Running `hubble-otel` (standalone)
 
-To run it agains a local collector:
+To start Hubble adaptor in stanalone mode against a local collector, run:
 
 ```
 ./dev-script/run-hubble-otel.sh [<flags>]
