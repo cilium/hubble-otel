@@ -32,7 +32,7 @@ A custom collector is needed for testing all different exporters. There is a con
 locally, especially as it's not OS-specific at all.
 
 ```
-./dev-scripts/build-custom-otelcol.sh
+./dev-scripts/build-otelcol.sh
 ```
 
 The collector needs to be re-built whenever changes to `images/otelcol/builder.yaml` are made.
@@ -50,7 +50,7 @@ This script doesn't do anything special, it's just a little bit convenient. Alte
 can just invoke the collector this way:
 
 ```
-./dev-scripts/otelcol-custom/otelcol-custom  --config ./dev-scripts/export-aws.yaml
+./dev-scripts/otelcol-hubble/otelcol-hubble  --config ./dev-scripts/export-aws.yaml
 ```
 
 To run the collector with a config that reads flows from Hubble directly and writes to AWS:

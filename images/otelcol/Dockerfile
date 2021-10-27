@@ -20,4 +20,4 @@ RUN CGO_ENABLED=0 /go/bin/opentelemetry-collector-builder --output-path /out/usr
 
 FROM alpine
 COPY --from=builder /out /out
-ENTRYPOINT [ "/out/usr/bin/otelcol-custom" ]
+ENTRYPOINT [ "/out/usr/bin/otelcol-hubble" ]

@@ -13,4 +13,4 @@ else
   args=("$@")
 fi
 
-${script_dir}/otelcol-custom/otelcol-custom "${args[@]}"
+${script_dir}/otelcol-hubble/otelcol-hubble "${args[@]}"
