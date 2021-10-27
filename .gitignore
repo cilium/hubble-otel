@@ -3,6 +3,6 @@
 /buildx-*.json
 /image-*.tag
 
-/dev-scripts/otelcol-custom
+/dev-scripts/otelcol-hubble
 
 /hubble-otel

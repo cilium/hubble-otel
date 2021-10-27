@@ -1,6 +1,6 @@
 dist:
-    name: otelcol-custom # the binary name. Optional.
-    description: "Custom OpenTelemetry Collector distribution"
+    name: otelcol-hubble
+    description: "Hubble Distribution for OpenTelemetry"
     include_core: true
     otelcol_version: "0.37.0"
     version: "0.0.1"
