@@ -7,9 +7,9 @@ require (
 	github.com/cilium/hubble v0.8.2
 	github.com/cilium/mock-hubble v0.0.0-20211026154315-9c72b77d6839
 	github.com/dgraph-io/badger/v3 v3.2103.0
-	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusexporter v0.37.0
+	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusexporter v0.37.1
 	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/opencensus v0.37.1 // indirect
-	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver v0.37.0
+	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver v0.37.1
 	github.com/prometheus/client_model v0.2.1-0.20200623203004-60555c9708c7
 	github.com/prometheus/common v0.31.1
 	github.com/sirupsen/logrus v1.8.1
