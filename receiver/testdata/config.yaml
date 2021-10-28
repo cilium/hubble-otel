@@ -10,7 +10,7 @@ receivers:
   hubble/env:
     endpoint: "${HUBBLE_ENDPOINT}"
   hubble/nondefaultopts:
-    endpoint: "${HUBBLE_ENDPOINT}"
+    endpoint: "${NODE_NAME}:4244"
     flow_encoding_options:
       traces:
         encoding: "JSON"
