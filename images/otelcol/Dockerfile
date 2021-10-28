@@ -18,6 +18,6 @@ RUN mkdir -p /out/usr/bin
 
 RUN CGO_ENABLED=0 /go/bin/opentelemetry-collector-builder --output-path /out/usr/bin --config builder.yaml
 
-FROM alpine
+FROM alpine:3.13.6@sha256:d04f568d1401e6bcc2c34bd81ac1035ba1d8fc3a03b92c78e84cec61e028d6ea
 COPY --from=builder /out /out
 ENTRYPOINT [ "/out/usr/bin/otelcol-hubble" ]
