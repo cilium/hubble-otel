@@ -3,11 +3,11 @@
 !go.mod
 !go.sum
 
-!main.go
-!main_test.go
+!images/otelcol/
 
 !common/
 !logs/
+!receiver/
 !testdata/
 !testutil/
 !trace/
