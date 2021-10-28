@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
@@ -50,15 +51,16 @@ func (s *BufferedLogExporter) Export(ctx context.Context, flows <-chan protorefl
 	return err
 }
 
-
 type BufferedDirectLogsExporter struct {
+	log         *logrus.Logger
 	consumer    consumer.Logs
 	bufferSize  int
 	unmarshaler pdata.LogsUnmarshaler
 }
 
-func NewBufferedDirectLogsExporter(consumer consumer.Logs, bufferSize int) *BufferedDirectLogsExporter {
+func NewBufferedDirectLogsExporter(log *logrus.Logger, consumer consumer.Logs, bufferSize int) *BufferedDirectLogsExporter {
 	return &BufferedDirectLogsExporter{
+		log:         log,
 		consumer:    consumer,
 		bufferSize:  bufferSize,
 		unmarshaler: otlp.NewProtobufLogsUnmarshaler(),
@@ -88,5 +90,6 @@ func (s *BufferedDirectLogsExporter) Export(ctx context.Context, flows <-chan pr
 		return fmt.Errorf("cannot unmarshal logs: %w", err)
 	}
 
+	s.log.Debug("flushing log buffer to the consumer")
 	return s.consumer.ConsumeLogs(ctx, unmarshalledLogs)
 }
