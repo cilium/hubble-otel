@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
@@ -52,13 +53,15 @@ func (s *BufferedTraceExporter) Export(ctx context.Context, flows <-chan protore
 }
 
 type BufferedDirectTraceExporter struct {
+	log         *logrus.Logger
 	consumer    consumer.Traces
 	bufferSize  int
 	unmarshaler pdata.TracesUnmarshaler
 }
 
-func NewBufferedDirectTraceExporter(consumer consumer.Traces, bufferSize int) *BufferedDirectTraceExporter {
+func NewBufferedDirectTraceExporter(log *logrus.Logger, consumer consumer.Traces, bufferSize int) *BufferedDirectTraceExporter {
 	return &BufferedDirectTraceExporter{
+		log:         log,
 		consumer:    consumer,
 		bufferSize:  bufferSize,
 		unmarshaler: otlp.NewProtobufTracesUnmarshaler(),
@@ -83,10 +86,11 @@ func (s *BufferedDirectTraceExporter) Export(ctx context.Context, flows <-chan p
 	if err != nil {
 		return fmt.Errorf("cannot marshal traces: %w", err)
 	}
-	unmarshalledSpans, err := s.unmarshaler.UnmarshalTraces(data)
+	traces, err := s.unmarshaler.UnmarshalTraces(data)
 	if err != nil {
 		return fmt.Errorf("cannot unmarshal traces: %w", err)
 	}
 
-	return s.consumer.ConsumeTraces(ctx, unmarshalledSpans)
+	s.log.Debug("flushing trace buffer to the consumer")
+	return s.consumer.ConsumeTraces(ctx, traces)
 }

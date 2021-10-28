@@ -71,6 +71,7 @@ func (r *hubbleReceiver) Start(_ context.Context, host component.Host) error {
 	if err != nil {
 		return err
 	}
+	r.zapLogger.Info("connecting to Hubble endpoint")
 	r.hubbleConn, err = grpc.DialContext(r.ctx, r.cfg.GRPCClientSettings.SanitizedEndpoint(), dialOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to connect to Hubble server: %w", err)
@@ -124,6 +125,8 @@ func (r *hubbleReceiver) registerLogsConsumer(lc consumer.Logs) error {
 }
 
 func (r *hubbleTraceReceiver) run(ctx context.Context, log *logrus.Logger, hubbleConn *grpc.ClientConn, cfg *Config, errs chan<- error) error {
+	log.Info("starting Hubble trace receiver")
+
 	spanDB, err := os.MkdirTemp("", "hubble-otel-trace-cache-") // TODO: allow user to pass dir name for persistence
 	if err != nil {
 		return fmt.Errorf("failed to create temporary directory for span database: %w", err)
@@ -138,19 +141,21 @@ func (r *hubbleTraceReceiver) run(ctx context.Context, log *logrus.Logger, hubbl
 
 	go common.RunConverter(cfg.NewOutgoingContext(ctx), hubbleConn, converter, flowsToTraces, errs, grpc.WaitForReady(cfg.GRPCClientSettings.WaitForReady))
 
-	exporter := trace.NewBufferedDirectTraceExporter(r.consumer, cfg.BufferSize)
+	exporter := trace.NewBufferedDirectTraceExporter(log, r.consumer, cfg.BufferSize)
 	go common.RunExporter(ctx, log, exporter, flowsToTraces, errs)
 
 	return nil
 }
 
 func (r *hubbleLogsReceiver) run(ctx context.Context, log *logrus.Logger, hubbleConn *grpc.ClientConn, cfg *Config, errs chan<- error) error {
+	log.Info("starting Hubble logs receiver")
+
 	flowsToLogs := make(chan protoreflect.Message, cfg.BufferSize)
 
 	converter := logs.NewFlowConverter(log, &cfg.FlowEncodingOptions.Logs)
 	go common.RunConverter(cfg.NewOutgoingContext(ctx), hubbleConn, converter, flowsToLogs, errs, grpc.WaitForReady(cfg.GRPCClientSettings.WaitForReady))
 
-	exporter := logs.NewBufferedDirectLogsExporter(r.consumer, cfg.BufferSize)
+	exporter := logs.NewBufferedDirectLogsExporter(log, r.consumer, cfg.BufferSize)
 	go common.RunExporter(ctx, log, exporter, flowsToLogs, errs)
 
 	return nil
