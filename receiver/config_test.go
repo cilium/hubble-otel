@@ -14,7 +14,8 @@ import (
 )
 
 func TestLoadConfig(t *testing.T) {
-	_ = os.Setenv("HUBBLE_ENDPOINT", "localhost:4245")
+	_ = os.Setenv("HUBBLE_ENDPOINT", "localhost:4244")
+	_ = os.Setenv("NODE_NAME", "localhost")
 
 	factories, err := componenttest.NopFactories()
 	assert.NoError(t, err)
@@ -35,9 +36,10 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, r1.ReceiverSettings, config.NewReceiverSettings(config.NewComponentIDWithName(typeStr, "customname")))
 
 	r2 := cfg.Receivers[config.NewComponentIDWithName(typeStr, "env")].(*Config)
-	assert.Equal(t, r2.Endpoint, "localhost:4245")
+	assert.Equal(t, r2.Endpoint, "localhost:4244")
 
 	r3 := cfg.Receivers[config.NewComponentIDWithName(typeStr, "nondefaultopts")].(*Config)
+	assert.Equal(t, r3.Endpoint, "localhost:4244")
 	assert.Equal(t, *r3.FlowEncodingOptions.Traces.Encoding, "JSON")
 	assert.Equal(t, *r3.FlowEncodingOptions.Traces.TopLevelKeys, false)
 	assert.Equal(t, *r3.FlowEncodingOptions.Logs.LogPayloadAsBody, true)
