@@ -1,20 +1,22 @@
 package receiver
 
 import (
+	"context"
 	"errors"
 
+	"google.golang.org/grpc/metadata"
+
 	"go.opentelemetry.io/collector/config"
-	"go.opentelemetry.io/collector/config/configtls"
+	"go.opentelemetry.io/collector/config/configgrpc"
 
 	"github.com/isovalent/hubble-otel/common"
 )
 
 type Config struct {
-	config.ReceiverSettings    `mapstructure:",squash"`
-	configtls.TLSClientSetting `mapstructure:"tls,omitempty"`
+	config.ReceiverSettings       `mapstructure:",squash"`
+	configgrpc.GRPCClientSettings `mapstructure:",squash"`
 
-	Endpoint   string `mapstructure:"endpoint"`
-	BufferSize int    `mapstructure:"buffer_size"`
+	BufferSize int `mapstructure:"buffer_size"`
 
 	FlowEncodingOptions FlowEncodingOptions `mapstructure:"flow_encoding_options"`
 }
@@ -26,7 +28,7 @@ type FlowEncodingOptions struct {
 
 var _ config.Receiver = (*Config)(nil)
 
-func (cfg Config) Validate() error {
+func (cfg *Config) Validate() error {
 	if cfg.Endpoint == "" {
 		return errors.New("hubble endpoint must be specified")
 	}
@@ -37,4 +39,11 @@ func (cfg Config) Validate() error {
 		return err
 	}
 	return nil
+}
+
+func (cfg *Config) NewOutgoingContext(ctx context.Context) context.Context {
+	if cfg.GRPCClientSettings.Headers == nil {
+		return ctx
+	}
+	return metadata.NewOutgoingContext(ctx, metadata.New(cfg.GRPCClientSettings.Headers))
 }

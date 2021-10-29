@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"go.opentelemetry.io/collector/component"
@@ -63,20 +62,16 @@ func newHubbleReceiver(cfg *Config, settings component.ReceiverCreateSettings) *
 	}
 }
 
-func (r *hubbleReceiver) Start(_ context.Context, _ component.Host) error {
+func (r *hubbleReceiver) Start(_ context.Context, host component.Host) error {
 	// custom backgorund context must be used for long-running tasks
 	// (see https://github.com/open-telemetry/opentelemetry-collector/blob/v0.37.0/component/component.go#L41-L45)
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 
-	tls, err := r.cfg.TLSClientSetting.LoadTLSConfig()
+	dialOpts, err := r.cfg.GRPCClientSettings.ToDialOptions(host)
 	if err != nil {
 		return err
 	}
-	if tls != nil {
-		r.hubbleConn, err = grpc.DialContext(r.ctx, r.cfg.Endpoint, grpc.WithTransportCredentials(credentials.NewTLS(tls)))
-	} else {
-		r.hubbleConn, err = grpc.DialContext(r.ctx, r.cfg.Endpoint, grpc.WithInsecure())
-	}
+	r.hubbleConn, err = grpc.DialContext(r.ctx, r.cfg.GRPCClientSettings.SanitizedEndpoint(), dialOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to connect to Hubble server: %w", err)
 	}
@@ -141,7 +136,7 @@ func (r *hubbleTraceReceiver) run(ctx context.Context, log *logrus.Logger, hubbl
 		return fmt.Errorf("failed to create trace converter: %w", err)
 	}
 
-	go common.RunConverter(ctx, hubbleConn, converter, flowsToTraces, errs)
+	go common.RunConverter(cfg.NewOutgoingContext(ctx), hubbleConn, converter, flowsToTraces, errs, grpc.WaitForReady(cfg.GRPCClientSettings.WaitForReady))
 
 	exporter := trace.NewBufferedDirectTraceExporter(r.consumer, cfg.BufferSize)
 	go common.RunExporter(ctx, log, exporter, flowsToTraces, errs)
@@ -153,7 +148,7 @@ func (r *hubbleLogsReceiver) run(ctx context.Context, log *logrus.Logger, hubble
 	flowsToLogs := make(chan protoreflect.Message, cfg.BufferSize)
 
 	converter := logs.NewFlowConverter(log, &cfg.FlowEncodingOptions.Logs)
-	go common.RunConverter(ctx, hubbleConn, converter, flowsToLogs, errs)
+	go common.RunConverter(cfg.NewOutgoingContext(ctx), hubbleConn, converter, flowsToLogs, errs, grpc.WaitForReady(cfg.GRPCClientSettings.WaitForReady))
 
 	exporter := logs.NewBufferedDirectLogsExporter(r.consumer, cfg.BufferSize)
 	go common.RunExporter(ctx, log, exporter, flowsToLogs, errs)

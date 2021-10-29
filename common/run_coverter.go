@@ -17,9 +17,9 @@ type Converter interface {
 	Convert(*observer.GetFlowsResponse) (protoreflect.Message, error)
 }
 
-func RunConverter(ctx context.Context, hubbleConn *grpc.ClientConn, c Converter, flows chan<- protoreflect.Message, errs chan<- error) {
+func RunConverter(ctx context.Context, hubbleConn *grpc.ClientConn, c Converter, flows chan<- protoreflect.Message, errs chan<- error, opts ...grpc.CallOption) {
 	flowObsever, err := observer.NewObserverClient(hubbleConn).
-		GetFlows(ctx, &observer.GetFlowsRequest{Follow: true})
+		GetFlows(ctx, &observer.GetFlowsRequest{Follow: true}, opts...)
 	if err != nil {
 		errs <- fmt.Errorf("GetFlows failed: %w", err)
 		return
