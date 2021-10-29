@@ -1,8 +1,3 @@
-service:
-  telemetry:
-    logs: 
-      level: normal
-
 receivers:
   otlp:
     protocols:
@@ -39,6 +34,10 @@ exporters:
     endpoint: "localhost:8889"
 
 service:
+  telemetry:
+    logs:
+      level: info
+
   pipelines:
     traces:
       receivers: [otlp]
