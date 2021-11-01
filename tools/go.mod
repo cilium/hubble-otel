@@ -7,8 +7,8 @@ require (
 	github.com/cloudflare/cfssl v1.6.0
 	github.com/containerd/containerd v1.5.6 // indirect
 	github.com/errordeveloper/imagine v0.0.0-20201215192748-b3494e82bc78
-	github.com/open-telemetry/opentelemetry-collector-builder v0.37.0
-	go.opentelemetry.io/collector v0.37.0
+	go.opentelemetry.io/collector v0.38.0
+	go.opentelemetry.io/collector/cmd/builder v0.0.0-20211030001343-ac25e4e0d29b
 )
 
 // based on https://github.com/docker/buildx/blob/v0.5.1/go.mod#L61-L68

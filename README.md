@@ -18,7 +18,7 @@ First, one should install some of the key tools for development. Be sure you hav
 of Go installed and know your `GOPATH`.
 
 ```
-(cd tools ; go install github.com/cilium/mock-hubble github.com/open-telemetry/opentelemetry-collector-builder)
+(cd tools ; go install github.com/cilium/mock-hubble go.opentelemetry.io/collector/cmd/builder)
 ```
 
 ## Building Custom OpenTelemetry Collector

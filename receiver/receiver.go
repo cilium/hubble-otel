@@ -64,7 +64,7 @@ func newHubbleReceiver(cfg *Config, settings component.ReceiverCreateSettings) *
 
 func (r *hubbleReceiver) Start(_ context.Context, host component.Host) error {
 	// custom backgorund context must be used for long-running tasks
-	// (see https://github.com/open-telemetry/opentelemetry-collector/blob/v0.37.0/component/component.go#L41-L45)
+	// (see https://github.com/open-telemetry/opentelemetry-collector/blob/v0.38.0/component/component.go#L41-L45)
 	r.ctx, r.cancel = context.WithCancel(context.Background())
 
 	dialOpts, err := r.cfg.GRPCClientSettings.ToDialOptions(host)
