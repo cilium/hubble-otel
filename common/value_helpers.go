@@ -102,7 +102,14 @@ func newValue(assumeList, labelsAsMaps, headersAsMaps bool, fd protoreflect.Fiel
 			},
 		}
 	case protoreflect.EnumKind:
-		return newStringValue(string(fd.Enum().Values().ByNumber(v.Enum()).Name()))
+		if resolvedEnum := fd.Enum().Values().ByNumber(v.Enum()); resolvedEnum != nil {
+			return newStringValue(string(resolvedEnum.Name()))
+		}
+		return &commonV1.AnyValue{
+			Value: &commonV1.AnyValue_IntValue{
+				IntValue: int64(v.Enum()),
+			},
+		}
 	case protoreflect.Int32Kind,
 		protoreflect.Sint32Kind,
 		protoreflect.Sfixed32Kind,
