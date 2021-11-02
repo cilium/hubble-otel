@@ -8,9 +8,9 @@ automatically for related flows, based on source/destination address, port and C
 When an L7 flow contains common trace ID headers, those will be respected.
 
 The functionality is package as a standalone program (see [`main.go`](main.go)) that can speak Hubble
-API as well as OTLP, as well as an reciever for OpenTelemetry collector (see [`receiver/`](receiver)).
+API as well as OTLP, as well as an receiver for OpenTelemetry collector (see [`receiver/`](receiver)).
 Eventually it might prove that custom OpenTelemetry collector is the most suitable way of running the
-Hubble adaptor, but at the time of writing prior to the initial realese it wasn't abundantly clear.
+Hubble adaptor, but at the time of writing prior to the initial release it wasn't abundantly clear.
 
 ## Getting Started
 
@@ -73,7 +73,7 @@ and can be updated easily.
 
 ## Running `hubble-otel` (standalone)
 
-To start Hubble adaptor in stanalone mode against a local collector, run:
+To start Hubble adaptor in standalone mode against a local collector, run:
 
 ```
 ./dev-script/run-hubble-otel.sh [<flags>]
