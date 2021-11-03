@@ -210,17 +210,23 @@ func (c *FlowConverter) getSpanName(hubbleResp *hubbleObserver.GetFlowsResponse)
 		}
 		return "unknown Cilium access log event"
 	case monitorAPI.MessageTypeDrop:
-		return monitorAPI.DropReason(eventSubType)
+		return "Cilium drop event (reason: " + monitorAPI.DropReason(eventSubType) + ")"
 	case monitorAPI.MessageTypePolicyVerdict:
 		verdict := f.GetVerdict()
-		name := "Cilium policy verdict: " + verdict.String()
+		name := "Cilium policy verdict: "
 		switch verdict {
 		case flowV1.Verdict_FORWARDED:
-			name += " (match type: " + monitorAPI.PolicyMatchType(f.GetPolicyMatchType()).String() + ")"
+			return name + "forwarded (match type: " + monitorAPI.PolicyMatchType(f.GetPolicyMatchType()).String() + ")"
 		case flowV1.Verdict_DROPPED:
-			name += " (reason: " + monitorAPI.DropReason(uint8(f.GetDropReason())) + ")"
+			return name + "dropped (reason: " + monitorAPI.DropReason(uint8(f.GetDropReason())) + ")"
+		case flowV1.Verdict_AUDIT:
+			return name + "audit"
+		case flowV1.Verdict_ERROR:
+			return name + "error"
+		case flowV1.Verdict_VERDICT_UNKNOWN:
+			return name + "unknown"
 		}
-		return name
+		return "unknown Cilium policy verdict event"
 	default:
 		return "internal Cilium event: " + eventType.String()
 	}
