@@ -16,6 +16,7 @@ import (
 
 	flowV1 "github.com/cilium/cilium/api/v1/flow"
 	hubbleObserver "github.com/cilium/cilium/api/v1/observer"
+	monitorAPI "github.com/cilium/cilium/pkg/monitor/api"
 	hubblePrinter "github.com/cilium/hubble/pkg/printer"
 
 	"github.com/isovalent/hubble-otel/common"
@@ -62,7 +63,7 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 		return nil, err
 	}
 
-	name, err := c.getName(hubbleResp)
+	desc, err := c.getSpanDesc(hubbleResp)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +72,7 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 
 	ts := uint64(tsAsTime.UnixNano())
 	span := &traceV1.Span{
-		Name: name,
+		Name: c.getSpanName(hubbleResp),
 		// TODO: should ParentSpanId be resolved and set for reply packets?
 		// (perhaps is is_reply and traffic_direction can be used for that)
 		SpanId:            spanID,
@@ -82,6 +83,7 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 			common.AttributeEventKindVersion:     common.AttributeEventKindVersionFlowV1alpha1,
 			common.AttributeEventEncoding:        c.EncodingFormat(),
 			common.AttributeEventEncodingOptions: c.EncodingOptions.String(),
+			common.AttributeEventDescription:     desc,
 		}),
 	}
 
@@ -140,7 +142,92 @@ func (c *FlowConverter) DeleteCache() {
 	c.traceCache.Delete()
 }
 
-func (c *FlowConverter) getName(hubbleResp *hubbleObserver.GetFlowsResponse) (string, error) {
+func (c *FlowConverter) getSpanName(hubbleResp *hubbleObserver.GetFlowsResponse) string {
+	f := hubbleResp.GetFlow()
+
+	eventType := f.GetEventType()
+	eventSubType := uint8(eventType.GetSubType())
+	switch eventType.GetType() {
+	case monitorAPI.MessageTypeTrace:
+		observationPoint := "[" + monitorAPI.TraceObservationPoint(eventSubType) + "]"
+		if l4 := f.GetL4(); l4 != nil {
+			switch l4.GetProtocol().(type) {
+			case *flowV1.Layer4_ICMPv4:
+				return "ICMPv4 " + observationPoint
+			case *flowV1.Layer4_ICMPv6:
+				return "ICMPv6 " + observationPoint
+			case *flowV1.Layer4_TCP:
+				flags := l4.GetTCP().Flags
+				fl := []string{}
+				if flags.ACK {
+					fl = append(fl, "ACK")
+				}
+				if flags.CWR {
+					fl = append(fl, "CWR")
+				}
+				if flags.ECE {
+					fl = append(fl, "ECE")
+				}
+				if flags.FIN {
+					fl = append(fl, "FIN")
+				}
+				if flags.NS {
+					fl = append(fl, "NS")
+				}
+				if flags.PSH {
+					fl = append(fl, "PSH")
+				}
+				if flags.RST {
+					fl = append(fl, "RST")
+				}
+				if flags.SYN {
+					fl = append(fl, "SYN")
+				}
+				if flags.URG {
+					fl = append(fl, "URG")
+				}
+				return "TCP (flags: " + strings.Join(fl, ", ") + ") " + observationPoint
+			case *flowV1.Layer4_UDP:
+				return "UDP " + observationPoint
+			default:
+				return "Cilium L4 event " + observationPoint
+			}
+		}
+		return "unknown Cilium trace event"
+	case monitorAPI.MessageTypeAccessLog:
+		if l7 := f.GetL7(); l7 != nil {
+			t := strings.ToLower(l7.Type.String())
+			switch l7.GetRecord().(type) {
+			case *flowV1.Layer7_Http:
+				return "HTTP " + l7.GetHttp().Method + " (" + t + ")"
+			case *flowV1.Layer7_Dns:
+				return "DNS " + t + " (query types: " + strings.Join(l7.GetDns().Qtypes, " ") + ")"
+			case *flowV1.Layer7_Kafka:
+				return "Kafka" + t
+			default:
+				return "Cilium L7 event (type: " + t + ")"
+			}
+		}
+		return "unknown Cilium access log event"
+	case monitorAPI.MessageTypeDrop:
+		return monitorAPI.DropReason(eventSubType)
+	case monitorAPI.MessageTypePolicyVerdict:
+		verdict := f.GetVerdict()
+		name := "Cilium policy verdict: " + verdict.String()
+		switch verdict {
+		case flowV1.Verdict_FORWARDED:
+			name += " (match type: " + monitorAPI.PolicyMatchType(f.GetPolicyMatchType()).String() + ")"
+		case flowV1.Verdict_DROPPED:
+			name += " (reason: " + monitorAPI.DropReason(uint8(f.GetDropReason())) + ")"
+		}
+		return name
+	default:
+		return "internal Cilium event: " + eventType.String()
+	}
+}
+
+func (c *FlowConverter) getSpanDesc(hubbleResp *hubbleObserver.GetFlowsResponse) (string, error) {
+
 	b := bytes.NewBuffer([]byte{})
 	p := hubblePrinter.New(
 		hubblePrinter.Writer(b),

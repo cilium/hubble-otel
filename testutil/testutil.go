@@ -285,8 +285,6 @@ func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encodingOptions c
 	hasEncodingOptionsAttr := false
 	hasPayloadInTopLevelKeys := false
 
-	expectedLen := 3
-
 	for _, attr := range attrs {
 		switch attr.Key {
 		case common.AttributeEventKindVersion:
@@ -330,14 +328,20 @@ func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encodingOptions c
 		t.Error("encoding options are not set")
 	}
 
+	expectedMinLen := 3
+	expectedMaxLen := 4
+
 	if payload != nil {
-		expectedLen = 4
+		expectedMinLen += 1
+		expectedMaxLen += 1
 	}
 	if encodingOptions.WithTopLevelKeys() && !encodingOptions.WithLogPayloadAsBody() {
 		if !hasPayloadInTopLevelKeys {
 			t.Fatal("missing payload keys")
 		}
-		expectedLen = 3 + len(payload.GetKvlistValue().Values)
+		extraKeys := len(payload.GetKvlistValue().Values)
+		expectedMinLen = 3 + extraKeys
+		expectedMaxLen = 4 + extraKeys
 	}
 	ciliumAttrs := 0
 	for _, attr := range attrs {
@@ -345,8 +349,8 @@ func CheckAttributes(t *testing.T, attrs []*commonV1.KeyValue, encodingOptions c
 			ciliumAttrs++
 		}
 	}
-	if ciliumAttrs != expectedLen {
-		t.Errorf("should have %d attributes in \"cilium.\" namespace, but found %d", expectedLen, ciliumAttrs)
+	if ciliumAttrs < expectedMinLen || ciliumAttrs > expectedMaxLen {
+		t.Errorf("should have between %d and %d attributes in \"cilium.\" namespace, but found %d", expectedMinLen, expectedMaxLen, ciliumAttrs)
 	}
 
 	return payload
