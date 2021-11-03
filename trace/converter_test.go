@@ -101,18 +101,57 @@ func TestAllTraceConvModes(t *testing.T) {
 
 						f := flow.GetFlow()
 
-						if e := fmt.Sprintf("(%s)", f.Summary); !strings.HasSuffix(span.Name, e) {
-							t.Errorf("unexpected name suffix in %q, expected %q", span.Name, e)
+						hasDesc := false
+						for _, attr := range span.Attributes {
+							if attr.Key == common.AttributeEventDescription {
+								hasDesc = true
+								desc := attr.Value.GetStringValue()
+								if e := fmt.Sprintf("(%s)", f.Summary); !strings.HasSuffix(desc, e) {
+									t.Errorf("unexpected name suffix in %q, expected %q", desc, e)
+								}
+
+								srcPrefix, dstPrefix := fmt.Sprintf("%s:", f.IP.Source), fmt.Sprintf("%s:", f.IP.Destination)
+
+								if !(strings.HasPrefix(desc, srcPrefix) || strings.HasPrefix(desc, dstPrefix)) {
+									t.Errorf("unexpected name prefix in %q, expected %q or %q", desc, srcPrefix, dstPrefix)
+								}
+							}
+						}
+						if !hasDesc {
+							t.Errorf("missing attribute: %s", common.AttributeEventDescription)
 						}
 
-						srcPrefix, dstPrefix := fmt.Sprintf("%s:", f.IP.Source), fmt.Sprintf("%s:", f.IP.Destination)
-
-						if !(strings.HasPrefix(span.Name, srcPrefix) || strings.HasPrefix(span.Name, dstPrefix)) {
-							t.Errorf("unexpected name prefix in %q, expected %q or %q", span.Name, srcPrefix, dstPrefix)
+						isKnownSpanName := false
+						for _, name := range knownSpanNames {
+							if name == span.Name {
+								isKnownSpanName = true
+							}
+						}
+						if !isKnownSpanName {
+							t.Errorf("unexpectected span name: %s", span.Name)
 						}
 					}
 				})
 			}
 		}
 	}
+}
+
+var knownSpanNames = []string{
+	"HTTP GET (request)",
+	"HTTP GET (response)",
+	"DNS request (query types: AAAA)",
+	"DNS response (query types: AAAA)",
+	"DNS request (query types: A)",
+	"DNS response (query types: A)",
+	"TCP (flags: ACK, FIN) [to-stack]",
+	"TCP (flags: ACK, FIN) [to-endpoint]",
+	"TCP (flags: ACK, PSH) [to-endpoint]",
+	"TCP (flags: ACK, PSH) [to-stack]",
+	"TCP (flags: ACK) [to-stack]",
+	"TCP (flags: ACK) [to-endpoint]",
+	"TCP (flags: ACK, PSH) [to-endpoint]",
+	"TCP (flags: ACK) [to-stack]",
+	"TCP (flags: SYN) [to-endpoint]",
+	"TCP (flags: ACK, SYN) [to-stack]",
 }
