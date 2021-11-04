@@ -8,7 +8,7 @@ import (
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/receiver/receiverhelper"
 
-	"github.com/isovalent/hubble-otel/common"
+	"github.com/cilium/hubble-otel/common"
 )
 
 const (

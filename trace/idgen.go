@@ -13,7 +13,7 @@ import (
 	"time"
 
 	badger "github.com/dgraph-io/badger/v3"
-	"github.com/isovalent/hubble-otel/common"
+	"github.com/cilium/hubble-otel/common"
 
 	"go.opentelemetry.io/contrib/propagators/aws/xray"
 	"go.opentelemetry.io/contrib/propagators/b3"

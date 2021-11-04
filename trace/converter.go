@@ -19,7 +19,7 @@ import (
 	monitorAPI "github.com/cilium/cilium/pkg/monitor/api"
 	hubblePrinter "github.com/cilium/hubble/pkg/printer"
 
-	"github.com/isovalent/hubble-otel/common"
+	"github.com/cilium/hubble-otel/common"
 )
 
 type FlowConverter struct {

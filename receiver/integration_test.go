@@ -7,8 +7,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/isovalent/hubble-otel/receiver"
-	"github.com/isovalent/hubble-otel/testutil"
+	"github.com/cilium/hubble-otel/receiver"
+	"github.com/cilium/hubble-otel/testutil"
 )
 
 const (

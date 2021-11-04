@@ -17,9 +17,9 @@ import (
 	"go.opentelemetry.io/collector/component/componenterror"
 	"go.opentelemetry.io/collector/consumer"
 
-	"github.com/isovalent/hubble-otel/common"
-	"github.com/isovalent/hubble-otel/logs"
-	"github.com/isovalent/hubble-otel/trace"
+	"github.com/cilium/hubble-otel/common"
+	"github.com/cilium/hubble-otel/logs"
+	"github.com/cilium/hubble-otel/trace"
 )
 
 type hubbleReceiver struct {

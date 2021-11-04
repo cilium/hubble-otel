@@ -1,7 +1,7 @@
 # Copyright 2021 Authors of Cilium
 # SPDX-License-Identifier: Apache-2.0
 
-REGISTRY ?= ghcr.io/isovalent/hubble-otel
+REGISTRY ?= ghcr.io/cilium/hubble-otel
 
 WITHOUT_TAG_SUFFIX ?= false
 PUSH ?= false

@@ -6,8 +6,8 @@ import (
 
 	badger "github.com/dgraph-io/badger/v3"
 
-	"github.com/isovalent/hubble-otel/testutil"
-	"github.com/isovalent/hubble-otel/trace"
+	"github.com/cilium/hubble-otel/testutil"
+	"github.com/cilium/hubble-otel/trace"
 )
 
 func TestTraceCache(t *testing.T) {
