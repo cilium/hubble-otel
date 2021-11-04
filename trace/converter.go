@@ -72,7 +72,7 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 
 	ts := uint64(tsAsTime.UnixNano())
 	span := &traceV1.Span{
-		Name: c.getSpanName(hubbleResp),
+		Name: c.getSpanName(flow),
 		// TODO: should ParentSpanId be resolved and set for reply packets?
 		// (perhaps is is_reply and traffic_direction can be used for that)
 		SpanId:            spanID,
@@ -142,13 +142,18 @@ func (c *FlowConverter) DeleteCache() {
 	c.traceCache.Delete()
 }
 
-func (c *FlowConverter) getSpanName(hubbleResp *hubbleObserver.GetFlowsResponse) string {
-	f := hubbleResp.GetFlow()
-
+func (c *FlowConverter) getSpanName(f *flowV1.Flow) string {
 	eventType := f.GetEventType()
-	eventSubType := uint8(eventType.GetSubType())
-	switch eventType.GetType() {
-	case monitorAPI.MessageTypeTrace:
+	namer, ok := spanNamers[eventType.GetType()]
+	if ok {
+		return namer(f, uint8(eventType.GetSubType()))
+	}
+	return "internal Cilium event: " + eventType.String()
+}
+
+var spanNamers = map[int32]func(*flowV1.Flow, uint8) string{
+
+	monitorAPI.MessageTypeTrace: func(f *flowV1.Flow, eventSubType uint8) string {
 		observationPoint := "[" + monitorAPI.TraceObservationPoint(eventSubType) + "]"
 		if l4 := f.GetL4(); l4 != nil {
 			switch l4.GetProtocol().(type) {
@@ -194,7 +199,9 @@ func (c *FlowConverter) getSpanName(hubbleResp *hubbleObserver.GetFlowsResponse)
 			}
 		}
 		return "unknown Cilium trace event"
-	case monitorAPI.MessageTypeAccessLog:
+	},
+
+	monitorAPI.MessageTypeAccessLog: func(f *flowV1.Flow, _ uint8) string {
 		if l7 := f.GetL7(); l7 != nil {
 			t := strings.ToLower(l7.Type.String())
 			switch l7.GetRecord().(type) {
@@ -209,9 +216,13 @@ func (c *FlowConverter) getSpanName(hubbleResp *hubbleObserver.GetFlowsResponse)
 			}
 		}
 		return "unknown Cilium access log event"
-	case monitorAPI.MessageTypeDrop:
+	},
+
+	monitorAPI.MessageTypeDrop: func(_ *flowV1.Flow, eventSubType uint8) string {
 		return "Cilium drop event (reason: " + monitorAPI.DropReason(eventSubType) + ")"
-	case monitorAPI.MessageTypePolicyVerdict:
+	},
+
+	monitorAPI.MessageTypePolicyVerdict: func(f *flowV1.Flow, _ uint8) string {
 		verdict := f.GetVerdict()
 		name := "Cilium policy verdict: "
 		switch verdict {
@@ -227,9 +238,7 @@ func (c *FlowConverter) getSpanName(hubbleResp *hubbleObserver.GetFlowsResponse)
 			return name + "unknown"
 		}
 		return "unknown Cilium policy verdict event"
-	default:
-		return "internal Cilium event: " + eventType.String()
-	}
+	},
 }
 
 func (c *FlowConverter) getSpanDesc(hubbleResp *hubbleObserver.GetFlowsResponse) (string, error) {
