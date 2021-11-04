@@ -61,6 +61,12 @@ func (l *semiFlatTypedMap) newLeaf(keyPathPrefix string) leafer {
 			}
 		default:
 			if item := newValue(true, l.labelsAsMaps, l.headersAsMaps, fd, v, nil, ""); item != nil {
+				if l.labelsAsMaps && fd.FullName() == "flow.Endpoint.labels" {
+					// flatten labels into the main list instead of appending as a new list
+					for _, label := range item.GetKvlistValue().GetValues() {
+						l.append(fmtKeyPath(keyPath, label.Key, l.separator), label.Value)
+					}
+				}
 				l.append(keyPath, item)
 			}
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -236,6 +237,10 @@ func TestNonRoudtripEncoding(t *testing.T) {
 func checkLabels(t *testing.T, key string, labels interface{}, asMap bool) {
 	t.Helper()
 
+	if labels == nil {
+		return
+	}
+
 	if asMap {
 		if labels, ok := labels.(map[string]interface{}); ok {
 			for k, v := range labels {
@@ -318,16 +323,42 @@ func checkFlatEncodingCommon(t *testing.T, encodingOptions *common.EncodingOptio
 	}
 
 	if format == common.EncodingSemiFlatTypedMap {
-		sk := resolveKey("source.labels", encodingOptions)
-		if labels, ok := result[sk]; ok {
-			checkLabels(t, sk, labels, encodingOptions.WithLabelsAsMaps())
+		var (
+			srcLabels, dstLabels interface{}
+			srcKey, dstKey       string
+		)
+
+		if encodingOptions.WithLabelsAsMaps() {
+			srcLabelsCollected, srcPrefix := map[string]interface{}{}, resolveKey("source.labels.", encodingOptions)
+			dstLabelsCollected, dstPrefix := map[string]interface{}{}, resolveKey("destination.labels.", encodingOptions)
+			for k, v := range result {
+				if strings.HasPrefix(k, srcPrefix) {
+					srcLabelsCollected[k] = v
+				}
+				if strings.HasPrefix(k, dstPrefix) {
+					dstLabelsCollected[k] = v
+				}
+			}
+			if len(srcLabelsCollected) == 0 {
+				t.Errorf("missing required keys with %q prefix", "source.labels.")
+			}
+			srcKey, dstKey = srcPrefix+"*", dstPrefix+"*"
+			srcLabels, dstLabels = srcLabelsCollected, dstLabelsCollected
 		} else {
-			t.Errorf("missing required key %q", "source.labels")
+			srcKey = resolveKey("source.labels", encodingOptions)
+			if srcLabelsCollected, ok := result[srcKey]; !ok {
+				t.Errorf("missing required key %q", "source.labels")
+			} else {
+				srcLabels = srcLabelsCollected
+			}
+			dstKey = resolveKey("destination.labels", encodingOptions)
+			if dstLabelsCollected, ok := result[dstKey]; ok {
+				dstLabels = dstLabelsCollected
+			}
 		}
-		dk := resolveKey("destination.labels", encodingOptions)
-		if labels, ok := result[dk]; ok {
-			checkLabels(t, dk, labels, encodingOptions.WithLabelsAsMaps())
-		}
+
+		checkLabels(t, srcKey, srcLabels, encodingOptions.WithLabelsAsMaps())
+		checkLabels(t, dstKey, dstLabels, encodingOptions.WithLabelsAsMaps())
 	}
 }
 
