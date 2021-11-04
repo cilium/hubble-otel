@@ -4,11 +4,11 @@ go 1.16
 
 require (
 	github.com/cilium/mock-hubble v0.0.0-20211026154315-9c72b77d6839
-	github.com/cloudflare/cfssl v1.6.0
+	github.com/cloudflare/cfssl v1.6.1
 	github.com/containerd/containerd v1.5.6 // indirect
 	github.com/errordeveloper/imagine v0.0.0-20201215192748-b3494e82bc78
 	go.opentelemetry.io/collector v0.38.0
-	go.opentelemetry.io/collector/cmd/builder v0.0.0-20211030001343-ac25e4e0d29b
+	go.opentelemetry.io/collector/cmd/builder v0.0.0-20211103215828-cffbecb2ac9e
 )
 
 // based on https://github.com/docker/buildx/blob/v0.5.1/go.mod#L61-L68
