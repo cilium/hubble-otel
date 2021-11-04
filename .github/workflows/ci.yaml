@@ -4,6 +4,9 @@ on:
     types: [opened, reopened]
   push:
     branches: ["**"]
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
 
 jobs:
   test:
