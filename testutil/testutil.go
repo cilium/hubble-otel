@@ -31,7 +31,7 @@ import (
 	"github.com/cilium/cilium/api/v1/observer"
 	mockHubbleObeserver "github.com/cilium/mock-hubble/observer"
 
-	"github.com/isovalent/hubble-otel/common"
+	"github.com/cilium/hubble-otel/common"
 )
 
 const (

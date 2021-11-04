@@ -9,7 +9,7 @@ import (
 	"go.opentelemetry.io/collector/config"
 	"go.opentelemetry.io/collector/config/configgrpc"
 
-	"github.com/isovalent/hubble-otel/common"
+	"github.com/cilium/hubble-otel/common"
 )
 
 type Config struct {

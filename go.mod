@@ -1,4 +1,4 @@
-module github.com/isovalent/hubble-otel
+module github.com/cilium/hubble-otel
 
 go 1.16
 

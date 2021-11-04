@@ -7,8 +7,8 @@ import (
 
 	flowV1 "github.com/cilium/cilium/api/v1/flow"
 
-	"github.com/isovalent/hubble-otel/common"
-	"github.com/isovalent/hubble-otel/testutil"
+	"github.com/cilium/hubble-otel/common"
+	"github.com/cilium/hubble-otel/testutil"
 )
 
 func TestHTTPAttributes(t *testing.T) {

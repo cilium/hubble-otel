@@ -10,9 +10,9 @@ import (
 
 	traceV1 "go.opentelemetry.io/proto/otlp/trace/v1"
 
-	"github.com/isovalent/hubble-otel/common"
-	"github.com/isovalent/hubble-otel/testutil"
-	"github.com/isovalent/hubble-otel/trace"
+	"github.com/cilium/hubble-otel/common"
+	"github.com/cilium/hubble-otel/testutil"
+	"github.com/cilium/hubble-otel/trace"
 )
 
 func TestAllTraceConvModes(t *testing.T) {

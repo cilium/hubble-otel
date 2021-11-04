@@ -1,10 +1,10 @@
-module github.com/isovalent/hubble-otel/receiver
+module github.com/cilium/hubble-otel/receiver
 
 go 1.17
 
 require (
 	github.com/Sytten/logrus-zap-hook v0.1.0
-	github.com/isovalent/hubble-otel v0.0.0-00010101000000-000000000000
+	github.com/cilium/hubble-otel v0.0.0-00010101000000-000000000000
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
 	go.opentelemetry.io/collector v0.38.0
@@ -195,4 +195,4 @@ require (
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
-replace github.com/isovalent/hubble-otel => ../
+replace github.com/cilium/hubble-otel => ../
