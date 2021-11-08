@@ -32,6 +32,7 @@ images.otelcol: .buildx_builder
 		--push=$(PUSH)
 	$(IMAGINE) image \
 		--base=./ \
+		--root \
 		--upstream-branch=origin/main \
 		--name=otelcol \
 		--registry=$(REGISTRY) \
@@ -50,6 +51,7 @@ images.hubble-otel: .buildx_builder
 		--push=$(PUSH)
 	$(IMAGINE) image \
 		--base=./ \
+		--root \
 		--upstream-branch=origin/main \
 		--name=hubble-otel \
 		--registry=$(REGISTRY) \
