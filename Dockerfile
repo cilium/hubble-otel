@@ -14,16 +14,8 @@ ENV GOPRIVATE=github.com/isovalent
 RUN mkdir -p /out/usr/bin
 
 RUN --mount=type=bind,target=/src --mount=target=/root/.cache,type=cache --mount=target=/go/pkg/mod,type=cache \
-    CGO_ENABLED=0 \
-      go vet ./...
-
-RUN --mount=type=bind,target=/src --mount=target=/root/.cache,type=cache --mount=target=/go/pkg/mod,type=cache \
     CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
         go build -ldflags '-s -w' -o /out/usr/bin/hubble-otel ./
-
-RUN --mount=type=bind,target=/src --mount=target=/root/.cache,type=cache --mount=target=/go/pkg/mod,type=cache \
-    CGO_ENABLED=0 \
-      go test ./...
 
 FROM ${CA_CERTIFICATES_IMAGE}
 COPY --from=builder /out /
