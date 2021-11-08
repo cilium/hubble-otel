@@ -90,5 +90,5 @@ jobs:
           GHCR_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         with:
           entrypoint: make
-          args: images.hubble-otel images.otelcol PUSH=true WITHOUT_TAG_SUFFIX=true
+          args: images.hubble-otel images.otelcol PUSH=true
 
