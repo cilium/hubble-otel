@@ -22,7 +22,8 @@ endif
 images.otelcol: .buildx_builder
 	$(IMAGINE) build \
 		--builder=$$(cat .buildx_builder) \
-		--base=./ \
+		--base ./ \
+		--root \
 		--dockerfile=./images/otelcol/Dockerfile \
 		--upstream-branch=origin/main \
 		--name=otelcol \
@@ -40,7 +41,8 @@ images.otelcol: .buildx_builder
 images.hubble-otel: .buildx_builder
 	$(IMAGINE) build \
 		--builder=$$(cat .buildx_builder) \
-		--base=./ \
+		--base ./ \
+		--root \
 		--upstream-branch=origin/main \
 		--name=hubble-otel \
 		--registry=$(REGISTRY) \
