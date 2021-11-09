@@ -37,6 +37,7 @@ type TraceCache struct {
 	// this duration after last matching flow was seen.
 	MaxTraceLength time.Duration
 	Strict         bool
+	StoreFlowData  bool
 
 	badgerDB *badger.DB
 	logger   badger.Logger
@@ -82,7 +83,7 @@ func (e *entryHelper) checkHeaders(f *flow.Flow) error {
 		return nil
 	}
 
-	// extract trace ID using standard propagators
+	// extract trace ID using logic defined by the OpenTelemetry SDK
 	ctx := propagators.Extract(context.Background(), e.makeHeaderCarrier(headers))
 
 	e.spanContext = trace.SpanFromContext(ctx).SpanContext()
@@ -108,28 +109,31 @@ var propagators = propagation.NewCompositeTextMapPropagator(
 	&xray.Propagator{},
 )
 
-func (e *entryHelper) processFlowData(log badger.Logger, f *flow.Flow, strict bool) error {
+func (e *entryHelper) processFlowData(log badger.Logger, f *flow.Flow, strict, storeFlowData bool) error {
 	if err := e.checkHeaders(f); err != nil {
 		return err
 	}
 
-	e.flowData = bytes.NewBuffer([]byte{})
+	if e.spanContext.HasSpanID() && e.spanContext.HasTraceID() {
+		return nil
+	}
 
-	writers := []io.Writer{e.flowData}
-
-	if !(e.spanContext.HasSpanID() && e.spanContext.HasTraceID()) {
-		kt := e.generateKeys(f)
-		if !kt.isValid() {
-			// skip flows where keyTuple cannot be generated
-			log.Debugf("flow has invalid key tuple: %+v", f)
-			if strict {
-				return fmt.Errorf("invalid key tuple: %+v", f)
-			}
-			return nil
+	kt := e.generateKeys(f)
+	if !kt.isValid() {
+		// skip flows where keyTuple cannot be generated
+		log.Debugf("flow has invalid key tuple: %+v", f)
+		if strict {
+			return fmt.Errorf("invalid key tuple: %+v", f)
 		}
-		e.keys = kt
+		return nil
+	}
+	e.keys = kt
 
-		writers = append(writers, e.spanHash, e.traceHash)
+	writers := []io.Writer{e.spanHash, e.traceHash}
+
+	if storeFlowData {
+		e.flowData = bytes.NewBuffer([]byte{})
+		writers = append(writers, e.flowData)
 	}
 
 	flowData, err := common.MarshalJSON(f)
@@ -245,8 +249,10 @@ func (e *entryHelper) fetchTraceID(txn *badger.Txn, updateTTL time.Duration) (tr
 
 func (tc *TraceCache) storeTraceID(txn *badger.Txn, e *entryHelper, traceID trace.TraceID) error {
 	data := map[string][]byte{
-		e.traceIDKey(0):  traceID[:],
-		e.flowDataKey(0): e.flowData.Bytes(),
+		e.traceIDKey(0): traceID[:],
+	}
+	if tc.StoreFlowData {
+		data[e.flowDataKey(0)] = e.flowData.Bytes()
 	}
 	if err := tc.storeKeys(txn, data); err != nil {
 		return fmt.Errorf("unable to store newly generated trace ID: %w", err)
@@ -269,7 +275,7 @@ func NewTraceCache(opt badger.Options) (*TraceCache, error) {
 func (tc *TraceCache) GetSpanContext(f *flow.Flow) (*trace.SpanContext, *trace.SpanContext, error) {
 	e := newEntry()
 
-	if err := e.processFlowData(tc.logger, f, tc.Strict); err != nil {
+	if err := e.processFlowData(tc.logger, f, tc.Strict, tc.StoreFlowData); err != nil {
 		return nil, nil, fmt.Errorf("unable to serialise flow: %w", err)
 	}
 
