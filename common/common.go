@@ -41,7 +41,7 @@ const (
 	AttributeEventDescription = keyNamespaceCilium + "event_description"
 
 	DefaultLogEncoding       = EncodingTypedMap
-	DefaultTraceEncoding     = EncodingSemiFlatTypedMap
+	DefaultTraceEncoding     = EncodingFlatStringMap
 	EncodingJSON             = "JSON"
 	EncodingJSONBASE64       = "JSON+base64"
 	EncodingFlatStringMap    = "FlatStringMap"
