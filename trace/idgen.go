@@ -13,7 +13,6 @@ import (
 	"time"
 
 	badger "github.com/dgraph-io/badger/v3"
-	"github.com/cilium/hubble-otel/common"
 
 	"go.opentelemetry.io/contrib/propagators/aws/xray"
 	"go.opentelemetry.io/contrib/propagators/b3"
@@ -23,9 +22,19 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/cilium/cilium/api/v1/flow"
+
+	"github.com/cilium/hubble-otel/common"
 )
 
+// TraceCache holds an instance of Badger database that is used to track
+// a limited number of observed flows and associated trace IDs.
 type TraceCache struct {
+	// MaxTraceLen defins the length of the time window during which
+	// reconstruction of long-lived sessions is permitted.
+	// This is used as a Badger value TTL that is set when trace ID is
+	// stored for the first time, and gets updated each time a trace ID
+	// is retreived. In other words, trace ID will only be tracked for
+	// this duration after last matching flow was seen.
 	MaxTraceLength time.Duration
 	Strict         bool
 
@@ -73,6 +82,7 @@ func (e *entryHelper) checkHeaders(f *flow.Flow) error {
 		return nil
 	}
 
+	// extract trace ID using standard propagators
 	ctx := propagators.Extract(context.Background(), e.makeHeaderCarrier(headers))
 
 	e.spanContext = trace.SpanFromContext(ctx).SpanContext()
@@ -131,10 +141,15 @@ func (e *entryHelper) processFlowData(log badger.Logger, f *flow.Flow, strict bo
 	return err
 }
 
+// generateSpanID computes a short hash of serialised flow data and
+// stores it in the given SpanContextConfig
 func (e *entryHelper) generateSpanID(scc *trace.SpanContextConfig) {
 	_ = e.spanHash.Sum(scc.SpanID[:0])
 }
 
+// generateSpanID computes a long hash of serialised flow data, combined
+// with an AWS XRay-compatible timestamp and stores it in the given
+// SpanContextConfig
 func (e *entryHelper) generateTraceID(scc *trace.SpanContextConfig) {
 	// ensure trace prefix is a timestamp for AWS XRay compatibility
 	binary.BigEndian.PutUint32(scc.TraceID[:4], uint32(time.Now().Unix()))
@@ -144,6 +159,8 @@ func (e *entryHelper) generateTraceID(scc *trace.SpanContextConfig) {
 	copy(scc.TraceID[4:], fullHash[:])
 }
 
+// generateKeys makes up cache keys used for tracking generated trace IDs;
+// these are a combination of IP address, port and Cilium identity
 func (e *entryHelper) generateKeys(f *flow.Flow) keyTuple {
 	var src, dst string
 

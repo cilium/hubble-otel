@@ -1,3 +1,5 @@
+// Package recevier implements an OpenTelemetry reciever that connects to Hubble API
+// and can produce trace or logs data.
 package receiver
 
 import (

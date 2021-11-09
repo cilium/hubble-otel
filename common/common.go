@@ -1,3 +1,10 @@
+// Package common contains all of logic that is shared between trace and logs packages.
+// The main concern of this package is to format Hubble flow data using OpenTelemetry
+// structures. A few different formats are implemented to make it easier to optimise
+// the data for different OpenTelemetry backends, e.g. some backends accept arbitrarily
+// nested data, while others only handle flat maps.
+// This package also implements conversion of label and HTTP headers to maps, which
+// makes it easier to query data by label or by header in most of the backends.
 package common
 
 import (
