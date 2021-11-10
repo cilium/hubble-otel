@@ -21,6 +21,7 @@ import (
 	timestamp "google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/cilium/cilium/api/v1/observer"
+	hubbleLabels "github.com/cilium/hubble-ui/backend/domain/labels"
 )
 
 const (
@@ -334,16 +335,8 @@ func MarshalJSON(m proto.Message) ([]byte, error) {
 }
 
 func parseLabel(v protoreflect.Value) (string, *commonV1.AnyValue, error) {
-	label := v.String()
-	parts := strings.Split(label, "=")
-	switch len(parts) {
-	case 2:
-		return parts[0], newStringValue(parts[1]), nil
-	case 1:
-		return parts[0], newStringValue(""), nil
-	default:
-		return "", nil, fmt.Errorf("cannot parse label %q, as it's not in \"k=v\" format", label)
-	}
+	labelKey, labelValue := hubbleLabels.LabelAsKeyValue(v.String(), true)
+	return labelKey, newStringValue(labelValue), nil
 }
 
 func parseHeader(v protoreflect.Value) (string, *commonV1.AnyValue, error) {
