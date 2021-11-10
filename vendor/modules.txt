@@ -97,7 +97,7 @@ github.com/census-instrumentation/opencensus-proto/gen-go/trace/v1
 github.com/cespare/xxhash
 # github.com/cespare/xxhash/v2 v2.1.2
 github.com/cespare/xxhash/v2
-# github.com/cilium/cilium v1.10.4
+# github.com/cilium/cilium v1.10.5
 ## explicit
 github.com/cilium/cilium/api/v1/flow
 github.com/cilium/cilium/api/v1/models
@@ -121,7 +121,7 @@ github.com/cilium/cilium/pkg/logging
 github.com/cilium/cilium/pkg/logging/logfields
 github.com/cilium/cilium/pkg/monitor/api
 github.com/cilium/cilium/pkg/monitor/notifications
-# github.com/cilium/hubble v0.8.2
+# github.com/cilium/hubble v0.8.3-0.20211105134710-1fe4b6e02440
 ## explicit
 github.com/cilium/hubble/pkg/printer
 # github.com/cilium/mock-hubble v0.0.0-20211026154315-9c72b77d6839
