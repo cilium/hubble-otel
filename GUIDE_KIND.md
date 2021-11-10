@@ -121,10 +121,6 @@ spec:
       readOnly: true
   config: |
     receivers:
-      otlp:
-        protocols:
-          grpc:
-            endpoint: 0.0.0.0:55690
       hubble:
         endpoint: \${NODE_NAME}:4244 # unix:///var/run/cilium/hubble.sock
         buffer_size: 100
@@ -159,7 +155,7 @@ spec:
           level: info # debug
       pipelines:
         traces:
-          receivers: [hubble, otlp]
+          receivers: [hubble]
           processors: [batch, resource]
           exporters: [jaeger]
 
@@ -251,52 +247,6 @@ spec:
       - {}
 EOF
 kubectl apply -f visibility-policies.yaml
-```
-
-The bookinfo app will produce Jaeger traces already, however to collect these
-a sidecar is [recommended](https://github.com/jaegertracing/jaeger-client-python/issues/47#issuecomment-303119229).
-
-Add sidecard config:
-```
-cat > otelcol-bookinfo.yaml << EOF
-apiVersion: opentelemetry.io/v1alpha1
-kind: OpenTelemetryCollector
-metadata:
-  name: otelcol-bookinfo
-  namespace: bookinfo
-spec:
-  mode: sidecar
-  env:
-    - name: NODE_NAME
-      valueFrom:
-        fieldRef:
-          fieldPath: spec.nodeName
-  config: |
-    receivers:
-      jaeger:
-        protocols:
-          thrift_binary: {}
-          thrift_compact: {}
-    exporters:
-     otlp:
-        endpoint: \${NODE_NAME}:55690
-
-    service:
-      telemetry:
-        logs:
-          level: info
-      pipelines:
-        traces:
-          receivers: [jaeger]
-          exporters: [otlp]
-
-EOF
-kubectl apply -f otelcol-bookinfo.yaml
-```
-
-Re-create bookinfo pods to add the sidecars:
-```
-kubectl delete pods -n bookinfo --all --wait=false
 ```
 
 Generate some load on the bookinfo app, so that there are plenty of traces:
