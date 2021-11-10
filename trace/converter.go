@@ -21,9 +21,16 @@ import (
 type FlowConverter struct {
 	traceCache *TraceCache
 	*common.FlowEncoder
+
+	fallbackServiceName string
 }
 
-func NewFlowConverter(log *logrus.Logger, dir string, options *common.EncodingOptions) (*FlowConverter, error) {
+func NewFlowConverter(
+	log *logrus.Logger,
+	dir string,
+	options *common.EncodingOptions,
+	fallbackServiceName string,
+) (*FlowConverter, error) {
 	opt := badger.DefaultOptions(dir)
 	opt.Logger = log
 	tc, err := NewTraceCache(opt)
@@ -40,7 +47,8 @@ func NewFlowConverter(log *logrus.Logger, dir string, options *common.EncodingOp
 			EncodingOptions: options,
 			Logger:          log,
 		},
-		traceCache: tc,
+		traceCache:         tc,
+		fallbackServiceName: fallbackServiceName,
 	}, nil
 }
 
@@ -120,7 +128,7 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 
 	resourceSpans := &traceV1.ResourceSpans{
 		Resource: &resourceV1.Resource{
-			Attributes: common.GetKubernetesAttributes(flow),
+			Attributes: common.GetAllResourceAttributes(flow, c.fallbackServiceName),
 		},
 		InstrumentationLibrarySpans: []*traceV1.InstrumentationLibrarySpans{{
 			Spans: []*traceV1.Span{span},

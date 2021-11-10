@@ -46,7 +46,7 @@ var (
 	}(
 		Detect(
 			context.Background(),
-			defaultServiceNameDetector{},
+			fallbackServiceNameDetector{},
 			fromEnv{},
 			telemetrySDK{},
 		),

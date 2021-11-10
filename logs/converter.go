@@ -14,9 +14,11 @@ import (
 
 type FlowConverter struct {
 	*common.FlowEncoder
+
+	fallbackServiceName string
 }
 
-func NewFlowConverter(log *logrus.Logger, options *common.EncodingOptions) *FlowConverter {
+func NewFlowConverter(log *logrus.Logger, options *common.EncodingOptions, fallbackServiceName string) *FlowConverter {
 	if log != nil {
 		log.WithField("options", options.String()).Debugf("logs converter created")
 	}
@@ -26,6 +28,7 @@ func NewFlowConverter(log *logrus.Logger, options *common.EncodingOptions) *Flow
 			EncodingOptions: options,
 			Logger:          log,
 		},
+		fallbackServiceName: fallbackServiceName,
 	}
 }
 
@@ -52,7 +55,7 @@ func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoref
 
 	resourceLogs := &logsV1.ResourceLogs{
 		Resource: &resourceV1.Resource{
-			Attributes: common.GetKubernetesAttributes(flow),
+			Attributes: common.GetAllResourceAttributes(flow, c.fallbackServiceName),
 		},
 		InstrumentationLibraryLogs: []*logsV1.InstrumentationLibraryLogs{{
 			Logs: []*logsV1.LogRecord{logRecord},

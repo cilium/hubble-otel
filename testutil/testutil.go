@@ -242,6 +242,7 @@ func CheckResource(t *testing.T, res *resourceV1.Resource, hubbleResp *observer.
 	}
 
 	var (
+		hasServiceName,
 		hasNodeName,
 		shouldHaveNamespaceName, hasNamespaceName,
 		shouldHavePodName, hasPodName,
@@ -253,6 +254,8 @@ func CheckResource(t *testing.T, res *resourceV1.Resource, hubbleResp *observer.
 	}
 	for _, attr := range res.Attributes {
 		switch attr.Key {
+		case common.OTelAttrServiceName:
+			hasServiceName = true
 		case common.OTelAttrK8sNodeName:
 			hasNodeName = true
 			if attr.Value.GetStringValue() != hubbleResp.GetNodeName() {
@@ -263,6 +266,9 @@ func CheckResource(t *testing.T, res *resourceV1.Resource, hubbleResp *observer.
 		case common.OTelAttrK8sPodName:
 			hasPodName = true
 		}
+	}
+	if !hasServiceName {
+		t.Error("service name is not set")
 	}
 	if !hasNodeName {
 		t.Error("node name is not set")
