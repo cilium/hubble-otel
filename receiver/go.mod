@@ -39,8 +39,8 @@ require (
 	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
-	github.com/cilium/cilium v1.10.4 // indirect
-	github.com/cilium/hubble v0.8.2 // indirect
+	github.com/cilium/cilium v1.10.5 // indirect
+	github.com/cilium/hubble v0.8.3-0.20211105134710-1fe4b6e02440 // indirect
 	github.com/cilium/mock-hubble v0.0.0-20211026154315-9c72b77d6839 // indirect
 	github.com/containerd/containerd v1.5.7 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

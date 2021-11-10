@@ -268,6 +268,8 @@ github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMn
 github.com/cilium/cilium v1.10.3/go.mod h1:H8fYOqCYbymQOKwlsP05IBOyK5SkAez6lAbHOqZznS0=
 github.com/cilium/cilium v1.10.4 h1:xW56mkiRhxshPcS30IhsCBPwSFEgV3xcQSWMZyg8oq4=
 github.com/cilium/cilium v1.10.4/go.mod h1:lWTUj3a9NwQKl+6wUCt0iVPySWpsAqm+1lfAXyig1LI=
+github.com/cilium/cilium v1.10.5 h1:Pz+nrzC5QCwk856sGffDeSWVJzprCX322591hNIY8Qw=
+github.com/cilium/cilium v1.10.5/go.mod h1:CTKt1JRubX/p/4xtUaDmx6139cfYQqI8VI8l7NZBxJA=
 github.com/cilium/customvet v0.0.0-20201209211516-9852765c1ac4/go.mod h1:MEn5V1CejgUNFP3Y1JKmBC6Mb9TuK53ecHG9lffctFg=
 github.com/cilium/deepequal-gen v0.0.0-20200406125435-ad6a9003139e/go.mod h1:c4R5wxGyXhbM6zyKeRKNIc9aab5EZi4z4oOSZvUMvZA=
 github.com/cilium/ebpf v0.0.0-20200110133405-4032b1d8aae3/go.mod h1:MA5e5Lr8slmEg9bt0VpxxWqJlO4iwu3FBdHUzV7wQVg=
@@ -278,6 +280,8 @@ github.com/cilium/ebpf v0.5.1-0.20210421150058-a4ee356536f3/go.mod h1:4tRaxcgiL7
 github.com/cilium/ebpf v0.6.2/go.mod h1:4tRaxcgiL706VnOzHOdBlY8IEAIdxINsQBcU4xJJXRs=
 github.com/cilium/hubble v0.8.2 h1:c/l4Lpa/hN/AaeoZ7eqp3rKSDw68hOhw+RyDoDcx9cQ=
 github.com/cilium/hubble v0.8.2/go.mod h1:xRoGUlew20UYf+Fwn8U5shMskvZeP63WKc1Pgy49sDU=
+github.com/cilium/hubble v0.8.3-0.20211105134710-1fe4b6e02440 h1:JTPzKZzkdl+sViLknm4Qr2Xuf6197xF0GgF8XSxgy3A=
+github.com/cilium/hubble v0.8.3-0.20211105134710-1fe4b6e02440/go.mod h1:itpxvSrscybXJiTbkZJUENJLvBWsE21G2Ab7Uxa6H60=
 github.com/cilium/ipam v0.0.0-20201106170308-4184bc4bf9d6/go.mod h1:Ascfar4FtgB+K+mwqbZpSb3WVZ5sPFIarg+iAOXNZqI=
 github.com/cilium/mock-hubble v0.0.0-20211026154315-9c72b77d6839 h1:nCDM54KdL4S4W1K/hqtAbyHYMIM22yodDz1cRFHlWWc=
 github.com/cilium/mock-hubble v0.0.0-20211026154315-9c72b77d6839/go.mod h1:cxfP8S2Iq+cV9S6PE++q7bKyMiS50oSH8crM69cjmOg=
@@ -1899,6 +1903,7 @@ golang.org/x/sys v0.0.0-20210611083646-a4fc73990273/go.mod h1:oPkhp1MJrh7nUepCBc
 golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20210816074244-15123e1e1f71/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20210917161153-d61c044b1678 h1:J27LZFQBFoihqXoegpscI10HpjZ7B5WQLLKL2FZXQKw=
 golang.org/x/sys v0.0.0-20210917161153-d61c044b1678/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/term v0.0.0-20201117132131-f5c789dd3221/go.mod h1:Nr5EML6q2oocZ2LXRh80K7BxOlk5/8JxuGnuhpl+muw=

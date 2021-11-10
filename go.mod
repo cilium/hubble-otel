@@ -3,8 +3,8 @@ module github.com/cilium/hubble-otel
 go 1.16
 
 require (
-	github.com/cilium/cilium v1.10.4
-	github.com/cilium/hubble v0.8.2
+	github.com/cilium/cilium v1.10.5
+	github.com/cilium/hubble v0.8.3-0.20211105134710-1fe4b6e02440
 	github.com/cilium/mock-hubble v0.0.0-20211026154315-9c72b77d6839
 	github.com/dgraph-io/badger/v3 v3.2103.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusexporter v0.38.0
