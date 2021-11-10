@@ -52,6 +52,7 @@ func TestAllTraceConvModes(t *testing.T) {
 		"basic-sample-10-flows.json",
 		"basic-sample-330-dns-flows.json",
 		"basic-sample-348-http-flows.json",
+		"2021-11-10-kind-bookinfo/1.json",
 	}
 
 	for s := range samples {
@@ -110,7 +111,17 @@ func TestAllTraceConvModes(t *testing.T) {
 									t.Errorf("unexpected name suffix in %q, expected %q", desc, e)
 								}
 
-								srcPrefix, dstPrefix := fmt.Sprintf("%s:", f.IP.Source), fmt.Sprintf("%s:", f.IP.Destination)
+								if f.IP == nil {
+									js, _ := f.MarshalJSON()
+									t.Logf("skipping flow without IP: %s", js)
+									continue
+								}
+
+								addrFmt := "%s:"
+								if f.L4.GetICMPv4() != nil || f.L4.GetICMPv6() != nil {
+									addrFmt = "%s "
+								}
+								srcPrefix, dstPrefix := fmt.Sprintf(addrFmt, f.IP.Source), fmt.Sprintf(addrFmt, f.IP.Destination)
 
 								if !(strings.HasPrefix(desc, srcPrefix) || strings.HasPrefix(desc, dstPrefix)) {
 									t.Errorf("unexpected name prefix in %q, expected %q or %q", desc, srcPrefix, dstPrefix)
@@ -138,20 +149,35 @@ func TestAllTraceConvModes(t *testing.T) {
 }
 
 var knownSpanNames = []string{
+	"Cilium policy verdict: redirected",
+	"DNS request (query types: A)",
+	"DNS request (query types: AAAA)",
+	"DNS response (query types: A)",
+	"DNS response (query types: AAAA)",
 	"HTTP GET (request)",
 	"HTTP GET (response)",
-	"DNS request (query types: AAAA)",
-	"DNS response (query types: AAAA)",
-	"DNS request (query types: A)",
-	"DNS response (query types: A)",
-	"TCP (flags: ACK, FIN) [to-stack]",
-	"TCP (flags: ACK, FIN) [to-endpoint]",
-	"TCP (flags: ACK, PSH) [to-endpoint]",
-	"TCP (flags: ACK, PSH) [to-stack]",
-	"TCP (flags: ACK) [to-stack]",
+	"ICMPv4 [to-endpoint]",
+	"ICMPv4 [to-overlay]",
+	"ICMPv4 [to-stack]",
 	"TCP (flags: ACK) [to-endpoint]",
-	"TCP (flags: ACK, PSH) [to-endpoint]",
+	"TCP (flags: ACK) [to-overlay]",
+	"TCP (flags: ACK) [to-proxy]",
 	"TCP (flags: ACK) [to-stack]",
-	"TCP (flags: SYN) [to-endpoint]",
+	"TCP (flags: ACK, FIN) [to-endpoint]",
+	"TCP (flags: ACK, FIN) [to-overlay]",
+	"TCP (flags: ACK, FIN) [to-proxy]",
+	"TCP (flags: ACK, FIN) [to-stack]",
+	"TCP (flags: ACK, PSH) [to-endpoint]",
+	"TCP (flags: ACK, PSH) [to-overlay]",
+	"TCP (flags: ACK, PSH) [to-proxy]",
+	"TCP (flags: ACK, PSH) [to-stack]",
+	"TCP (flags: ACK, SYN) [to-endpoint]",
+	"TCP (flags: ACK, SYN) [to-overlay]",
 	"TCP (flags: ACK, SYN) [to-stack]",
+	"TCP (flags: SYN) [to-endpoint]",
+	"TCP (flags: SYN) [to-overlay]",
+	"TCP (flags: SYN) [to-proxy]",
+	"UDP [to-endpoint]",
+	"UDP [to-overlay]",
+	"UDP [to-proxy]",
 }
