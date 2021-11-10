@@ -94,16 +94,18 @@ var spanNamers = map[int32]func(*flowV1.Flow, uint8) string{
 		verdict := f.GetVerdict()
 		name := "Cilium policy verdict: "
 		switch verdict {
+		case flowV1.Verdict_VERDICT_UNKNOWN:
+			return name + "unknown"
 		case flowV1.Verdict_FORWARDED:
 			return name + "forwarded (match type: " + monitorAPI.PolicyMatchType(f.GetPolicyMatchType()).String() + ")"
 		case flowV1.Verdict_DROPPED:
 			return name + "dropped (reason: " + monitorAPI.DropReason(uint8(f.GetDropReason())) + ")"
-		case flowV1.Verdict_AUDIT:
-			return name + "audit"
 		case flowV1.Verdict_ERROR:
 			return name + "error"
-		case flowV1.Verdict_VERDICT_UNKNOWN:
-			return name + "unknown"
+		case flowV1.Verdict_AUDIT:
+			return name + "audit"
+		case flowV1.Verdict_REDIRECTED:
+			return name + "redirected"
 		}
 		return "unknown Cilium policy verdict event"
 	},
