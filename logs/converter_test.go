@@ -43,6 +43,10 @@ func TestAllLogConvModes(t *testing.T) {
 		"basic-sample-10-flows.json",
 		"basic-sample-330-dns-flows.json",
 		"basic-sample-348-http-flows.json",
+		"basic-sample-400-icmpv4-flows.json",
+		"basic-sample-400-l7-redirected-flows.json",
+		"basic-sample-400-tcp-flows.json",
+		"basic-sample-400-udp-flows.json",
 	}
 
 	for s := range samples {
