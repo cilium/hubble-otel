@@ -116,7 +116,7 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 			options.Encoding = &k
 
 			t.Run(options.EncodingFormat()+":"+options.String(), func(t *testing.T) {
-				if err := run(log, flagsHubble, flagsOTLP, nil, true, true, 10, options, options); err != nil {
+				if err := run(log, flagsHubble, flagsOTLP, nil, true, true, 10, common.OTelAttrServiceNameDefault, options, options); err != nil {
 					if testutil.IsEOF(err) {
 						// if sample a set contains 20000 flows, collector usually record between 17000 and 20000 for each iteration,
 						// 75% seems like a good approximation for the purpose of this test
@@ -162,5 +162,5 @@ func checkCollectorMetrics(ctx context.Context, t *testing.T, metricsURL string,
 	// t.Logf("metrics: %v", mf)
 
 	testutil.CheckCounterMetricIsZero(t, mf, "otelcol_exporter_send_failed_log_records", "otelcol_receiver_refused_log_records", "otelcol_exporter_send_failed_spans", "otelcol_receiver_refused_spans")
-	testutil.CheckCounterMetricIsGreaterThen(t, flowCount * float64(iteration+1), mf,  "otelcol_exporter_sent_log_records", "otelcol_receiver_accepted_log_records", "otelcol_exporter_sent_spans", "otelcol_receiver_accepted_spans")
+	testutil.CheckCounterMetricIsGreaterThen(t, flowCount*float64(iteration+1), mf, "otelcol_exporter_sent_log_records", "otelcol_receiver_accepted_log_records", "otelcol_exporter_sent_spans", "otelcol_receiver_accepted_spans")
 }

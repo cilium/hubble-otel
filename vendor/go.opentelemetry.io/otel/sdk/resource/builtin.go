@@ -46,14 +46,14 @@ type (
 		F         func() (string, error)
 	}
 
-	defaultServiceNameDetector struct{}
+	fallbackServiceNameDetector struct{}
 )
 
 var (
 	_ Detector = telemetrySDK{}
 	_ Detector = host{}
 	_ Detector = stringDetector{}
-	_ Detector = defaultServiceNameDetector{}
+	_ Detector = fallbackServiceNameDetector{}
 )
 
 // Detect returns a *Resource that describes the OpenTelemetry SDK used.
@@ -93,7 +93,7 @@ func (sd stringDetector) Detect(ctx context.Context) (*Resource, error) {
 }
 
 // Detect implements Detector
-func (defaultServiceNameDetector) Detect(ctx context.Context) (*Resource, error) {
+func (fallbackServiceNameDetector) Detect(ctx context.Context) (*Resource, error) {
 	return StringDetector(
 		semconv.SchemaURL,
 		semconv.ServiceNameKey,

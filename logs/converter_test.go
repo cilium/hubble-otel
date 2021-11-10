@@ -64,7 +64,7 @@ func TestAllLogConvModes(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				c := logs.NewFlowConverter(log, options)
+				c := logs.NewFlowConverter(log, options, common.OTelAttrServiceNameDefault)
 				t.Run("("+sample+")/"+options.EncodingFormat()+":"+options.String(), func(t *testing.T) {
 					for _, flow := range testutil.GetFlowSamples(t, "../testdata/"+sample) {
 						logsMsg, err := c.Convert(flow)

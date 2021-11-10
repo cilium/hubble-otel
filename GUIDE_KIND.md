@@ -130,13 +130,6 @@ spec:
           cert_file: /var/run/hubble-tls/client.crt
           key_file: /var/run/hubble-tls/client.key
     processors:
-      resource:
-        attributes:
-          # Jaeger UI doesn't allow searching traces without 'service.name'
-          # resource attributes (see https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/6048c3ff61ff97e93be6426093731713aba1eec2/pkg/translator/jaeger/traces_to_jaegerproto.go#L101-L104)
-          - key: service.name
-            value: hubble-otel
-            action: insert
       batch:
         timeout: 30s
         send_batch_size: 100
@@ -155,8 +148,8 @@ spec:
           level: info # debug
       pipelines:
         traces:
-          receivers: [hubble]
-          processors: [batch, resource]
+          receivers: [hubble, otlp]
+          processors: [batch]
           exporters: [jaeger]
 
 EOF

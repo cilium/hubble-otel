@@ -59,6 +59,7 @@ func main() {
 	otlpHeaders := flag.String("otlp.headers", "", "specify OTLP headers to use as a JSON object")
 
 	bufferSize := flag.Int("bufferSize", 2048, "number of logs/spans to buffer before exporting")
+	fallbackServiceName := flag.String("fallbackServiceName", common.OTelAttrServiceNameDefault, "fallback value to use for 'service.name', when one cannot be derrived automatically")
 
 	exportLogs := flag.Bool("logs.export", true, "export flows as logs")
 	logsEncodingOptions := &common.EncodingOptions{
@@ -108,7 +109,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	if err := run(log, flagsHubble, flagsOTLP, otlpHeadersObj, *exportLogs, *exportTraces, *bufferSize, logsEncodingOptions, traceEncodingOptions); err != nil {
+	if err := run(log, flagsHubble, flagsOTLP, otlpHeadersObj, *exportLogs, *exportTraces, *bufferSize, *fallbackServiceName, logsEncodingOptions, traceEncodingOptions); err != nil {
 		log.Error(err)
 		os.Exit(1)
 	}
@@ -156,7 +157,7 @@ func dialContext(ctx context.Context, log *logrus.Logger, f *flags) (*grpc.Clien
 	return grpc.DialContext(ctx, *f.address, grpc.WithTransportCredentials(creds))
 }
 
-func run(log *logrus.Logger, hubbleFlags, otlpFlags flags, otlpHeaders map[string]string, exportLogs, exportTraces bool, bufferSize int, logsEncodingOptions, traceEncodingOptions *common.EncodingOptions) error {
+func run(log *logrus.Logger, hubbleFlags, otlpFlags flags, otlpHeaders map[string]string, exportLogs, exportTraces bool, bufferSize int, fallbackServiceName string, logsEncodingOptions, traceEncodingOptions *common.EncodingOptions) error {
 	ctx := context.Background()
 
 	hubbleConn, err := dialContext(ctx, log, &hubbleFlags)
@@ -178,7 +179,7 @@ func run(log *logrus.Logger, hubbleFlags, otlpFlags flags, otlpHeaders map[strin
 	if exportLogs {
 		flowsToLogs := make(chan protoreflect.Message, bufferSize)
 
-		converter := logs.NewFlowConverter(log, logsEncodingOptions)
+		converter := logs.NewFlowConverter(log, logsEncodingOptions, fallbackServiceName)
 		go common.RunConverter(ctx, hubbleConn, converter, flowsToLogs, errs)
 
 		exporter := logs.NewBufferedLogExporter(otlpConn, bufferSize, otlpHeaders)
@@ -193,7 +194,7 @@ func run(log *logrus.Logger, hubbleFlags, otlpFlags flags, otlpHeaders map[strin
 
 		flowsToTraces := make(chan protoreflect.Message, bufferSize)
 
-		converter, err := trace.NewFlowConverter(log, spanDB, traceEncodingOptions)
+		converter, err := trace.NewFlowConverter(log, spanDB, traceEncodingOptions, fallbackServiceName)
 		if err != nil {
 			return fmt.Errorf("failed to create trace converter: %w", err)
 		}
