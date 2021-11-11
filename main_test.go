@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -131,7 +132,8 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 }
 
 func checkCollectorMetrics(ctx context.Context, t *testing.T, metricsURL string, flowCount float64, iteration int) {
-	mf := testutil.GetMetricFamilies(ctx, t, metricsURL)
+	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(2*time.Minute))
+	defer cancel()
 
 	/*
 		main_test.go:78: metrics: map[
@@ -161,6 +163,24 @@ func checkCollectorMetrics(ctx context.Context, t *testing.T, metricsURL string,
 
 	// t.Logf("metrics: %v", mf)
 
-	testutil.CheckCounterMetricIsZero(t, mf, "otelcol_exporter_send_failed_log_records", "otelcol_receiver_refused_log_records", "otelcol_exporter_send_failed_spans", "otelcol_receiver_refused_spans")
-	testutil.CheckCounterMetricIsGreaterThen(t, flowCount*float64(iteration+1), mf, "otelcol_exporter_sent_log_records", "otelcol_receiver_accepted_log_records", "otelcol_exporter_sent_spans", "otelcol_receiver_accepted_spans")
+	var failCountersErr, sentCountersErr error
+	for {
+		select {
+		case <-time.After(50 * time.Millisecond):
+			mf := testutil.GetMetricFamilies(ctx, t, metricsURL)
+
+			failCountersErr = testutil.CheckCounterMetricIsZero(mf, "otelcol_exporter_send_failed_log_records", "otelcol_receiver_refused_log_records", "otelcol_exporter_send_failed_spans", "otelcol_receiver_refused_spans")
+			sentCountersErr = testutil.CheckCounterMetricIsGreaterThen(flowCount*float64(iteration+1), mf, "otelcol_exporter_sent_log_records", "otelcol_receiver_accepted_log_records", "otelcol_exporter_sent_spans", "otelcol_receiver_accepted_spans")
+			if failCountersErr == nil && sentCountersErr == nil {
+				return
+			}
+		case <-ctx.Done():
+			if failCountersErr != nil {
+				t.Error(failCountersErr)
+			}
+			if sentCountersErr != nil {
+				t.Error(sentCountersErr)
+			}
+		}
+	}
 }
