@@ -16,9 +16,12 @@ ifeq ($(MAKER_CONTAINER),true)
   KG=kg
 endif
 
-check-tests-compile:
+test.compile-check:
 	for t in ./ ./common ./logs ./trace ; do go test -c $$t -o /dev/null ; done
 	cd ./receiver ; go test -c ./ -o /dev/null
+
+test.run-all:
+	for dir in ./ ./receiver ; do cd $$dir ; go vet ./... && go test ./... ; done
 
 .buildx_builder:
 	docker buildx create --platform linux/amd64 > $@
