@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -51,12 +52,12 @@ func TestIntegration(t *testing.T) {
 	testutil.WaitForServer(ctx, t.Logf, promExporterAddress)
 	testutil.WaitForServer(ctx, t.Logf, promReceiverAddress)
 
-	checkCollectorMetrics(ctx, t, metricsURL, 12000)
-
+	checkCollectorMetrics(ctx, t, metricsURL, 15000)
 }
 
 func checkCollectorMetrics(ctx context.Context, t *testing.T, metricsURL string, flowCount float64) {
-	mf := testutil.GetMetricFamilies(ctx, t, metricsURL)
+	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(2*time.Minute))
+	defer cancel()
 
 	/*
 		   integration_test.go:55: metrics: map[
@@ -76,7 +77,24 @@ func checkCollectorMetrics(ctx context.Context, t *testing.T, metricsURL string,
 
 	// t.Logf("metrics: %v", mf)
 
-	testutil.CheckCounterMetricIsZero(t, mf, "otelcol_exporter_send_failed_log_records", "otelcol_exporter_send_failed_spans")
+	var failCountersErr, sentCountersErr error
+	for {
+		select {
+		case <-time.After(50 * time.Millisecond):
+			mf := testutil.GetMetricFamilies(ctx, t, metricsURL)
 
-	testutil.CheckCounterMetricIsGreaterThen(t, flowCount, mf, "otelcol_exporter_sent_log_records", "otelcol_exporter_sent_spans")
+			failCountersErr = testutil.CheckCounterMetricIsZero(mf, "otelcol_exporter_send_failed_log_records", "otelcol_exporter_send_failed_spans")
+			sentCountersErr = testutil.CheckCounterMetricIsGreaterThen(flowCount, mf, "otelcol_exporter_sent_log_records", "otelcol_exporter_sent_spans")
+			if failCountersErr == nil && sentCountersErr == nil {
+				return
+			}
+		case <-ctx.Done():
+			if failCountersErr != nil {
+				t.Error(failCountersErr)
+			}
+			if sentCountersErr != nil {
+				t.Error(sentCountersErr)
+			}
+		}
+	}
 }
