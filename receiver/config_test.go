@@ -4,7 +4,9 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
+	"github.com/cilium/hubble-otel/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -44,6 +46,10 @@ func TestLoadConfig(t *testing.T) {
 
 	r3 := cfg.Receivers[config.NewComponentIDWithName(typeStr, "nondefaultopts")].(*Config)
 	assert.Equal(t, r3.Endpoint, "localhost:4244")
+	assert.Equal(t, r3.FallbackServiceName, common.OTelAttrServiceNameDefault)
+	assert.Equal(t, r3.TraceCacheWindow, time.Hour)
+	assert.Equal(t, r3.ParseTraceHeaders, false)
+
 	assert.Equal(t, *r3.FlowEncodingOptions.Traces.Encoding, "JSON")
 	assert.Equal(t, *r3.FlowEncodingOptions.Traces.TopLevelKeys, !*defaultEncodingOptions.Traces.TopLevelKeys)
 	assert.Equal(t, *r3.FlowEncodingOptions.Logs.LogPayloadAsBody, !*defaultEncodingOptions.Logs.LogPayloadAsBody)

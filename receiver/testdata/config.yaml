@@ -11,6 +11,8 @@ receivers:
     endpoint: "${HUBBLE_ENDPOINT}"
   hubble/nondefaultopts:
     endpoint: "${NODE_NAME}:4244"
+    trace_cache_window: 1h
+    parse_trace_headers: false
     flow_encoding_options:
       traces:
         encoding: "JSON"

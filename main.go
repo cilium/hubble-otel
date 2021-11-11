@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -77,6 +78,8 @@ func main() {
 		LabelsAsMaps:  flag.Bool("trace.labelsAsMaps", false, "convert source/destination labels from arrays to maps"),
 		HeadersAsMaps: flag.Bool("trace.headersAsMaps", false, "convert HTTP headers from arrays to maps"),
 	}
+	traceCacheWindow := flag.Duration("trace.cacheWindow", trace.DefaultTraceCacheWindow, "max lenght of cache window for trace IDs")
+	parseTraceHeaders := flag.Bool("trace.parseHeaders", true, "weather to parse common HTTP trace headers")
 
 	debug := flag.Bool("debug", false, "enable debug logs")
 
@@ -109,7 +112,17 @@ func main() {
 		os.Exit(2)
 	}
 
-	if err := run(log, flagsHubble, flagsOTLP, otlpHeadersObj, *exportLogs, *exportTraces, *bufferSize, *fallbackServiceName, logsEncodingOptions, traceEncodingOptions); err != nil {
+	if err := run(
+		log,
+		flagsHubble, flagsOTLP,
+		otlpHeadersObj,
+		*exportLogs, *exportTraces,
+		*bufferSize,
+		*fallbackServiceName,
+		logsEncodingOptions, traceEncodingOptions,
+		*traceCacheWindow,
+		*parseTraceHeaders,
+	); err != nil {
 		log.Error(err)
 		os.Exit(1)
 	}
@@ -157,7 +170,17 @@ func dialContext(ctx context.Context, log *logrus.Logger, f *flags) (*grpc.Clien
 	return grpc.DialContext(ctx, *f.address, grpc.WithTransportCredentials(creds))
 }
 
-func run(log *logrus.Logger, hubbleFlags, otlpFlags flags, otlpHeaders map[string]string, exportLogs, exportTraces bool, bufferSize int, fallbackServiceName string, logsEncodingOptions, traceEncodingOptions *common.EncodingOptions) error {
+func run(
+	log *logrus.Logger,
+	hubbleFlags, otlpFlags flags,
+	otlpHeaders map[string]string,
+	exportLogs, exportTraces bool,
+	bufferSize int,
+	fallbackServiceName string,
+	logsEncodingOptions, traceEncodingOptions *common.EncodingOptions,
+	traceCacheWindow time.Duration,
+	parseTraceHeaders bool,
+) error {
 	ctx := context.Background()
 
 	hubbleConn, err := dialContext(ctx, log, &hubbleFlags)
@@ -194,7 +217,7 @@ func run(log *logrus.Logger, hubbleFlags, otlpFlags flags, otlpHeaders map[strin
 
 		flowsToTraces := make(chan protoreflect.Message, bufferSize)
 
-		converter, err := trace.NewFlowConverter(log, spanDB, traceEncodingOptions, fallbackServiceName)
+		converter, err := trace.NewFlowConverter(log, spanDB, traceEncodingOptions, fallbackServiceName, traceCacheWindow, parseTraceHeaders)
 		if err != nil {
 			return fmt.Errorf("failed to create trace converter: %w", err)
 		}

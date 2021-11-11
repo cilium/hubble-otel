@@ -136,7 +136,7 @@ func (r *hubbleTraceReceiver) run(ctx context.Context, log *logrus.Logger, hubbl
 
 	flowsToTraces := make(chan protoreflect.Message, cfg.BufferSize)
 
-	converter, err := trace.NewFlowConverter(log, spanDB, &cfg.FlowEncodingOptions.Traces, cfg.FallbackServiceName)
+	converter, err := trace.NewFlowConverter(log, spanDB, &cfg.FlowEncodingOptions.Traces, cfg.FallbackServiceName, cfg.TraceCacheWindow, cfg.ParseTraceHeaders)
 	if err != nil {
 		return fmt.Errorf("failed to create trace converter: %w", err)
 	}

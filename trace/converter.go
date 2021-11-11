@@ -23,6 +23,7 @@ type FlowConverter struct {
 	*common.FlowEncoder
 
 	fallbackServiceName string
+	parseHeaders        bool
 }
 
 func NewFlowConverter(
@@ -30,10 +31,12 @@ func NewFlowConverter(
 	dir string,
 	options *common.EncodingOptions,
 	fallbackServiceName string,
+	traceCacheWindow time.Duration,
+	parseHeaders bool,
 ) (*FlowConverter, error) {
 	opt := badger.DefaultOptions(dir)
 	opt.Logger = log
-	tc, err := NewTraceCache(opt)
+	tc, err := NewTraceCache(opt, traceCacheWindow)
 	if err != nil {
 		return nil, err
 	}
@@ -47,15 +50,16 @@ func NewFlowConverter(
 			EncodingOptions: options,
 			Logger:          log,
 		},
-		traceCache:         tc,
+		traceCache:          tc,
 		fallbackServiceName: fallbackServiceName,
+		parseHeaders:        parseHeaders,
 	}, nil
 }
 
 func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (protoreflect.Message, error) {
 	flow := hubbleResp.GetFlow()
 
-	ctx, link, err := c.traceCache.GetSpanContext(flow)
+	ctx, link, err := c.traceCache.GetSpanContext(flow, c.parseHeaders)
 	if err != nil {
 		return nil, err
 	}
