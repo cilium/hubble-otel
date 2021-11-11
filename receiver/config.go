@@ -3,6 +3,7 @@ package receiver
 import (
 	"context"
 	"errors"
+	"time"
 
 	"google.golang.org/grpc/metadata"
 
@@ -19,6 +20,10 @@ type Config struct {
 	BufferSize int `mapstructure:"buffer_size"`
 
 	FlowEncodingOptions FlowEncodingOptions `mapstructure:"flow_encoding_options"`
+
+	FallbackServiceName string        `mapstructure:"fallback_service_name"`
+	TraceCacheWindow    time.Duration `mapstructure:"trace_cache_window"`
+	ParseTraceHeaders   bool          `mapstructure:"parse_trace_headers"`
 }
 
 type FlowEncodingOptions struct {

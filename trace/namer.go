@@ -7,19 +7,8 @@ import (
 	flowV1 "github.com/cilium/cilium/api/v1/flow"
 	hubbleObserver "github.com/cilium/cilium/api/v1/observer"
 	monitorAPI "github.com/cilium/cilium/pkg/monitor/api"
-	hubbleLabels "github.com/cilium/hubble-ui/backend/domain/labels"
 	hubblePrinter "github.com/cilium/hubble/pkg/printer"
 )
-
-func (c *FlowConverter) getServiceNameAndNamespace(f *flowV1.Flow) (*string, string) {
-	if f.Source != nil {
-		srcProps := hubbleLabels.Props(f.Source.Labels)
-		if srcProps.AppName != nil {
-			return srcProps.AppName, f.Source.Namespace
-		}
-	}
-	return nil, ""
-}
 
 func (c *FlowConverter) getSpanName(f *flowV1.Flow) string {
 	eventType := f.GetEventType()

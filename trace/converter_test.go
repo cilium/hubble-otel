@@ -26,7 +26,7 @@ func TestAllTraceConvModes(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		c, err := trace.NewFlowConverter(log, spanDB, options, common.OTelAttrServiceNameDefault)
+		c, err := trace.NewFlowConverter(log, spanDB, options, common.OTelAttrServiceNameDefault, 0, true)
 		if err != nil {
 			t.Fatal(err)
 		}

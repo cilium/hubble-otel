@@ -16,7 +16,7 @@ func TestTraceCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tc, err := trace.NewTraceCache(badger.DefaultOptions(dir))
+	tc, err := trace.NewTraceCache(badger.DefaultOptions(dir), 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func TestTraceCache(t *testing.T) {
 
 	totalFlows := 0
 	for _, flow := range testutil.GetFlowSamples(t, "../testdata/2021-10-04-sample-flows-istio-gke-l7/1.json") {
-		ctx, link, err := tc.GetSpanContext(flow.GetFlow())
+		ctx, link, err := tc.GetSpanContext(flow.GetFlow(), true)
 		if err != nil {
 			t.Error(err)
 		}
