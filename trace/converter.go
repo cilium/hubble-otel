@@ -120,9 +120,7 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 	}
 
 	if c.WithTopLevelKeys() {
-		for _, payloadAttribute := range v.GetKvlistValue().Values {
-			span.Attributes = append(span.Attributes, payloadAttribute)
-		}
+		span.Attributes = append(span.Attributes, v.GetKvlistValue().Values...)
 	} else {
 		span.Attributes = append(span.Attributes, &commonV1.KeyValue{
 			Key:   common.AttributeEventObject,
