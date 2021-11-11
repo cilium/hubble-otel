@@ -113,9 +113,6 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 		case flowV1.L7FlowType_RESPONSE:
 			span.Kind = traceV1.Span_SPAN_KIND_SERVER
 		}
-
-		span.EndTimeUnixNano = uint64(tsAsTime.Add(time.Duration(int64(l7.LatencyNs))).UnixNano())
-
 		span.Attributes = append(span.Attributes, common.GetHTTPAttributes(l7)...)
 	}
 
