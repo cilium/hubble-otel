@@ -9,6 +9,7 @@ import (
 	"go.opentelemetry.io/collector/receiver/receiverhelper"
 
 	"github.com/cilium/hubble-otel/common"
+	"github.com/cilium/hubble-otel/trace"
 )
 
 const (
@@ -43,6 +44,8 @@ func createDefaultConfig() config.Receiver {
 		ReceiverSettings:    config.NewReceiverSettings(config.NewComponentID(typeStr)),
 		BufferSize:          2048,
 		FallbackServiceName: common.OTelAttrServiceNameDefault,
+		TraceCacheWindow:    trace.DefaultTraceCacheWindow,
+		ParseTraceHeaders:   true,
 		FlowEncodingOptions: FlowEncodingOptions{
 			Traces: common.EncodingOptions{
 				Encoding:      &defaultTraceEncoding,
