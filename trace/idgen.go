@@ -63,7 +63,6 @@ type entryHelper struct {
 	traceHash         hash.Hash
 	spanContext       trace.SpanContext
 	linkedSpanContext trace.SpanContext
-	httpHeaders       *propagation.HeaderCarrier
 }
 
 func newEntry() *entryHelper {
