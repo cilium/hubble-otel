@@ -51,7 +51,7 @@ func TestIntegration(t *testing.T) {
 	testutil.WaitForServer(ctx, t.Logf, promExporterAddress)
 	testutil.WaitForServer(ctx, t.Logf, promReceiverAddress)
 
-	checkCollectorMetrics(ctx, t, metricsURL, 18432)
+	checkCollectorMetrics(ctx, t, metricsURL, 12000)
 
 }
 
