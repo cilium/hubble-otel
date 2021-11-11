@@ -18,15 +18,21 @@ type FlowConverter struct {
 	fallbackServiceName string
 }
 
-func NewFlowConverter(log *logrus.Logger, options *common.EncodingOptions, fallbackServiceName string) *FlowConverter {
+func NewFlowConverter(
+	log *logrus.Logger,
+	options *common.EncodingOptions,
+	includeFlowTypes *common.IncludeFlowTypes,
+	fallbackServiceName string,
+) *FlowConverter {
 	if log != nil {
 		log.WithField("options", options.String()).Debugf("logs converter created")
 	}
 
 	return &FlowConverter{
 		FlowEncoder: &common.FlowEncoder{
-			EncodingOptions: options,
-			Logger:          log,
+			EncodingOptions:  options,
+			Logger:           log,
+			IncludeFlowTypes: includeFlowTypes,
 		},
 		fallbackServiceName: fallbackServiceName,
 	}

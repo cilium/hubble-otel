@@ -20,6 +20,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	timestamp "google.golang.org/protobuf/types/known/timestamppb"
 
+	flowV1 "github.com/cilium/cilium/api/v1/flow"
 	"github.com/cilium/cilium/api/v1/observer"
 	hubbleLabels "github.com/cilium/hubble-ui/backend/domain/labels"
 )
@@ -78,7 +79,13 @@ func EncodingFormatsForTraces() []string {
 
 type FlowEncoder struct {
 	*EncodingOptions
+	*IncludeFlowTypes
+
 	Logger *logrus.Logger
+}
+
+func (fe *FlowEncoder) InclusionFilter() []*flowV1.FlowFilter {
+	return fe.IncludeFlowTypes.MakeFilters()
 }
 
 type EncodingOptions struct {

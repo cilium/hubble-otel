@@ -61,4 +61,7 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, *r3.FlowEncodingOptions.Logs.TopLevelKeys, !*defaultEncodingOptions.Logs.TopLevelKeys)
 	assert.Equal(t, *r3.FlowEncodingOptions.Logs.HeadersAsMaps, !*defaultEncodingOptions.Logs.HeadersAsMaps)
 	assert.Equal(t, *r3.FlowEncodingOptions.Logs.LabelsAsMaps, !*defaultEncodingOptions.Logs.LabelsAsMaps)
+
+	assert.Equal(t, r3.IncludeFlowTypes.Traces, common.IncludeFlowTypes{"l7"})
+	assert.Equal(t, r3.IncludeFlowTypes.Logs, common.IncludeFlowTypes{"all"})
 }

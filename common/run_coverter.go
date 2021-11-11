@@ -10,16 +10,22 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	flowV1 "github.com/cilium/cilium/api/v1/flow"
 	"github.com/cilium/cilium/api/v1/observer"
 )
 
 type Converter interface {
 	Convert(*observer.GetFlowsResponse) (protoreflect.Message, error)
+	InclusionFilter() []*flowV1.FlowFilter
 }
 
 func RunConverter(ctx context.Context, hubbleConn *grpc.ClientConn, c Converter, flows chan<- protoreflect.Message, errs chan<- error, opts ...grpc.CallOption) {
+	req := &observer.GetFlowsRequest{
+		Follow:    true,
+		Whitelist: c.InclusionFilter(),
+	}
 	flowObsever, err := observer.NewObserverClient(hubbleConn).
-		GetFlows(ctx, &observer.GetFlowsRequest{Follow: true}, opts...)
+		GetFlows(ctx, req, opts...)
 	if err != nil {
 		errs <- fmt.Errorf("GetFlows failed: %w", err)
 		return

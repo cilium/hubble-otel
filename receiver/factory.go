@@ -58,6 +58,10 @@ func createDefaultConfig() config.Receiver {
 				LogPayloadAsBody: _false,
 			},
 		},
+		IncludeFlowTypes: IncludeFlowTypes{
+			Traces: common.IncludeFlowTypes{},
+			Logs:   common.IncludeFlowTypes{},
+		},
 	}
 }
 

@@ -20,6 +20,7 @@ type Config struct {
 	BufferSize int `mapstructure:"buffer_size"`
 
 	FlowEncodingOptions FlowEncodingOptions `mapstructure:"flow_encoding_options"`
+	IncludeFlowTypes    IncludeFlowTypes    `mapstructure:"include_flow_types"`
 
 	FallbackServiceName string        `mapstructure:"fallback_service_name"`
 	TraceCacheWindow    time.Duration `mapstructure:"trace_cache_window"`
@@ -29,6 +30,11 @@ type Config struct {
 type FlowEncodingOptions struct {
 	Traces common.EncodingOptions `mapstructure:"traces"`
 	Logs   common.EncodingOptions `mapstructure:"logs"`
+}
+
+type IncludeFlowTypes struct {
+	Traces common.IncludeFlowTypes `mapstructure:"traces"`
+	Logs   common.IncludeFlowTypes `mapstructure:"logs"`
 }
 
 var _ config.Receiver = (*Config)(nil)
@@ -41,6 +47,12 @@ func (cfg *Config) Validate() error {
 		return err
 	}
 	if err := cfg.FlowEncodingOptions.Logs.ValidForLogs(); err != nil {
+		return err
+	}
+	if err := cfg.IncludeFlowTypes.Traces.Validate(); err != nil {
+		return err
+	}
+	if err := cfg.IncludeFlowTypes.Logs.Validate(); err != nil {
 		return err
 	}
 	return nil
