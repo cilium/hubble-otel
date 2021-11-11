@@ -202,7 +202,7 @@ func run(
 	if exportLogs {
 		flowsToLogs := make(chan protoreflect.Message, bufferSize)
 
-		converter := logs.NewFlowConverter(log, logsEncodingOptions, fallbackServiceName)
+		converter := logs.NewFlowConverter(log, logsEncodingOptions, &common.IncludeFlowTypes{}, fallbackServiceName)
 		go common.RunConverter(ctx, hubbleConn, converter, flowsToLogs, errs)
 
 		exporter := logs.NewBufferedLogExporter(otlpConn, bufferSize, otlpHeaders)
@@ -217,7 +217,7 @@ func run(
 
 		flowsToTraces := make(chan protoreflect.Message, bufferSize)
 
-		converter, err := trace.NewFlowConverter(log, spanDB, traceEncodingOptions, fallbackServiceName, traceCacheWindow, parseTraceHeaders)
+		converter, err := trace.NewFlowConverter(log, spanDB, traceEncodingOptions, &common.IncludeFlowTypes{}, fallbackServiceName, traceCacheWindow, parseTraceHeaders)
 		if err != nil {
 			return fmt.Errorf("failed to create trace converter: %w", err)
 		}

@@ -30,6 +30,7 @@ func NewFlowConverter(
 	log *logrus.Logger,
 	dir string,
 	options *common.EncodingOptions,
+	includeFlowTypes *common.IncludeFlowTypes,
 	fallbackServiceName string,
 	traceCacheWindow time.Duration,
 	parseHeaders bool,
@@ -47,8 +48,9 @@ func NewFlowConverter(
 
 	return &FlowConverter{
 		FlowEncoder: &common.FlowEncoder{
-			EncodingOptions: options,
-			Logger:          log,
+			EncodingOptions:  options,
+			Logger:           log,
+			IncludeFlowTypes: includeFlowTypes,
 		},
 		traceCache:          tc,
 		fallbackServiceName: fallbackServiceName,

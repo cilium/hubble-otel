@@ -19,7 +19,9 @@ receivers:
         top_level_keys: false
       logs:
         log_payload_as_body: true
-
+    include_flow_types:
+      traces: ["l7"]
+      logs: ["all"]
 
 processors:
   nop:

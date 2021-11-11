@@ -124,6 +124,8 @@ spec:
       hubble:
         endpoint: \${NODE_NAME}:4244 # unix:///var/run/cilium/hubble.sock
         buffer_size: 100
+        include_flow_types:
+          traces: ["l7"]
         tls:
           insecure_skip_verify: true
           ca_file: /var/run/hubble-tls/ca.crt
