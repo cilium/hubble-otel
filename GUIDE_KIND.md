@@ -150,7 +150,7 @@ spec:
           level: info # debug
       pipelines:
         traces:
-          receivers: [hubble, otlp]
+          receivers: [hubble]
           processors: [batch]
           exporters: [jaeger]
 
