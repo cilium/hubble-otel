@@ -28,9 +28,10 @@ import (
 const (
 	keyNamespaceCilium = "cilium."
 
-	AttributeEventKindVersion     = keyNamespaceCilium + "event_kind"
-	AttributeEventEncoding        = keyNamespaceCilium + "event_encoding"
-	AttributeEventEncodingOptions = keyNamespaceCilium + "event_encoding_options"
+	AttributeEventKindVersion            = keyNamespaceCilium + "event_kind"
+	AttributeEventEncoding               = keyNamespaceCilium + "event_encoding"
+	AttributeEventEncodingOptions        = keyNamespaceCilium + "event_encoding_options"
+	AttributeEventSpanContextFromHeaders = keyNamespaceCilium + "event_span_context_from_headers"
 
 	AttributeEventKindVersionFlowV1alpha1 = "flow/v1alpha2"
 

@@ -114,14 +114,14 @@ var propagators = propagation.NewCompositeTextMapPropagator(
 	&xray.Propagator{},
 )
 
-func (e *entryHelper) processFlowData(log badger.Logger, f *flow.Flow, strict, storeFlowData, parseHeaders bool) error {
+func (e *entryHelper) processFlowData(log badger.Logger, f *flow.Flow, strict, storeFlowData, parseHeaders bool) (bool, error) {
 	if parseHeaders {
 		if err := e.checkHeaders(f); err != nil {
-			return err
+			return false, err
 		}
 
 		if e.spanContext.HasSpanID() && e.spanContext.HasTraceID() {
-			return nil
+			return true, nil
 		}
 	}
 
@@ -130,9 +130,9 @@ func (e *entryHelper) processFlowData(log badger.Logger, f *flow.Flow, strict, s
 		// skip flows where keyTuple cannot be generated
 		log.Debugf("flow has invalid key tuple: %+v", f)
 		if strict {
-			return fmt.Errorf("invalid key tuple: %+v", f)
+			return false, fmt.Errorf("invalid key tuple: %+v", f)
 		}
-		return nil
+		return false, nil
 	}
 	e.keys = kt
 
@@ -145,11 +145,11 @@ func (e *entryHelper) processFlowData(log badger.Logger, f *flow.Flow, strict, s
 
 	flowData, err := common.MarshalJSON(f)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	_, err = io.MultiWriter(writers...).Write(flowData)
-	return err
+	return false, err
 }
 
 // generateSpanID computes a short hash of serialised flow data and
@@ -286,25 +286,26 @@ func NewTraceCache(opt badger.Options, traceCacheWindow time.Duration) (*TraceCa
 	}, nil
 }
 
-func (tc *TraceCache) GetSpanContext(f *flow.Flow, parseHeaders bool) (*trace.SpanContext, *trace.SpanContext, error) {
+func (tc *TraceCache) GetSpanContext(f *flow.Flow, parseHeaders bool) (*trace.SpanContext, *trace.SpanContext, bool, error) {
 	e := newEntry()
 
-	if err := e.processFlowData(tc.logger, f, tc.Strict, tc.StoreFlowData, parseHeaders); err != nil {
-		return nil, nil, fmt.Errorf("unable to serialise flow: %w", err)
+	fromHeaders, err := e.processFlowData(tc.logger, f, tc.Strict, tc.StoreFlowData, parseHeaders)
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("unable to serialise flow: %w", err)
 	}
 
 	if e.spanContext.HasSpanID() && e.spanContext.HasTraceID() {
 		if e.linkedSpanContext.HasSpanID() && e.linkedSpanContext.HasTraceID() {
-			return &e.spanContext, &e.linkedSpanContext, nil
+			return &e.spanContext, &e.linkedSpanContext, fromHeaders, nil
 		}
-		return &e.spanContext, nil, nil
+		return &e.spanContext, nil, fromHeaders, nil
 	}
 
 	scc := &trace.SpanContextConfig{}
 
 	e.generateSpanID(scc) // always generate new span ID
 
-	err := tc.badgerDB.Update(func(txn *badger.Txn) error {
+	err = tc.badgerDB.Update(func(txn *badger.Txn) error {
 		fetchedTraceID, err := e.fetchTraceID(txn, tc.TraceCacheWindow)
 		if err != nil {
 			return fmt.Errorf("unable to get span/trace ID: %w", err)
@@ -320,11 +321,11 @@ func (tc *TraceCache) GetSpanContext(f *flow.Flow, parseHeaders bool) (*trace.Sp
 	})
 
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 
 	e.spanContext = trace.NewSpanContext(*scc)
-	return &e.spanContext, nil, nil
+	return &e.spanContext, nil, false, nil
 }
 
 func (tc *TraceCache) Close() error {

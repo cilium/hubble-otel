@@ -61,7 +61,7 @@ func NewFlowConverter(
 func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (protoreflect.Message, error) {
 	flow := hubbleResp.GetFlow()
 
-	ctx, link, err := c.traceCache.GetSpanContext(flow, c.parseHeaders)
+	ctx, link, spanContextFromHeaders, err := c.traceCache.GetSpanContext(flow, c.parseHeaders)
 	if err != nil {
 		return nil, err
 	}
@@ -116,6 +116,17 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 			span.Kind = traceV1.Span_SPAN_KIND_SERVER
 		}
 		span.Attributes = append(span.Attributes, common.GetHTTPAttributes(l7)...)
+
+		if c.parseHeaders {
+			span.Attributes = append(span.Attributes, &commonV1.KeyValue{
+				Key: common.AttributeEventSpanContextFromHeaders,
+				Value: &commonV1.AnyValue{
+					Value: &commonV1.AnyValue_BoolValue{
+						BoolValue: spanContextFromHeaders,
+					},
+				},
+			})
+		}
 	}
 
 	if c.WithTopLevelKeys() {
