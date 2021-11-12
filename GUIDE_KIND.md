@@ -121,6 +121,10 @@ spec:
       readOnly: true
   config: |
     receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:55690
       hubble:
         endpoint: \${NODE_NAME}:4244 # unix:///var/run/cilium/hubble.sock
         buffer_size: 100
@@ -150,7 +154,7 @@ spec:
           level: info # debug
       pipelines:
         traces:
-          receivers: [hubble]
+          receivers: [hubble, otlp]
           processors: [batch]
           exporters: [jaeger]
 
@@ -178,12 +182,12 @@ kubectl port-forward svc/jaeger-default-query -n jaeger 16686
 The basic setup is done now. However, you probably won't find anything interesting just yet.
 Let's get more traces generated, and enable DNS & HTTP visibility in Cilium.
 
-First, deploy bookinfo app:
+First, deploy podinfo app:
 ```
-kubectl apply -k github.com/cilium/kustomize-bases/bookinfo
+kubectl apply -k github.com/cilium/kustomize-bases/podinfo
 ```
 
-Enable HTTP visibility for the bookinfo app and all of DNS traffic:
+Enable HTTP visibility for the podinfo app and all of DNS traffic:
 ```
 cat > visibility-policies.yaml << EOF
 ---
@@ -227,7 +231,7 @@ apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
   name: http-visibility
-  namespace: bookinfo
+  namespace: podinfo
 spec:
   endpointSelector: {}
   egress:
@@ -244,7 +248,54 @@ EOF
 kubectl apply -f visibility-policies.yaml
 ```
 
-Generate some load on the bookinfo app, so that there are plenty of traces:
+The podinfo app will produce Jaeger traces already, however to collect these
+a sidecar is [recommended](https://github.com/jaegertracing/jaeger-client-python/issues/47#issuecomment-303119229).
+
+Add sidecard config:
 ```
-while true ; do kubectl -n bookinfo exec "$(kubectl -n bookinfo get pod -l app=ratings -o jsonpath='{.items[0].metadata.name}')" -c ratings -- curl -sS productpage:9080/productpage | grep -o "<title>.*</title>"; done
+cat > otelcol-podinfo.yaml << EOF
+apiVersion: opentelemetry.io/v1alpha1
+kind: OpenTelemetryCollector
+metadata:
+  name: otelcol-podinfo
+  namespace: podinfo
+spec:
+  mode: sidecar
+  env:
+    - name: NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+  config: |
+    receivers:
+      otlp:
+        protocols:
+          http: {}
+    exporters:
+      logging:
+        loglevel: info
+      otlp:
+        endpoint: \${NODE_NAME}:55690
+
+    service:
+      telemetry:
+        logs:
+          level: info
+      pipelines:
+        traces:
+          receivers: [otlp]
+          exporters: [otlp, logging]
+
+EOF
+kubectl apply -f otelcol-podinfo.yaml
+```
+
+Re-create podinfo pods to add the sidecars:
+```
+kubectl delete pods -n podinfo --all --wait=false
+```
+
+Run hey:
+```
+TODO
 ```
