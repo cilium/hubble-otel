@@ -45,6 +45,13 @@ func RunConverter(ctx context.Context, hubbleConn *grpc.ClientConn, c Converter,
 			return
 		}
 
+		if hubbleResp.GetFlow() == nil {
+			if lostEvents := hubbleResp.GetLostEvents(); lostEvents != nil {
+				errs <- fmt.Errorf("observed Hubble lost events: %d", lostEvents.NumEventsLost)
+			}
+			continue
+		}
+
 		flow, err := c.Convert(hubbleResp)
 		if err != nil {
 			errs <- fmt.Errorf("converter failed: %w", err)
