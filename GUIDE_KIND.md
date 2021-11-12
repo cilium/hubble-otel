@@ -237,7 +237,7 @@ spec:
   egress:
     - toPorts:
       - ports:
-        - port: "9080"
+        - port: "9898"
           protocol: TCP
         rules:
           http:
