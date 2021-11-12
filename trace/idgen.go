@@ -106,6 +106,8 @@ func (e *entryHelper) makeHeaderCarrier(headers []*flow.HTTPHeader) *propagation
 }
 
 var propagators = propagation.NewCompositeTextMapPropagator(
+	propagation.TraceContext{},
+	propagation.Baggage{},
 	b3.New(),
 	&jaeger.Jaeger{},
 	&ot.OT{},
