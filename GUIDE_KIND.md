@@ -261,11 +261,6 @@ metadata:
   namespace: podinfo
 spec:
   mode: sidecar
-  env:
-    - name: NODE_NAME
-      valueFrom:
-        fieldRef:
-          fieldPath: spec.nodeName
   config: |
     receivers:
       otlp:
@@ -275,7 +270,9 @@ spec:
       logging:
         loglevel: info
       otlp:
-        endpoint: \${NODE_NAME}:55690
+        endpoint: otelcol-hubble-collector.kube-system.svc.cluster.local:55690
+        tls:
+          insecure: true
 
     service:
       telemetry:
@@ -292,7 +289,7 @@ kubectl apply -f otelcol-podinfo.yaml
 
 Re-create podinfo pods to add the sidecars:
 ```
-kubectl delete pods -n podinfo --all --wait=false
+kubectl rollout restart -n podinfo deployment/podinfo
 ```
 
 Run hey:
