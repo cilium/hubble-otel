@@ -186,6 +186,10 @@ func (e *entryHelper) generateKeys(f *flow.Flow) keyTuple {
 		}
 	}
 
+	if f.L4 == nil {
+		return keyTuple{}
+	}
+
 	haveL4 := false
 	if tcp := f.L4.GetTCP(); tcp != nil {
 		src += ":" + strconv.Itoa(int(tcp.SourcePort))
