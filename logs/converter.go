@@ -15,14 +15,14 @@ import (
 type FlowConverter struct {
 	*common.FlowEncoder
 
-	fallbackServiceName string
+	fallbackServiceNamePrefix string
 }
 
 func NewFlowConverter(
 	log *logrus.Logger,
 	options *common.EncodingOptions,
 	includeFlowTypes *common.IncludeFlowTypes,
-	fallbackServiceName string,
+	fallbackServiceNamePrefix string,
 ) *FlowConverter {
 	if log != nil {
 		log.WithField("options", options.String()).Debugf("logs converter created")
@@ -34,7 +34,7 @@ func NewFlowConverter(
 			Logger:           log,
 			IncludeFlowTypes: includeFlowTypes,
 		},
-		fallbackServiceName: fallbackServiceName,
+		fallbackServiceNamePrefix: fallbackServiceNamePrefix,
 	}
 }
 
@@ -61,7 +61,7 @@ func (c *FlowConverter) Convert(hubbleResp *observer.GetFlowsResponse) (protoref
 
 	resourceLogs := &logsV1.ResourceLogs{
 		Resource: &resourceV1.Resource{
-			Attributes: common.GetAllResourceAttributes(flow, c.fallbackServiceName),
+			Attributes: common.GetAllResourceAttributes(flow, c.fallbackServiceNamePrefix),
 		},
 		InstrumentationLibraryLogs: []*logsV1.InstrumentationLibraryLogs{{
 			Logs: []*logsV1.LogRecord{logRecord},

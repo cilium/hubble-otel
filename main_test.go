@@ -117,7 +117,7 @@ func TestBasicIntegrationWithTLS(t *testing.T) {
 			options.Encoding = &k
 
 			t.Run(options.EncodingFormat()+":"+options.String(), func(t *testing.T) {
-				if err := run(log, flagsHubble, flagsOTLP, nil, true, true, 10, common.OTelAttrServiceNameDefault, options, options, 0, true); err != nil {
+				if err := run(log, flagsHubble, flagsOTLP, nil, true, true, 10, common.OTelAttrServiceNameDefaultPrefix, options, options, 0, true); err != nil {
 					if testutil.IsEOF(err) {
 						// if sample a set contains 20000 flows, collector usually record between 17000 and 20000 for each iteration,
 						// 75% seems like a good approximation for the purpose of this test

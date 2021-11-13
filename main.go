@@ -60,7 +60,7 @@ func main() {
 	otlpHeaders := flag.String("otlp.headers", "", "specify OTLP headers to use as a JSON object")
 
 	bufferSize := flag.Int("bufferSize", 2048, "number of logs/spans to buffer before exporting")
-	fallbackServiceName := flag.String("fallbackServiceName", common.OTelAttrServiceNameDefault, "fallback value to use for 'service.name', when one cannot be derrived automatically")
+	fallbackServiceNamePrefix := flag.String("fallbackServiceNamePrefix", common.OTelAttrServiceNameDefaultPrefix, "fallback value to use for unknown 'service.name'")
 
 	exportLogs := flag.Bool("logs.export", true, "export flows as logs")
 	logsEncodingOptions := &common.EncodingOptions{
@@ -118,7 +118,7 @@ func main() {
 		otlpHeadersObj,
 		*exportLogs, *exportTraces,
 		*bufferSize,
-		*fallbackServiceName,
+		*fallbackServiceNamePrefix,
 		logsEncodingOptions, traceEncodingOptions,
 		*traceCacheWindow,
 		*parseTraceHeaders,
@@ -176,7 +176,7 @@ func run(
 	otlpHeaders map[string]string,
 	exportLogs, exportTraces bool,
 	bufferSize int,
-	fallbackServiceName string,
+	fallbackServiceNamePrefix string,
 	logsEncodingOptions, traceEncodingOptions *common.EncodingOptions,
 	traceCacheWindow time.Duration,
 	parseTraceHeaders bool,
@@ -202,7 +202,7 @@ func run(
 	if exportLogs {
 		flowsToLogs := make(chan protoreflect.Message, bufferSize)
 
-		converter := logs.NewFlowConverter(log, logsEncodingOptions, &common.IncludeFlowTypes{}, fallbackServiceName)
+		converter := logs.NewFlowConverter(log, logsEncodingOptions, &common.IncludeFlowTypes{}, fallbackServiceNamePrefix)
 		go common.RunConverter(ctx, hubbleConn, converter, flowsToLogs, errs)
 
 		exporter := logs.NewBufferedLogExporter(otlpConn, bufferSize, otlpHeaders)
@@ -217,7 +217,7 @@ func run(
 
 		flowsToTraces := make(chan protoreflect.Message, bufferSize)
 
-		converter, err := trace.NewFlowConverter(log, spanDB, traceEncodingOptions, &common.IncludeFlowTypes{}, fallbackServiceName, traceCacheWindow, parseTraceHeaders)
+		converter, err := trace.NewFlowConverter(log, spanDB, traceEncodingOptions, &common.IncludeFlowTypes{}, fallbackServiceNamePrefix, traceCacheWindow, parseTraceHeaders)
 		if err != nil {
 			return fmt.Errorf("failed to create trace converter: %w", err)
 		}

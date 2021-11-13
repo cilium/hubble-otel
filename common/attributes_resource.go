@@ -5,8 +5,8 @@ import (
 	commonV1 "go.opentelemetry.io/proto/otlp/common/v1"
 )
 
-func GetAllResourceAttributes(flow *flowV1.Flow, fallbackServiceName string) (resourceAttributes []*commonV1.KeyValue) {
-	resourceAttributes = append(resourceAttributes, GetServiceAttributes(flow, fallbackServiceName)...)
+func GetAllResourceAttributes(flow *flowV1.Flow, fallbackServiceNamePrefix string) (resourceAttributes []*commonV1.KeyValue) {
+	resourceAttributes = append(resourceAttributes, GetServiceAttributes(flow, fallbackServiceNamePrefix)...)
 	resourceAttributes = append(resourceAttributes, GetKubernetesAttributes(flow)...)
 	return
 }

@@ -46,7 +46,7 @@ func TestLoadConfig(t *testing.T) {
 
 	r3 := cfg.Receivers[config.NewComponentIDWithName(typeStr, "nondefaultopts")].(*Config)
 	assert.Equal(t, r3.Endpoint, "localhost:4244")
-	assert.Equal(t, r3.FallbackServiceName, common.OTelAttrServiceNameDefault)
+	assert.Equal(t, r3.FallbackServiceNamePrefix, common.OTelAttrServiceNameDefaultPrefix)
 	assert.Equal(t, r3.TraceCacheWindow, time.Hour)
 	assert.Equal(t, r3.ParseTraceHeaders, false)
 

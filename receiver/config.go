@@ -22,9 +22,9 @@ type Config struct {
 	FlowEncodingOptions FlowEncodingOptions `mapstructure:"flow_encoding_options"`
 	IncludeFlowTypes    IncludeFlowTypes    `mapstructure:"include_flow_types"`
 
-	FallbackServiceName string        `mapstructure:"fallback_service_name"`
-	TraceCacheWindow    time.Duration `mapstructure:"trace_cache_window"`
-	ParseTraceHeaders   bool          `mapstructure:"parse_trace_headers"`
+	FallbackServiceNamePrefix string        `mapstructure:"fallback_service_name_prefix"`
+	TraceCacheWindow          time.Duration `mapstructure:"trace_cache_window"`
+	ParseTraceHeaders         bool          `mapstructure:"parse_trace_headers"`
 }
 
 type FlowEncodingOptions struct {
