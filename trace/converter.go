@@ -22,7 +22,7 @@ type FlowConverter struct {
 	traceCache *TraceCache
 	*common.FlowEncoder
 
-	fallbackServiceName string
+	fallbackServiceNamePrefix string
 	parseHeaders        bool
 }
 
@@ -31,7 +31,7 @@ func NewFlowConverter(
 	dir string,
 	options *common.EncodingOptions,
 	includeFlowTypes *common.IncludeFlowTypes,
-	fallbackServiceName string,
+	fallbackServiceNamePrefix string,
 	traceCacheWindow time.Duration,
 	parseHeaders bool,
 ) (*FlowConverter, error) {
@@ -53,7 +53,7 @@ func NewFlowConverter(
 			IncludeFlowTypes: includeFlowTypes,
 		},
 		traceCache:          tc,
-		fallbackServiceName: fallbackServiceName,
+		fallbackServiceNamePrefix: fallbackServiceNamePrefix,
 		parseHeaders:        parseHeaders,
 	}, nil
 }
@@ -129,7 +129,7 @@ func (c *FlowConverter) Convert(hubbleResp *hubbleObserver.GetFlowsResponse) (pr
 
 	resourceSpans := &traceV1.ResourceSpans{
 		Resource: &resourceV1.Resource{
-			Attributes: common.GetAllResourceAttributes(flow, c.fallbackServiceName),
+			Attributes: common.GetAllResourceAttributes(flow, c.fallbackServiceNamePrefix),
 		},
 		InstrumentationLibrarySpans: []*traceV1.InstrumentationLibrarySpans{{
 			Spans: []*traceV1.Span{span},

@@ -41,11 +41,11 @@ func createDefaultConfig() config.Receiver {
 	defaultTraceEncoding, defaultLogEncoding := common.DefaultTraceEncoding, common.DefaultLogEncoding
 
 	return &Config{
-		ReceiverSettings:    config.NewReceiverSettings(config.NewComponentID(typeStr)),
-		BufferSize:          2048,
-		FallbackServiceName: common.OTelAttrServiceNameDefault,
-		TraceCacheWindow:    trace.DefaultTraceCacheWindow,
-		ParseTraceHeaders:   true,
+		ReceiverSettings:          config.NewReceiverSettings(config.NewComponentID(typeStr)),
+		BufferSize:                2048,
+		FallbackServiceNamePrefix: common.OTelAttrServiceNameDefaultPrefix,
+		TraceCacheWindow:          trace.DefaultTraceCacheWindow,
+		ParseTraceHeaders:         true,
 		FlowEncodingOptions: FlowEncodingOptions{
 			Traces: common.EncodingOptions{
 				Encoding:      &defaultTraceEncoding,

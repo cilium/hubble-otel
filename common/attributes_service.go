@@ -13,12 +13,12 @@ const (
 	OTelAttrServiceName      = "service.name"
 	OTelAttrServiceNamespace = "service.namespace"
 
-	OTelAttrServiceNameDefault = "hubble-otel"
+	OTelAttrServiceNameDefaultPrefix = "hubble-otel-unknown"
 )
 
-func GetServiceAttributes(flow *flowV1.Flow, fallbackServiceName string) []*commonV1.KeyValue {
+func GetServiceAttributes(flow *flowV1.Flow, fallbackServiceNamePrefix string) []*commonV1.KeyValue {
 	resourceAttributes := map[string]string{
-		OTelAttrServiceName: fallbackServiceName,
+		OTelAttrServiceName: fallbackServiceNamePrefix + "-any",
 	}
 
 	if src := flow.Source; src != nil {
@@ -27,17 +27,17 @@ func GetServiceAttributes(flow *flowV1.Flow, fallbackServiceName string) []*comm
 			resourceAttributes[OTelAttrServiceName] = *srcProps.AppName
 			resourceAttributes[OTelAttrServiceNamespace] = src.Namespace
 		case srcProps.IsHost:
-			resourceAttributes[OTelAttrServiceName] = fallbackServiceName + "-host"
+			resourceAttributes[OTelAttrServiceName] = fallbackServiceNamePrefix + "-host"
 		case srcProps.IsInit:
-			resourceAttributes[OTelAttrServiceName] = fallbackServiceName + "-init"
+			resourceAttributes[OTelAttrServiceName] = fallbackServiceNamePrefix + "-init"
 		case srcProps.IsKubeDNS:
-			resourceAttributes[OTelAttrServiceName] = fallbackServiceName + "-kube-dns"
+			resourceAttributes[OTelAttrServiceName] = fallbackServiceNamePrefix + "-kube-dns"
 		case srcProps.IsPrometheus:
-			resourceAttributes[OTelAttrServiceName] = fallbackServiceName + "-prometheus"
+			resourceAttributes[OTelAttrServiceName] = fallbackServiceNamePrefix + "-prometheus"
 		case srcProps.IsRemoteNode:
-			resourceAttributes[OTelAttrServiceName] = fallbackServiceName + "-remote-node"
+			resourceAttributes[OTelAttrServiceName] = fallbackServiceNamePrefix + "-remote-node"
 		case srcProps.IsWorld:
-			resourceAttributes[OTelAttrServiceName] = fallbackServiceName + "-world"
+			resourceAttributes[OTelAttrServiceName] = fallbackServiceNamePrefix + "-world"
 			// handle the case where pod name is known, but effective traffic source is world
 			if serviceName := getServiceNameFromURL(flow); serviceName != "" {
 				resourceAttributes[OTelAttrServiceName] = serviceName

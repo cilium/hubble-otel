@@ -136,7 +136,7 @@ func (r *hubbleTraceReceiver) run(ctx context.Context, log *logrus.Logger, hubbl
 
 	flowsToTraces := make(chan protoreflect.Message, cfg.BufferSize)
 
-	converter, err := trace.NewFlowConverter(log, spanDB, &cfg.FlowEncodingOptions.Traces, &cfg.IncludeFlowTypes.Traces, cfg.FallbackServiceName, cfg.TraceCacheWindow, cfg.ParseTraceHeaders)
+	converter, err := trace.NewFlowConverter(log, spanDB, &cfg.FlowEncodingOptions.Traces, &cfg.IncludeFlowTypes.Traces, cfg.FallbackServiceNamePrefix, cfg.TraceCacheWindow, cfg.ParseTraceHeaders)
 	if err != nil {
 		return fmt.Errorf("failed to create trace converter: %w", err)
 	}
@@ -154,7 +154,7 @@ func (r *hubbleLogsReceiver) run(ctx context.Context, log *logrus.Logger, hubble
 
 	flowsToLogs := make(chan protoreflect.Message, cfg.BufferSize)
 
-	converter := logs.NewFlowConverter(log, &cfg.FlowEncodingOptions.Logs, &cfg.IncludeFlowTypes.Logs, cfg.FallbackServiceName)
+	converter := logs.NewFlowConverter(log, &cfg.FlowEncodingOptions.Logs, &cfg.IncludeFlowTypes.Logs, cfg.FallbackServiceNamePrefix)
 	go common.RunConverter(cfg.NewOutgoingContext(ctx), hubbleConn, converter, flowsToLogs, errs, grpc.WaitForReady(cfg.GRPCClientSettings.WaitForReady))
 
 	exporter := logs.NewBufferedDirectLogsExporter(log, r.consumer, cfg.BufferSize)
