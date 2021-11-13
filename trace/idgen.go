@@ -86,10 +86,9 @@ func (e *entryHelper) checkHeaders(f *flow.Flow) error {
 		return nil
 	}
 
-	// extract trace ID using logic defined by the OpenTelemetry SDK
+	// extract trace & span ID using logic defined by the OpenTelemetry SDK
 	ctx := propagators.Extract(context.Background(), e.makeHeaderCarrier(headers))
 
-	e.spanContext = trace.SpanFromContext(ctx).SpanContext()
 	// link attributes can only be populated explicitly as optional arguments
 	// to LinkFromContext, since none are passed here, only context is kept
 	e.linkedSpanContext = trace.LinkFromContext(ctx).SpanContext
@@ -118,10 +117,6 @@ func (e *entryHelper) processFlowData(log badger.Logger, f *flow.Flow, strict, s
 	if parseHeaders {
 		if err := e.checkHeaders(f); err != nil {
 			return err
-		}
-
-		if e.spanContext.HasSpanID() && e.spanContext.HasTraceID() {
-			return nil
 		}
 	}
 
@@ -293,13 +288,6 @@ func (tc *TraceCache) GetSpanContext(f *flow.Flow, parseHeaders bool) (*trace.Sp
 		return nil, nil, fmt.Errorf("unable to serialise flow: %w", err)
 	}
 
-	if e.spanContext.HasSpanID() && e.spanContext.HasTraceID() {
-		if e.linkedSpanContext.HasSpanID() && e.linkedSpanContext.HasTraceID() {
-			return &e.spanContext, &e.linkedSpanContext, nil
-		}
-		return &e.spanContext, nil, nil
-	}
-
 	scc := &trace.SpanContextConfig{}
 
 	e.generateSpanID(scc) // always generate new span ID
@@ -324,6 +312,9 @@ func (tc *TraceCache) GetSpanContext(f *flow.Flow, parseHeaders bool) (*trace.Sp
 	}
 
 	e.spanContext = trace.NewSpanContext(*scc)
+	if e.linkedSpanContext.HasSpanID() && e.linkedSpanContext.HasTraceID() {
+		return &e.spanContext, &e.linkedSpanContext, nil
+	}
 	return &e.spanContext, nil, nil
 }
 
