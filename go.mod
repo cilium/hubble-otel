@@ -5,11 +5,10 @@ go 1.16
 require (
 	github.com/cilium/cilium v1.10.5
 	github.com/cilium/hubble v0.8.3-0.20211105134710-1fe4b6e02440
-	github.com/cilium/hubble-ui/backend v0.0.0-20211002041053-de95f3081e22
+	github.com/cilium/hubble-ui/backend v0.0.0-20211115113152-6ce4dcc3ab14
 	github.com/cilium/mock-hubble v0.0.0-20211026154315-9c72b77d6839
 	github.com/dgraph-io/badger/v3 v3.2103.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusexporter v0.38.0
-	github.com/open-telemetry/opentelemetry-collector-contrib/pkg/translator/opencensus v0.38.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver v0.38.0
 	github.com/prometheus/client_model v0.2.1-0.20200623203004-60555c9708c7
 	github.com/prometheus/common v0.32.1
