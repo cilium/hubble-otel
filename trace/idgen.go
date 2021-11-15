@@ -22,6 +22,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/cilium/cilium/api/v1/flow"
+	flowV1 "github.com/cilium/cilium/api/v1/flow"
 
 	"github.com/cilium/hubble-otel/common"
 )
@@ -63,6 +64,9 @@ type entryHelper struct {
 	traceHash         hash.Hash
 	spanContext       trace.SpanContext
 	linkedSpanContext trace.SpanContext
+
+	xRequestID            string
+	isRequest, isResponse bool
 }
 
 func newEntry() *entryHelper {
@@ -77,6 +81,10 @@ func (e *entryHelper) checkHeaders(f *flow.Flow) error {
 	if f.GetL7() == nil {
 		return nil
 	}
+
+	e.isRequest = (f.L7.Type == flowV1.L7FlowType_REQUEST)
+	e.isResponse = (f.L7.Type == flowV1.L7FlowType_RESPONSE)
+
 	http := f.L7.GetHttp()
 	if http == nil {
 		return nil
@@ -86,14 +94,23 @@ func (e *entryHelper) checkHeaders(f *flow.Flow) error {
 		return nil
 	}
 
+	hc := e.makeHeaderCarrier(headers)
+	// extract x-request-id header, which Envoy always injects
+	// this header is also relied for agregation in Hubble
+	e.xRequestID = hc.Get("x-request-id")
+
 	// extract trace & span ID using logic defined by the OpenTelemetry SDK
-	ctx := propagators.Extract(context.Background(), e.makeHeaderCarrier(headers))
+	ctx := propagators.Extract(context.Background(), hc)
 
 	// link attributes can only be populated explicitly as optional arguments
 	// to LinkFromContext, since none are passed here, only context is kept
 	e.linkedSpanContext = trace.LinkFromContext(ctx).SpanContext
 
 	return nil
+}
+
+func (e *entryHelper) canLinkHTTP() bool {
+	return e.xRequestID != ""
 }
 
 func (e *entryHelper) makeHeaderCarrier(headers []*flow.HTTPHeader) *propagation.HeaderCarrier {
@@ -223,18 +240,20 @@ func (e *entryHelper) traceIDKey(i int) string {
 	return e.keys[i] + "/traceID"
 }
 
-func (e *entryHelper) fetchTraceID(txn *badger.Txn, updateTTL time.Duration) (trace.TraceID, error) {
-	traceID := trace.TraceID{}
+func (e *entryHelper) lastSpanIDForHTTPKey(i int) string {
+	return e.keys[i] + "/lastSpanIDForHTTP/" + e.xRequestID
+}
+
+func (e *entryHelper) fetchID(txn *badger.Txn, updateTTL time.Duration, getKey func(int) string, validateAndCopy func([]byte) error) error {
 	for i := range e.keys {
-		key := []byte(e.traceIDKey(i))
+		key := []byte(getKey(i))
 		item, err := txn.Get(key)
 		switch err {
 		case nil:
 			err := item.Value(func(val []byte) error {
-				if len(val) != len(traceID) && !traceID.IsValid() {
-					return fmt.Errorf("stored trace ID is invlaid")
+				if err := validateAndCopy(val); err != nil {
+					return err
 				}
-				copy(traceID[:], val)
 				entry := badger.NewEntry(key, val).WithTTL(updateTTL)
 				if err := txn.SetEntry(entry); err != nil {
 					return fmt.Errorf("unable to update TTL for %q: %w", key, err)
@@ -242,15 +261,46 @@ func (e *entryHelper) fetchTraceID(txn *badger.Txn, updateTTL time.Duration) (tr
 				return nil
 			})
 			if err != nil {
-				return trace.TraceID{}, err
+				return err
 			}
 		case badger.ErrKeyNotFound:
 			continue
 		default:
-			return trace.TraceID{}, fmt.Errorf("unexpected error getting trace ID: %w", err)
+			return fmt.Errorf("unexpected error getting trace ID: %w", err)
 		}
 	}
+	return nil
+}
+
+func (e *entryHelper) fetchTraceID(txn *badger.Txn, updateTTL time.Duration) (trace.TraceID, error) {
+	traceID := trace.TraceID{}
+	err := e.fetchID(txn, updateTTL, e.traceIDKey, func(val []byte) error {
+		if len(val) != len(traceID) && !traceID.IsValid() {
+			return fmt.Errorf("stored trace ID is invlaid")
+		}
+		copy(traceID[:], val)
+		return nil
+	})
+	if err != nil {
+		return trace.TraceID{}, err
+	}
 	return traceID, nil
+}
+
+func (e *entryHelper) fetchRequestSpanIDForHTTP(txn *badger.Txn, updateTTL time.Duration) (trace.SpanID, error) {
+	spanID := trace.SpanID{}
+	err := e.fetchID(txn, updateTTL, e.lastSpanIDForHTTPKey, func(val []byte) error {
+		if len(val) != len(spanID) && !spanID.IsValid() {
+			// ignore validation errors as the value is optional
+			return nil
+		}
+		copy(spanID[:], val)
+		return nil
+	})
+	if err != nil {
+		return trace.SpanID{}, err
+	}
+	return spanID, nil
 }
 
 func (tc *TraceCache) storeTraceID(txn *badger.Txn, e *entryHelper, traceID trace.TraceID) error {
@@ -259,6 +309,16 @@ func (tc *TraceCache) storeTraceID(txn *badger.Txn, e *entryHelper, traceID trac
 	}
 	if tc.StoreFlowData {
 		data[e.flowDataKey(0)] = e.flowData.Bytes()
+	}
+	if err := tc.storeKeys(txn, data); err != nil {
+		return fmt.Errorf("unable to store newly generated trace ID: %w", err)
+	}
+	return nil
+}
+
+func (tc *TraceCache) storeRequestSpanIDForHTTP(txn *badger.Txn, e *entryHelper, spanID trace.SpanID) error {
+	data := map[string][]byte{
+		e.lastSpanIDForHTTPKey(0): spanID[:],
 	}
 	if err := tc.storeKeys(txn, data); err != nil {
 		return fmt.Errorf("unable to store newly generated trace ID: %w", err)
@@ -291,12 +351,27 @@ func (tc *TraceCache) GetSpanContext(f *flow.Flow, parseHeaders bool) (*trace.Sp
 	scc := &trace.SpanContextConfig{}
 
 	e.generateSpanID(scc) // always generate new span ID
-
+	requestSpanIDForHTTP := trace.SpanID{}
 	err := tc.badgerDB.Update(func(txn *badger.Txn) error {
 		fetchedTraceID, err := e.fetchTraceID(txn, tc.TraceCacheWindow)
 		if err != nil {
-			return fmt.Errorf("unable to get span/trace ID: %w", err)
+			return fmt.Errorf("unable to get trace ID: %w", err)
 		}
+
+		if e.canLinkHTTP() {
+			if e.isRequest {
+				if err := tc.storeRequestSpanIDForHTTP(txn, e, scc.SpanID); err != nil {
+					return err
+				}
+			}
+			if e.isResponse {
+				requestSpanIDForHTTP, err = e.fetchRequestSpanIDForHTTP(txn, tc.TraceCacheWindow)
+				if err != nil {
+					return fmt.Errorf("unable to get Request span ID: %w", err)
+				}
+			}
+		}
+
 		// when both keys are missing, an empty (i.e. invalid) value is returned
 		if !fetchedTraceID.IsValid() {
 			e.generateTraceID(scc)
@@ -314,6 +389,14 @@ func (tc *TraceCache) GetSpanContext(f *flow.Flow, parseHeaders bool) (*trace.Sp
 	e.spanContext = trace.NewSpanContext(*scc)
 	if e.linkedSpanContext.HasSpanID() && e.linkedSpanContext.HasTraceID() {
 		return &e.spanContext, &e.linkedSpanContext, nil
+	}
+	// link to Request span ID determined by x-request-id header
+	if e.canLinkHTTP() && requestSpanIDForHTTP.IsValid() {
+		requestSpanContextForHTTP := trace.NewSpanContext(trace.SpanContextConfig{
+			TraceID: scc.TraceID,
+			SpanID:  requestSpanIDForHTTP,
+		})
+		return &e.spanContext, &requestSpanContextForHTTP, nil
 	}
 	return &e.spanContext, nil, nil
 }

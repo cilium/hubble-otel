@@ -70,7 +70,7 @@ func TestTraceCache(t *testing.T) {
 	if l, e := len(spans), totalFlows-nonUniqueSpans; l != e {
 		t.Errorf("unexpected number of spans generated (have: %d, expected %d)", l, e)
 	}
-	if l, e := len(linkedSpans), 34; l != e {
+	if l, e := len(linkedSpans), 342; l != e {
 		t.Errorf("unexpected number of parent spans (have: %d, expected %d)", l, e)
 	}
 }
