@@ -289,7 +289,7 @@ kubectl apply -f otelcol-podinfo.yaml
 
 Re-create podinfo pods to add the sidecars:
 ```
-kubectl rollout restart -n podinfo deployment/podinfo
+kubectl rollout restart -n podinfo deployment/podinfo-frontend deployment/podinfo-backend
 ```
 
 Run hey:
