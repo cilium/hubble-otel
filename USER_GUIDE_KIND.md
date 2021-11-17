@@ -361,7 +361,7 @@ If you click on one of 'HTTP POST (request)' traces, then click to expand each o
 
 ![Hubble HTTP trace view](USER_GUIDE_KIND.3-hubble-http-trace.png)
 
-Clicking on '&lt;span in another trace&gt;', will take to the view of span that originated from the SDK instrumentation in the app itself.
+Clicking on '&lt;span in another trace&gt;' will take to the view of the linked span that originated from the SDK instrumentation in the app itself.
 
 If you expand all of the spans, you will see a full trace similar to this:
 
