@@ -13,6 +13,13 @@ to access L7 flow data from each of the nodes, and write traces to Jaeger, as we
 to collect app traces. Second `OpenTelemetryCollector` will deploy upstream OpenTelemetry distribution
 to run as sidecars of the demo app.
 
+The demo app used is [podinfo](https://github.com/stefanprodan/podinfo), it's instrumented using
+OpenTemetry SDK. There is a frontend service as well as backend which are going to be configured
+to echo a simple playload, mimicking a common web app architecture.
+
+Having followed through this guide, you will understand the value of insights into network-level
+events along the side with app-level distributed tracing.
+
 ## Basic setup
 
 Create a 2-node cluster using kind:
@@ -105,6 +112,7 @@ spec:
   mode: daemonset
   image: ghcr.io/cilium/hubble-otel/otelcol:v0.1.0
   env:
+    # set NODE_NAME environment variable using downwards API
     - name: NODE_NAME
       valueFrom:
         fieldRef:
@@ -144,9 +152,18 @@ spec:
           grpc:
             endpoint: 0.0.0.0:55690
       hubble:
+        # NODE_NAME is substituted by the collector at runtime
+        # the `\` prefix is required only in order for this config to be
+        # inlined the guide and make it easy to paste, i.e. to avoid shell
+        # subtitution and preserving '${NODE_NAME}'
         endpoint: \${NODE_NAME}:4244 # unix:///var/run/cilium/hubble.sock
         buffer_size: 100
         include_flow_types:
+          # this sets an L7 flow filter, removing this section will
+          # disable filtering and result all types of flows being turned
+          # into spans;
+          # other type filters can be set, the names are same as what's
+          # used in `hubble observe -t <type>`
           traces: ["l7"]
         tls:
           insecure_skip_verify: true
@@ -159,8 +176,6 @@ spec:
         send_batch_size: 100
 
     exporters:
-      logging:
-        loglevel: debug
       jaeger:
         endpoint: jaeger-default-collector.jaeger.svc.cluster.local:14250
         tls:
@@ -169,18 +184,17 @@ spec:
     service:
       telemetry:
         logs:
-          level: info # debug
+          level: info
       pipelines:
         traces:
           receivers: [hubble, otlp]
           processors: [batch]
           exporters: [jaeger]
-
 EOF
 kubectl apply -f otelcol.yaml
 ```
 
-This configuration will deploy the collector as a DaemonSet, you can see the pods by running:
+This configuration will deploy the collector as a DaemonSet, you can see the collector pods by running:
 ```
 kubectl get pod -n kube-system -l app.kubernetes.io/name=otelcol-hubble-collector
 ```
@@ -334,7 +348,10 @@ curl -H "traceparent: 00-${id:0:32}-${id:32:48}-01" [<flags>...] <url>
 To get some traces in Jaeger, some load does need to be generated, running the above command in a loop should suffice:
 ```
 kubectl -n podinfo exec deployment/podinfo-client -c podinfod -- sh -c 'for i in $(seq 100) ; do \
-   id="$(dd if=/dev/urandom count=24 bs=1 2> /dev/null | xxd -p | head -48)"; header="traceparent: 00-${id:0:32}-${id:32:48}-01"; printf "\n${header}\n"; curl -S -H "${header}" -s -d Hubble+OpenTelemetry=ROCKS http://podinfo-frontend:9898/echo
+   id="$(dd if=/dev/urandom count=24 bs=1 2> /dev/null | xxd -p | head -48)"; \
+   header="traceparent: 00-${id:0:32}-${id:32:48}-01"; \
+   printf "\n${header}\n"; \
+   curl -S -H "${header}" -s -d Hubble+OpenTelemetry=ROCKS http://podinfo-frontend:9898/echo
 done'
 ```
 
@@ -366,3 +383,12 @@ Clicking on '&lt;span in another trace&gt;' will take to the view of the linked 
 If you expand all of the spans, you will see a full trace similar to this:
 
 ![Linked app trace](USER_GUIDE_KIND.4-linked-app-trace.png)
+
+## Next steps
+
+Once you've completed this guide, you can try a few more things:
+
+- explore DNS events in Jaeger by selecting `DNS request (query types: A)` from operations dropdown
+- review `otelcol.yaml`, make sure you understand what it does
+  - if you chance `traces: ["l7"]` to `traces: [ "trace", "l7" ]`, apply the config and restart the collector pods,
+    you will start seeing more detailed network events, such as TCP handshakes
