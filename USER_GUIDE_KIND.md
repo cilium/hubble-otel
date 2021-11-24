@@ -153,7 +153,7 @@ spec:
             endpoint: 0.0.0.0:55690
       hubble:
         # NODE_NAME is substituted by the collector at runtime
-        # the `\` prefix is required only in order for this config to be
+        # the '\' prefix is required only in order for this config to be
         # inlined the guide and make it easy to paste, i.e. to avoid shell
         # subtitution and preserving '${NODE_NAME}'
         endpoint: \${NODE_NAME}:4244 # unix:///var/run/cilium/hubble.sock
@@ -163,7 +163,7 @@ spec:
           # disable filtering and result all types of flows being turned
           # into spans;
           # other type filters can be set, the names are same as what's
-          # used in `hubble observe -t <type>`
+          # used in 'hubble observe -t <type>'
           traces: ["l7"]
         tls:
           insecure_skip_verify: true
