@@ -77,7 +77,7 @@ func newEntry() *entryHelper {
 	}
 }
 
-func (e *entryHelper) checkHeaders(f *flow.Flow) error {
+func (e *entryHelper) processL7(f *flow.Flow, parseAllHeaders bool) error {
 	if f.GetL7() == nil {
 		return nil
 	}
@@ -91,6 +91,15 @@ func (e *entryHelper) checkHeaders(f *flow.Flow) error {
 	}
 	headers := http.GetHeaders()
 	if headers == nil {
+		return nil
+	}
+
+	if !parseAllHeaders {
+		for _, header := range headers {
+			if common.NormaliseHeaderKey(header.Key) == "x-request-id" {
+				e.xRequestID = header.Value
+			}
+		}
 		return nil
 	}
 
@@ -131,10 +140,8 @@ var propagators = propagation.NewCompositeTextMapPropagator(
 )
 
 func (e *entryHelper) processFlowData(log badger.Logger, f *flow.Flow, strict, storeFlowData, parseHeaders bool) error {
-	if parseHeaders {
-		if err := e.checkHeaders(f); err != nil {
-			return err
-		}
+	if err := e.processL7(f, parseHeaders); err != nil {
+		return err
 	}
 
 	kt := e.generateKeys(f)
@@ -183,7 +190,8 @@ func (e *entryHelper) generateTraceID(scc *trace.SpanContextConfig) {
 }
 
 // generateKeys makes up cache keys used for tracking generated trace IDs;
-// these are a combination of IP address, port and Cilium identity
+// these are a combination of IP address, port and Cilium identity as well
+// as x-request-id for HTTP flows
 func (e *entryHelper) generateKeys(f *flow.Flow) keyTuple {
 	var src, dst string
 
@@ -228,6 +236,11 @@ func (e *entryHelper) generateKeys(f *flow.Flow) keyTuple {
 
 	src += "|" + strconv.Itoa(int(f.Source.Identity))
 	dst += "|" + strconv.Itoa(int(f.Destination.Identity))
+
+	if e.xRequestID != "" {
+		src += "|" + e.xRequestID
+		dst += "|" + e.xRequestID
+	}
 
 	return keyTuple{src + "<=>" + dst, dst + "<=>" + src}
 }

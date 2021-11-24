@@ -61,7 +61,7 @@ func TestTraceCache(t *testing.T) {
 
 	t.Logf("%d traces, %d spans", len(traces), len(spans))
 
-	if l, e := len(traces), 4083; l != e {
+	if l, e := len(traces), 4414; l != e {
 		t.Errorf("unexpected number of traces generated (have: %d, expected %d)", l, e)
 	}
 	if l, e := nonUniqueSpans, 0; l != e {
