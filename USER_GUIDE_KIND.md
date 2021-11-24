@@ -110,7 +110,7 @@ metadata:
   namespace: kube-system
 spec:
   mode: daemonset
-  image: ghcr.io/cilium/hubble-otel/otelcol:v0.1.0
+  image: ghcr.io/cilium/hubble-otel/otelcol:v0.1.1
   env:
     # set NODE_NAME environment variable using downwards API
     - name: NODE_NAME
