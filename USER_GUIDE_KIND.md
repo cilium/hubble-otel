@@ -154,8 +154,8 @@ spec:
       hubble:
         # NODE_NAME is substituted by the collector at runtime
         # the '\' prefix is required only in order for this config to be
-        # inlined the guide and make it easy to paste, i.e. to avoid shell
-        # subtitution and preserving '${NODE_NAME}'
+        # inlined in the guide and make it easy to paste, i.e. to avoid
+        # shell subtituting it
         endpoint: \${NODE_NAME}:4244 # unix:///var/run/cilium/hubble.sock
         buffer_size: 100
         include_flow_types:
