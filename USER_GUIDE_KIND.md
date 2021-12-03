@@ -14,7 +14,7 @@ to collect app traces. Second `OpenTelemetryCollector` will deploy upstream Open
 to run as sidecars of the demo app.
 
 The demo app used is [podinfo](https://github.com/stefanprodan/podinfo), it's instrumented using
-OpenTemetry SDK. There is a frontend service as well as backend which are going to be configured
+OpenTelemetry SDK. There is a frontend service as well as backend which are going to be configured
 to echo a simple playload, mimicking a common web app architecture.
 
 Having followed through this guide, you will understand the value of insights into network-level
@@ -46,7 +46,7 @@ EOF
 kind create cluster --config kind-config.yaml
 ```
 
-Install Cilim with Hubble enabled:
+Install Cilium with Hubble enabled:
 ```
 cilium install && cilium hubble enable
 ```
@@ -282,7 +282,7 @@ kubectl apply -f visibility-policies.yaml
 
 The podinfo app is instrumented with OpenTelemetry SDK, one way to export the traces is by using collector sidecar.
 
-Add sidecard config:
+Add sidecar config:
 ```
 cat > otelcol-podinfo.yaml << EOF
 apiVersion: opentelemetry.io/v1alpha1
