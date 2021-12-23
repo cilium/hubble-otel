@@ -14,7 +14,7 @@ to collect app traces. Second `OpenTelemetryCollector` will deploy upstream Open
 to run as sidecars of the demo app.
 
 The demo app used is [podinfo](https://github.com/stefanprodan/podinfo), it's instrumented using
-OpenTelemetry SDK. There is a frontend service as well as backend which are going to be configured
+OpenTelemetry SDK. There is a frontend and backend configured
 to echo a simple playload, mimicking a common web app architecture.
 
 Having followed through this guide, you will understand the value of insights into network-level
