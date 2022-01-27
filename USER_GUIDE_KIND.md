@@ -116,7 +116,7 @@ spec:
     - name: NODE_NAME
       valueFrom:
         fieldRef:
-          fieldPath: spec.nodeName
+          fieldPath: status.hostIP
   volumes:
     # this example connect to Hubble socket of Cilium agent
     # using host port and TLS
