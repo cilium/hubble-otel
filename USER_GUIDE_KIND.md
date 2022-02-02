@@ -112,11 +112,11 @@ spec:
   mode: daemonset
   image: ghcr.io/cilium/hubble-otel/otelcol:v0.1.1
   env:
-    # set NODE_NAME environment variable using downwards API
-    - name: NODE_NAME
+    # set NODE_IP environment variable using downwards API
+    - name: NODE_IP
       valueFrom:
         fieldRef:
-          fieldPath: spec.nodeName
+          fieldPath: status.hostIP
   volumes:
     # this example connect to Hubble socket of Cilium agent
     # using host port and TLS
@@ -152,11 +152,11 @@ spec:
           grpc:
             endpoint: 0.0.0.0:55690
       hubble:
-        # NODE_NAME is substituted by the collector at runtime
+        # NODE_IP is substituted by the collector at runtime
         # the '\' prefix is required only in order for this config to be
         # inlined in the guide and make it easy to paste, i.e. to avoid
         # shell subtituting it
-        endpoint: \${NODE_NAME}:4244 # unix:///var/run/cilium/hubble.sock
+        endpoint: \${NODE_IP}:4244 # unix:///var/run/cilium/hubble.sock
         buffer_size: 100
         include_flow_types:
           # this sets an L7 flow filter, removing this section will
