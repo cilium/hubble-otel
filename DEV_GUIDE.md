@@ -7,10 +7,10 @@ supports log and trace data formats. It maps every flow to a log or a span. Trac
 automatically for related flows, based on source/destination address, port and Cilium identity.
 When an L7 flow contains common trace ID headers, those will be respected.
 
-The functionality is package as a standalone program (see [`main.go`](main.go)) that can speak Hubble
-API as well as OTLP, as well as an receiver for OpenTelemetry collector (see [`receiver/`](receiver)).
+The functionality is packaged as a standalone program (see [`main.go`](main.go)) that can speak Hubble
+API as well as OTLP, as well as a receiver for OpenTelemetry collector (see [`receiver/`](receiver)).
 Eventually it might prove that custom OpenTelemetry collector is the most suitable way of running the
-Hubble adaptor, but at the time of writing prior to the initial release it wasn't abundantly clear.
+Hubble adapter, but at the time of writing prior to the initial release it wasn't abundantly clear.
 
 ## Getting Started
 
