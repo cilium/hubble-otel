@@ -71,6 +71,12 @@ This script will run `mock-hubble` with a set of sample flows from `testdata` di
 as 10x the rate stored in the sample file. The sample file simply contains output of `hubble observe -o json -f`
 and can be updated easily.
 
+To connect to the mock, use `with-mock.yaml` configuration:
+
+```
+./dev-scripts/run-otelcol.sh --config dev-scripts/with-mock.yaml
+```
+
 ## Running `hubble-otel` (standalone)
 
 To start Hubble adaptor in standalone mode against a local collector, run:

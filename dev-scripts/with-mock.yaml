@@ -1,0 +1,24 @@
+receivers:
+  hubble:
+    endpoint: http://localhost:4245 # unix:///var/run/cilium/hubble.sock
+    buffer_size: 10
+    include_flow_types:
+      traces: ["trace"]
+    tls:
+      insecure: true
+
+processors:
+  batch:
+    timeout: 30s
+    send_batch_size: 20
+
+exporters:
+  logging:
+    loglevel: debug
+
+service:
+  pipelines:
+    traces:
+      receivers: [hubble]
+      processors: [batch]
+      exporters: [logging]
